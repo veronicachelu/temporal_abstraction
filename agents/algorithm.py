@@ -94,7 +94,6 @@ class AOCAlgorithm(object):
       self._option_terminated.assign(np.asarray(self._num_agents * [True])),
       self._delib_cost.assign(np.asarray(self._num_agents * [self._config.delib_cost])))
 
-
   def perform(self, observ):
     with tf.name_scope('perform/'):
       # observ = self._observ_filter.transform(observ)
@@ -191,7 +190,6 @@ class AOCAlgorithm(object):
             cell, observ, length, state, tf.float32, swap_memory=True)
 
       return _NetworkOutput(termination, q_val, options, state)
-
 
   def get_policy_over_options(self, network):
     self.probability_of_random_option = self._exploration_options.value(self._step)

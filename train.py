@@ -84,18 +84,29 @@ def train(config, env_processes):
       agents = [config.agent(envs[i], i, global_step, config) for i in range(config.num_agents)]
 
   saver = utility.define_saver(exclude=(r'.*_temporary/.*',))
-  if FLAGS.resume:
-    ckpt = tf.train.get_checkpoint_state(os.path.join(FLAGS.checkpoint_dir, FLAGS.model_name))
-    print("Loading Model from {}".format(ckpt.model_checkpoint_path))
-    saver.restore(sess, ckpt.model_checkpoint_path)
-  else:
-    sess.run(tf.global_variables_initializer())
+  # if FLAGS.resume:
+  #   ckpt = tf.train.get_checkpoint_state(os.path.join(FLAGS.checkpoint_dir, FLAGS.model_name))
+  #   print("Loading Model from {}".format(ckpt.model_checkpoint_path))
+  #   saver.restore(sess, ckpt.model_checkpoint_path)
+  # else:
+  sess.run(tf.global_variables_initializer())
+
+  coord = tf.train.Coordinator()
 
   agent_threads = []
   for agent in agents:
-    thread = threading.Thread(target=(lambda: agent.play(sess, saver)))
+    thread = threading.Thread(target=(lambda: agent.play(sess, coord, saver)))
     thread.start()
     agent_threads.append(thread)
+
+  # while True:
+  #   if FLAGS.show_training:
+  #     for env in envs:
+  #       # time.sleep(1)
+  #       # with main_lock:
+  #       env.render()
+
+  # coord.join(agent_threads)
     # total_steps = int(
     #     config.steps / config.update_every *
     #     (config.update_every + config.eval_episodes))
@@ -117,8 +128,9 @@ def main(_):
   except IOError:
     config = tools.AttrDict(getattr(configs, FLAGS.config)())
     config = utility.save_config(config, logdir)
-  for score in train(config, FLAGS.env_processes):
-    tf.logging.info('Score {}.'.format(score))
+  train(config, FLAGS.env_processes)
+  # for score in train(config, FLAGS.env_processes):
+  #   tf.logging.info('Score {}.'.format(score))
 
 
 if __name__ == '__main__':

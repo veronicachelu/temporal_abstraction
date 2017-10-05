@@ -84,8 +84,8 @@ def aoc():
   nb_options = 2
   update_every = 2
   env = 'Breakout-v4'
-  max_length = 25
-  min_length = 5
+  max_update_freq = 25
+  min_update_freq = 5
   steps = 1e6  # 1M
   explore_steps = 1e5
   final_random_action_prob = 0.05
