@@ -91,6 +91,7 @@ def aoc():
   final_random_action_prob = 0.05
   initial_random_action_prob = 1.0
   delib_cost = 0
+  gradient_clip_value = 50
   return locals()
 
 

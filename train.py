@@ -79,8 +79,7 @@ def train(config, env_processes):
       global_step = tf.Variable(0, dtype=tf.int32, name='global_step', trainable=False)
       envs = [_create_environment(config) for _ in range(config.num_agents)]
       action_size = envs[0].action_space.n
-      global_network = config.network("global", config.conv_layers, config.fc_layers, action_size, config.nb_options,
-                                      config.num_agents)
+      global_network = config.network("global", config, action_size)
       agents = [config.agent(envs[i], i, global_step, config) for i in range(config.num_agents)]
 
   saver = utility.define_saver(exclude=(r'.*_temporary/.*',))

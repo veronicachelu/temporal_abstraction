@@ -24,7 +24,7 @@ import re
 
 import ruamel.yaml as yaml
 import tensorflow as tf
-
+import collections
 
 
 def define_simulation_graph(batch_env, algo_cls, config, sess):
@@ -224,3 +224,67 @@ def set_up_logging():
   """Configure the TensorFlow logger."""
   tf.logging.set_verbosity(tf.logging.INFO)
   logging.getLogger('tensorflow').propagate = False
+
+
+def gradient_summaries(grad_vars, groups=None, scope='gradients'):
+  """Create histogram summaries of the gradient.
+
+  Summaries can be grouped via regexes matching variables names.
+
+  Args:
+    grad_vars: List of (gradient, variable) tuples as returned by optimizers.
+    groups: Mapping of name to regex for grouping summaries.
+    scope: Name scope for this operation.
+
+  Returns:
+    Summary tensor.
+  """
+  groups = groups or {r'all': r'.*'}
+  grouped = collections.defaultdict(list)
+  for grad, var in grad_vars:
+    if grad is None:
+      continue
+    for name, pattern in groups.items():
+      if re.match(pattern, var.name):
+        name = re.sub(pattern, name, var.name)
+        grouped[name].append(grad)
+  for name in groups:
+    if name not in grouped:
+      tf.logging.warn("No variables matching '{}' group.".format(name))
+  summaries = []
+  for name, grads in grouped.items():
+    grads = [tf.reshape(grad, [-1]) for grad in grads]
+    grads = tf.concat(grads, 0)
+    summaries.append(tf.summary.histogram(scope + '/' + name, grads))
+  return tf.summary.merge(summaries)
+
+
+def variable_summaries(vars_, groups=None, scope='weights'):
+  """Create histogram summaries for the provided variables.
+
+  Summaries can be grouped via regexes matching variables names.
+
+  Args:
+    vars_: List of variables to summarize.
+    groups: Mapping of name to regex for grouping summaries.
+    scope: Name scope for this operation.
+
+  Returns:
+    Summary tensor.
+  """
+  groups = groups or {r'all': r'.*'}
+  grouped = collections.defaultdict(list)
+  for var in vars_:
+    for name, pattern in groups.items():
+      if re.match(pattern, var.name):
+        name = re.sub(pattern, name, var.name)
+        grouped[name].append(var)
+  for name in groups:
+    if name not in grouped:
+      tf.logging.warn("No variables matching '{}' group.".format(name))
+  summaries = []
+  for name, vars_ in grouped.items():
+    vars_ = [tf.reshape(var, [-1]) for var in vars_]
+    vars_ = tf.concat(vars_, 0)
+    summaries.append(tf.summary.histogram(scope + '/' + name, vars_))
+  return tf.summary.merge(summaries)
