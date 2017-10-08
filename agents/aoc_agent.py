@@ -13,8 +13,8 @@ class AOCAgent():
     self.thread_id = thread_id
     self.optimizer = config.network_optimizer
     self.global_step = global_step
-    self.model_path = os.path.join(FLAGS.logdir, "models")
-    self.summary_path = os.path.join(FLAGS.logdir, "summaries")
+    self.model_path = os.path.join(config.logdir, "models")
+    self.summary_path = os.path.join(config.logdir, "summaries")
     tf.gfile.MakeDirs(self.model_path)
     tf.gfile.MakeDirs(self.summary_path)
     self.increment_global_step = self.global_step.assign_add(1)

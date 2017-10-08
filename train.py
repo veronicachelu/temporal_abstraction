@@ -23,7 +23,7 @@ def _create_environment(config):
   return env
 
 
-def train(config, env_processes):
+def train(config, env_processes, logdir):
   tf.reset_default_graph()
   sess = tf.Session()
   # sess_config = tf.ConfigProto(allow_soft_placement=True)
@@ -31,6 +31,7 @@ def train(config, env_processes):
   with sess:
     with tf.device("/cpu:0"):
       with config.unlocked:
+        config.logdir = logdir
         config.network_optimizer = getattr(tf.train, config.network_optimizer)
         global_step = tf.Variable(0, dtype=tf.int32, name='global_step', trainable=False)
         envs = [_create_environment(config) for _ in range(config.num_agents)]
@@ -73,7 +74,7 @@ def main(_):
   except IOError:
     config = tools.AttrDict(getattr(configs, FLAGS.config)())
     config = utility.save_config(config, logdir)
-  train(config, FLAGS.env_processes)
+  train(config, FLAGS.env_processes, logdir)
 
 
 if __name__ == '__main__':
