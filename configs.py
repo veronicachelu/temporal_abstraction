@@ -78,6 +78,7 @@ def aoc():
   lr = 0.0007
   # Losses
   discount = 0.99
+  margin_cost = 0
   entropy_coef = 0.01
   critic_coef = 0.5
   clip_gradient_value = 40
@@ -92,6 +93,9 @@ def aoc():
   initial_random_action_prob = 1.0
   delib_cost = 0
   gradient_clip_value = 50
+  summary_interval = 1
+  checkpoint_interval = 1
+  # max_length = 100
   return locals()
 
 
