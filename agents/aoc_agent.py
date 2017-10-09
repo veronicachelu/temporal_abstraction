@@ -67,11 +67,11 @@ class AOCAgent():
       sess.run([self.local_network.apply_grads,
                 self.local_network.merged_summary,
                 self.local_network.image_summaries,
-                tf.reduce_mean(self.local_network.loss),
-                tf.reduce_mean(self.local_network.policy_loss),
-                tf.reduce_mean(self.local_network.entropy_loss),
-                tf.reduce_mean(self.local_network.critic_loss),
-                tf.reduce_mean(self.local_network.term_loss)],
+                self.local_network.loss,
+                self.local_network.policy_loss,
+                self.local_network.entropy_loss,
+                self.local_network.critic_loss,
+                self.local_network.term_loss],
                feed_dict=feed_dict)
     return ms, img_summ, loss, policy_loss, entropy_loss, critic_loss, term_loss
 
