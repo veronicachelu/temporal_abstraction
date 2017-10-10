@@ -63,12 +63,26 @@ def train(config, env_processes, logdir):
       coord.join(agent_threads)
 
 
+def recreate_directory_structure(logdir):
+  if not tf.gfile.Exists(logdir):
+    tf.gfile.MakeDirs(logdir)
+  if not FLAGS.resume and FLAGS.train:
+    tf.gfile.DeleteRecursively(logdir)
+    tf.gfile.MakeDirs(logdir)
+
+
 def main(_):
   utility.set_up_logging()
   if not FLAGS.config:
     raise KeyError('You must specify a configuration.')
+  if FLAGS.logdir and os.path.exists(FLAGS.logdir):
+    run_number = [int(f.split("-")[0]) for f in os.listdir(FLAGS.logdir) if os.path.isdir(os.path.join(FLAGS.logdir, f)) and FLAGS.config in f]
+    run_number = max(run_number) + 1 if len(run_number) > 0 else 0
+  else:
+    run_number = 0
   logdir = FLAGS.logdir and os.path.expanduser(os.path.join(
-    FLAGS.logdir, '{}-{}'.format(FLAGS.timestamp, FLAGS.config)))
+    FLAGS.logdir, '{}-{}'.format(run_number, FLAGS.config)))
+  # recreate_directory_structure(logdir)
   try:
     config = utility.load_config(logdir)
   except IOError:
@@ -94,6 +108,9 @@ if __name__ == '__main__':
   tf.app.flags.DEFINE_boolean(
     'train', True,
     'Training.')
+  tf.app.flags.DEFINE_boolean(
+    'resume', False,
+    'Resume.')
   tf.app.flags.DEFINE_boolean(
     'show_training', False,
     'Show gym envs.')

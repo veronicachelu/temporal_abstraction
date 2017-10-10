@@ -179,7 +179,7 @@ class AOCAgent():
           self.summary.value.add(tag='Perf/QValue', simple_value=float(mean_q_value))
 
           if FLAGS.train:
-            self.summary_writer.add_summary(ms, global_step=self.global_step)
+            self.summary_writer.add_summary(ms, episode_count)
 
           self.summary_writer.add_summary(img_summ, episode_count)
 
