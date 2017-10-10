@@ -73,6 +73,7 @@ class AOCAgent():
                 self.local_network.critic_loss,
                 self.local_network.term_loss],
                feed_dict=feed_dict)
+    sess.run(self.update_local_vars)
     return ms, img_summ, loss, policy_loss, entropy_loss, critic_loss, term_loss
 
   def play(self, sess, coord, saver):
@@ -85,8 +86,8 @@ class AOCAgent():
 
       print("Starting worker " + str(self.thread_id))
 
-      while not coord.should_stop():
-        # while episode_count < self.config.steps:
+      # while not coord.should_stop():
+      while episode_count < self.config.steps:
         sess.run(self.update_local_vars)
         episode_buffer = []
         episode_values = []

@@ -21,6 +21,7 @@ from __future__ import print_function
 # pylint: disable=unused-variable
 
 from agents import AOCAgent
+from env_wrappers import GridWorld
 import networks
 
 
@@ -54,6 +55,7 @@ def default():
   kl_cutoff_factor = 2
   kl_cutoff_coef = 1000
   kl_init_penalty = 1
+  max_length = 100
   return locals()
 
 def aoc():
@@ -84,7 +86,7 @@ def aoc():
   critic_coef = 0.5
 
   nb_options = 8
-  env = 'Breakout-v4'
+  env = lambda: GridWorld("/home/ioana/turi/rl/AOC/mdps/4rooms.mdp")
   max_update_freq = 30
   min_update_freq = 5
   steps = 1e6  # 1M
