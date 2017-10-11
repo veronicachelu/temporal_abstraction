@@ -76,7 +76,9 @@ def aoc():
       policy=r'.*/i_o_policies/.*')
 
   conv_layers = (8, 4, 16), (4, 2, 32)
+  deconv_layers = (4, 2, 0, 128), (4, 2, 1, 64), (4, 2, 0, 32), ()
   fc_layers = 256,
+  sf_layers = 256, 128, 256
   # Optimization
   network_optimizer = 'AdamOptimizer'
   lr = 0.0007

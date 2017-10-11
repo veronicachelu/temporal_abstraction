@@ -178,12 +178,14 @@ class AOCNetwork(tf.contrib.rnn.RNNCell):
       o_terminations = o_terminations > local_random
     return o_terminations
 
+
 class SFNetwork(tf.contrib.rnn.RNNCell):
 
   def __init__(self, scope, config, action_size):
     self._scope = scope
     self._conv_layers = config.conv_layers
     self._fc_layers = config.fc_layers
+    self._sf_layers = config.sf_layers
     self._action_size = action_size
     self._nb_options = config.nb_options
     self._nb_envs = config.num_agents
@@ -224,6 +226,30 @@ class SFNetwork(tf.contrib.rnn.RNNCell):
                                                                     variables_collections=tf.get_collection("variables"),
                                                                     outputs_collections="activations")
           self.summaries.append(tf.contrib.layers.summarize_activation(self.termination))
+
+        with tf.variable_scope("sf"):
+          self.sf = tf.tile(out[..., None], [None, self._fc_layers[-1], self._nb_options], name="sf_tile")
+          self.sf = tf.split(self.sf, num_or_size_splits=self._nb_options, axis=2, name="sf_split")
+          for j in self._nb_options:
+            for i, nb_filt in enumerate(self._sf_layers):
+              self.sf[j] = layers.fully_connected(self.sf[j], num_outputs=nb_filt,
+                                               activation_fn=None,
+                                               variables_collections=tf.get_collection("variables"),
+                                               outputs_collections="activations", scope="sf_fc_{}".format(i))
+              self.sf[j] = layer_norm_fn(self.sf[j], relu=True)
+              self.summaries.append(tf.contrib.layers.summarize_activation(self.sf[j]))
+
+        with tf.variable_scope("instant_r"):
+          self.instant_r = layers.fully_connected(out, num_outputs=1,
+                                                    activation_fn=None,
+                                                    variables_collections=tf.get_collection("variables"),
+                                                    outputs_collections="activations", scope="instant_r_w")
+          self.summaries.append(tf.contrib.layers.summarize_activation(self.instant_r))
+
+        with tf.variable_scope("autoencoder"):
+          self.decoder_input = tf.expand_dims(tf.expand_dims(out, 1), 1)
+          for i, nb_filt in enumerate(self._sf_layers):
+
 
         with tf.variable_scope("q_val"):
           self.q_val = layers.fully_connected(out, num_outputs=self._nb_options,
