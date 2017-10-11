@@ -92,24 +92,24 @@ class AOCNetwork(tf.contrib.rnn.RNNCell):
           self.target_v = tf.placeholder(shape=[None], dtype=tf.float32)
           self.delib = tf.placeholder(shape=[], dtype=tf.float32)
 
-          policy = self.get_intra_option_policy(self.options_placeholder)
-          responsible_outputs = self.get_responsible_outputs(policy, self.actions_placeholder)
+          self.policy = self.get_intra_option_policy(self.options_placeholder)
+          self.responsible_outputs = self.get_responsible_outputs(self.policy, self.actions_placeholder)
           q_val = self.get_q(self.options_placeholder)
           termination = self.get_o_term(self.options_placeholder)
 
           with tf.name_scope('critic_loss'):
             td_error = tf.stop_gradient(self.target_return) - q_val
-            self.critic_loss = tf.reduce_mean(self._config.critic_coef * 0.5 * tf.square((td_error)))
+            self.critic_loss = tf.reduce_mean(self._config.critic_coef * tf.square((td_error)))
           with tf.name_scope('termination_loss'):
             self.term_loss = tf.reduce_mean(termination * (tf.stop_gradient(q_val) - self.target_v + self.delib))
           with tf.name_scope('entropy_loss'):
-            self.entropy_loss = self._config.entropy_coef * tf.reduce_mean(tf.reduce_sum(policy *
-                                                                                           tf.log(policy +
+            self.entropy_loss = -self._config.entropy_coef * tf.reduce_mean(tf.reduce_sum(self.policy *
+                                                                                           tf.log(self.policy +
                                                                                     1e-7), axis=1))
           with tf.name_scope('policy_loss'):
-            self.policy_loss = -tf.reduce_sum(tf.log(responsible_outputs + 1e-7) * td_error)
+            self.policy_loss = -tf.reduce_mean(tf.log(self.responsible_outputs + 1e-7) * td_error)
 
-          self.loss = self.policy_loss + self.entropy_loss + self.critic_loss + self.term_loss
+          self.loss = self.policy_loss - self.entropy_loss + self.critic_loss + self.term_loss
 
           local_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope)
           gradients = tf.gradients(self.loss, local_vars)
@@ -120,12 +120,12 @@ class AOCNetwork(tf.contrib.rnn.RNNCell):
           #   self.summaries.append(tf.summary.histogram(weight.name + '_grad', grad))
           #   self.summaries.append(tf.summary.histogram(weight.name, weight))
 
-          self.merged_summary = tf.summary.merge([tf.summary.scalar('avg_critic_loss', tf.reduce_mean(self.critic_loss)),
-                                                  tf.summary.scalar('avg_termination_loss', tf.reduce_mean(self.term_loss)),
-                                                  tf.summary.scalar('avg_entropy_loss', tf.reduce_mean(self.entropy_loss)),
-                                                  tf.summary.scalar('avg_policy_loss', tf.reduce_mean(self.policy_loss)),
+          self.merged_summary = tf.summary.merge([tf.summary.scalar('avg_critic_loss', self.critic_loss),
+                                                  tf.summary.scalar('avg_termination_loss', self.term_loss),
+                                                  tf.summary.scalar('avg_entropy_loss', self.entropy_loss),
+                                                  tf.summary.scalar('avg_policy_loss', self.policy_loss),
                                                   tf.summary.scalar('gradient_norm', tf.global_norm(gradients)),
-                                                  tf.summary.scalar('cliped_gradient_norm', tf.global_norm(grads)),
+                                                  tf.summary.scalar('cliped_gradient_norm', tf.global_norm(grads),
                                                   gradient_summaries(zip(grads, local_vars))] + self.summaries)
 
           global_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, 'global')
@@ -198,7 +198,7 @@ class SFNetwork(tf.contrib.rnn.RNNCell):
                                    dtype=tf.float32, name="Inputs")
       self.total_steps = tf.placeholder(shape=[], dtype=tf.int32, name="total_steps")
 
-      self.image_summaries = tf.summary.image('input', self.observation, max_outputs=1)
+      self.image_summaries = tf.summary.image('input', self.observation[:, :, 0], max_outputs=10)
       self.summaries = []
       with tf.variable_scope('conv'):
         for i, (kernel_size, stride, nb_kernels) in enumerate(self._conv_layers):
