@@ -40,12 +40,13 @@ def train(config, env_processes, logdir):
         agents = [config.agent(envs[i], i, global_step, config) for i in range(config.num_agents)]
 
       saver = utility.define_saver(exclude=(r'.*_temporary/.*',))
-      # if FLAGS.resume:
-      #   ckpt = tf.train.get_checkpoint_state(os.path.join(FLAGS.checkpoint_dir, FLAGS.model_name))
-      #   print("Loading Model from {}".format(ckpt.model_checkpoint_path))
-      #   saver.restore(sess, ckpt.model_checkpoint_path)
-      # else:
-      sess.run([tf.global_variables_initializer(), tf.local_variables_initializer()])
+      if FLAGS.load_from is not None:
+        ckpt = tf.train.get_checkpoint_state(os.path.join(FLAGS.load_from, "models"))
+        print("Loading Model from {}".format(ckpt.model_checkpoint_path))
+        saver.restore(sess, ckpt.model_checkpoint_path)
+        sess.run(tf.local_variables_initializer())
+      else:
+        sess.run([tf.global_variables_initializer(), tf.local_variables_initializer()])
 
       coord = tf.train.Coordinator()
 
@@ -75,14 +76,17 @@ def main(_):
   utility.set_up_logging()
   if not FLAGS.config:
     raise KeyError('You must specify a configuration.')
-  if FLAGS.logdir and os.path.exists(FLAGS.logdir):
-    run_number = [int(f.split("-")[0]) for f in os.listdir(FLAGS.logdir) if os.path.isdir(os.path.join(FLAGS.logdir, f)) and FLAGS.config in f]
-    run_number = max(run_number) + 1 if len(run_number) > 0 else 0
+  if FLAGS.load_from:
+    logdir = FLAGS.logdir = FLAGS.load_from
   else:
-    run_number = 0
-  logdir = FLAGS.logdir and os.path.expanduser(os.path.join(
-    FLAGS.logdir, '{}-{}'.format(run_number, FLAGS.config)))
-  # recreate_directory_structure(logdir)
+    if FLAGS.logdir and os.path.exists(FLAGS.logdir):
+      run_number = [int(f.split("-")[0]) for f in os.listdir(FLAGS.logdir) if os.path.isdir(os.path.join(FLAGS.logdir, f)) and FLAGS.config in f]
+      run_number = max(run_number) + 1 if len(run_number) > 0 else 0
+    else:
+      run_number = 0
+    logdir = FLAGS.logdir and os.path.expanduser(os.path.join(
+      FLAGS.logdir, '{}-{}'.format(run_number, FLAGS.config)))
+    # recreate_directory_structure(logdir)
   try:
     config = utility.load_config(logdir)
   except IOError:
@@ -114,4 +118,8 @@ if __name__ == '__main__':
   tf.app.flags.DEFINE_boolean(
     'show_training', False,
     'Show gym envs.')
+  tf.app.flags.DEFINE_string(
+    # 'load_from', None,
+    'load_from', "/home/ioana/turi/rl/AOC/logdir/0-aoc",
+    'Load directory to load models from.')
   tf.app.run()

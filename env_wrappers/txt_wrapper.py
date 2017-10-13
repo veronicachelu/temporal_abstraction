@@ -37,7 +37,8 @@ class GridWorld:
 
   def render(self):
     time.sleep(0.1)
-    screen = scipy.misc.imresize(self.pix_state, [200, 200, 3], interp='nearest')
+    s = self.pix_state
+    screen = scipy.misc.imresize(s, [200, 200, 3], interp='nearest')
     screen = Image.fromarray(screen, 'RGB')
     screen = screen.resize((512, 512))
     screen_width = self.win.winfo_screenwidth()
@@ -61,9 +62,9 @@ class GridWorld:
     mdp_screen = np.expand_dims(mdp_screen, 2)
     mdp_screen[mdp_screen == -1] = 255
     mdp_screen = np.tile(mdp_screen, [1, 1, 3])
-    mdp_screen[self.agentX, self.agentY] = [0, 0, 255]
+    mdp_screen[self.agentX, self.agentY] = [0, 255, 0]
     mdp_screen[self.goalX, self.goalY] = [255, 0, 0]
-    self.pix_state = mdp_screen
+    self.pix_state = scipy.misc.imresize(mdp_screen, [200, 200, 3], interp='nearest')
     return self.pix_state
 
   def reset(self):
@@ -205,9 +206,13 @@ if __name__ == '__main__':
   from PIL import Image
   from PIL import ImageTk
   import numpy as np
+  from tools import wrappers
 
   player_rng = np.random.RandomState(0)
   game = GridWorld("/home/ioana/turi/rl/AOC/mdps/4rooms.mdp")
+  game = wrappers.LimitDuration(game, 100)
+  game = wrappers.FrameHistoryGrayscaleResize(game)
+  game = wrappers.ConvertTo32Bit(game)
 
   start = time.time()
   # reward_color = [np.random.uniform(), np.random.uniform(), np.random.uniform()]
@@ -218,9 +223,9 @@ if __name__ == '__main__':
   tot_rw = 0
 
   while True:
-    s1, r, d, _ = game.step(player_rng.choice(4))
+    s, r, d, _ = game.step(player_rng.choice(4))
     step += 1
-    game.render()
+    game.render(s[:, :, 0])
     tot_rw += r
     if d:
       ep += 1

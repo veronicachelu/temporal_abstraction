@@ -28,7 +28,7 @@ import gym
 import gym.spaces
 import numpy as np
 import tensorflow as tf
-
+from PIL import Image
 
 class AutoReset(object):
   """Automatically reset environment when the episode is done."""
@@ -601,11 +601,16 @@ class FrameHistoryGrayscaleResize(object):
     return gym.spaces.Box(low, high)
 
   def get_preprocessed_frame(self, observ):
-    resized_observ = np.resize(observ, [self.resized_width, self.resized_height, 3])
-    luminance_observ = np.dot(resized_observ, [.2126, .7152, .0722])
-    rescaled_observ = luminance_observ / 255
+    img = Image.fromarray(observ)
+    img = img.resize((self.resized_width, self.resized_height))
+    pix = np.array(img).astype(float)
+    pix = np.dot(pix, [.2126, .7152, .0722])
+    pix = pix.astype(float) / 255
 
-    return rescaled_observ
+    # pil_image = Image.fromarray(np.uint8(pix * 255))
+    # pil_image.show()
+
+    return pix
 
   def step(self, action):
     observ, reward, done, info = self._env.step(action)

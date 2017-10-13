@@ -22,6 +22,7 @@ from __future__ import print_function
 
 from agents import AOCAgent
 from env_wrappers import GridWorld
+import functools
 import networks
 
 
@@ -88,7 +89,8 @@ def aoc():
   critic_coef = 0.5
 
   nb_options = 8
-  env = lambda: GridWorld("/home/ioana/turi/rl/AOC/mdps/4rooms.mdp")
+  env = functools.partial(
+    GridWorld, "/home/ioana/turi/rl/AOC/mdps/4rooms.mdp")
   max_update_freq = 30
   min_update_freq = 5
   steps = 1e6  # 1M
@@ -98,9 +100,9 @@ def aoc():
   delib_cost = 0
   margin_cost = 0
   gradient_clip_value = 40
-  summary_interval = 1
-  checkpoint_interval = 1
-  load_from = None
+  summary_interval = 100
+  checkpoint_interval = 100
+
 
   return locals()
 
