@@ -91,6 +91,7 @@ class AOCAgent():
         episode_buffer = []
         episode_values = []
         episode_q_values = []
+        episode_oterm = []
         episode_reward = 0
         d = False
         t = 0
@@ -128,6 +129,7 @@ class AOCAgent():
           episode_values.append(value)
           episode_q_values.append(q_value)
           episode_reward += r
+          episode_oterm.append(o_term)
           t += 1
           s = s1
           t_counter += 1
@@ -154,7 +156,7 @@ class AOCAgent():
               ">>> O_Term: {}".format(episode_count, self.total_steps, t, episode_reward,
                                       np.mean(episode_values[-min(self.config.summary_interval, t):]),
                                       np.mean(episode_q_values[-min(self.config.summary_interval, t):]),
-                                      np.mean(o_term[-min(self.config.summary_interval, t):])))
+                                      np.mean(episode_oterm[-min(self.config.summary_interval, t):])))
         # self.episode_rewards.append(episode_reward)
         # self.episode_lengths.append(t)
         # self.episode_mean_values.append(np.mean(episode_values))
@@ -169,22 +171,23 @@ class AOCAgent():
         if FLAGS.train and self.total_steps % self.config.summary_interval == 0 and self.total_steps != 0 and \
                 self.name == 'worker_0':
 
-          mean_reward = np.mean(self.episode_rewards[-min(self.config.summary_interval, t):])
-          mean_length = np.mean(self.episode_lengths[-min(self.config.summary_interval, t):])
-          mean_value = np.mean(self.episode_mean_values[-min(self.config.summary_interval, t):])
-          mean_q_value = np.mean(self.episode_mean_q_values[-min(self.config.summary_interval, t):])
+          # mean_reward = np.mean(self.episode_rewards[-min(self.config.summary_interval, t):])
+          # mean_length = np.mean(self.episode_lengths[-min(self.config.summary_interval, t):])
+          # mean_value = np.mean(self.episode_mean_values[-min(self.config.summary_interval, t):])
+          # mean_q_value = np.mean(self.episode_mean_q_values[-min(self.config.summary_interval, t):])
 
-          self.summary.value.add(tag='Perf/Reward', simple_value=float(mean_reward))
-          self.summary.value.add(tag='Perf/Length', simple_value=float(mean_length))
-          self.summary.value.add(tag='Perf/Value', simple_value=float(mean_value))
-          self.summary.value.add(tag='Perf/QValue', simple_value=float(mean_q_value))
+          self.summary.value.add(tag='Perf/Reward', simple_value=float(episode_reward))
+          # self.summary.value.add(tag='Perf/Length', simple_value=float(mean_length))
+          self.summary.value.add(tag='Perf/Value', simple_value=float(np.mean(episode_values[-min(self.config.summary_interval, t):])))
+          self.summary.value.add(tag='Perf/QValue', simple_value=float(np.mean(episode_q_values[-min(self.config.summary_interval, t):])))
+          self.summary.value.add(tag='Perf/Oterm', simple_value=float(np.mean(episode_oterm[-min(self.config.summary_interval, t):])))
 
           if FLAGS.train:
-            self.summary_writer.add_summary(ms, episode_count)
+            self.summary_writer.add_summary(ms, self.total_steps)
 
-          self.summary_writer.add_summary(img_summ, episode_count)
+          self.summary_writer.add_summary(img_summ, self.total_steps)
 
-          self.summary_writer.add_summary(self.summary, episode_count)
+          self.summary_writer.add_summary(self.summary, self.total_steps)
           self.summary_writer.flush()
 
         if self.name == 'worker_0':

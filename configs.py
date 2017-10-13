@@ -62,7 +62,8 @@ def default():
 def aoc():
   locals().update(default())
   agent = AOCAgent
-  num_agents = 16
+  # num_agents = 16
+  num_agents = 8
   use_gpu = False
 
   # Network
@@ -88,9 +89,10 @@ def aoc():
   entropy_coef = 0.01
   critic_coef = 0.5
 
+  # nb_options = 8
   nb_options = 8
   env = functools.partial(
-    GridWorld, "/home/ioana/turi/rl/AOC/mdps/4rooms.mdp")
+    GridWorld, "./mdps/4rooms.mdp")
   max_update_freq = 30
   min_update_freq = 5
   steps = 1e6  # 1M
