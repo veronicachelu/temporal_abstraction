@@ -98,8 +98,8 @@ class AOCNetwork(tf.contrib.rnn.RNNCell):
           termination = self.get_o_term(self.options_placeholder)
 
           with tf.name_scope('critic_loss'):
-            td_error = tf.stop_gradient(self.target_return) - q_val
-            self.critic_loss = tf.reduce_mean(self._config.critic_coef * 0.5 * tf.square((td_error)))
+            td_error = self.target_return - q_val
+            self.critic_loss = tf.reduce_mean(self._config.critic_coef * tf.square(td_error))
           with tf.name_scope('termination_loss'):
             self.term_loss = tf.reduce_mean(termination * (tf.stop_gradient(q_val) - self.target_v + self.delib))
           with tf.name_scope('entropy_loss'):
@@ -107,7 +107,7 @@ class AOCNetwork(tf.contrib.rnn.RNNCell):
                                                                                            tf.log(policy +
                                                                                     1e-7), axis=1))
           with tf.name_scope('policy_loss'):
-            self.policy_loss = -tf.reduce_sum(tf.log(responsible_outputs + 1e-7) * td_error)
+            self.policy_loss = -tf.reduce_sum(tf.log(responsible_outputs + 1e-7) * tf.stop_gradient(td_error))
 
           self.loss = self.policy_loss + self.entropy_loss + self.critic_loss + self.term_loss
 
@@ -238,6 +238,7 @@ class SFNetwork(tf.contrib.rnn.RNNCell):
                                                outputs_collections="activations", scope="sf_fc_{}".format(i))
               self.sf[j] = layer_norm_fn(self.sf[j], relu=True)
               self.summaries.append(tf.contrib.layers.summarize_activation(self.sf[j]))
+          self.sf = tf.stack(self.sf, 2)
 
         with tf.variable_scope("instant_r"):
           self.instant_r = layers.fully_connected(out, num_outputs=1,
@@ -247,27 +248,30 @@ class SFNetwork(tf.contrib.rnn.RNNCell):
           self.summaries.append(tf.contrib.layers.summarize_activation(self.instant_r))
 
         with tf.variable_scope("autoencoder"):
-          self.decoder_input = tf.expand_dims(tf.expand_dims(out, 1), 1)
-          for i, nb_filt in enumerate(self._sf_layers):
-
+          decoder_out = tf.expand_dims(tf.expand_dims(out, 1), 1)
+          for i, (kernel_size, stride, padding, nb_kernels) in enumerate(self._sf_layers):
+            decoder_out = layers.conv2d_transpose(decoder_out, num_outputs=nb_kernels, kernel_size=kernel_size,
+                              stride=stride, activation_fn=tf.nn.relu, padding="same" if padding > 0 else "valid",
+                              variables_collections=tf.get_collection("variables"),
+                              outputs_collections="activations", scope="deconv_{}".format(i))
+          self.summaries.append(tf.contrib.layers.summarize_activation(decoder_out))
 
         with tf.variable_scope("q_val"):
-          self.q_val = layers.fully_connected(out, num_outputs=self._nb_options,
-                                                      activation_fn=None,
-                                                      variables_collections=tf.get_collection("variables"),
-                                                      outputs_collections="activations")
+          w_r = tf.get_tensor_by_name("instant_r/instant_r_w:0")
+          w_r = tf.tile(w_r, [None, self._fc_layers[-1], self._nb_options])
+          self.q_val = tf.reduce_sum(self.sf * w_r, 1)
           self.summaries.append(tf.contrib.layers.summarize_activation(self.q_val))
 
-          max_options = tf.cast(tf.argmax(self.q_val, 1), dtype=tf.int32)
-          exp_options = tf.random_uniform(shape=[1], minval=0, maxval=self._config.nb_options,
-                                          dtype=tf.int32)
-          local_random = tf.random_uniform(shape=[1], minval=0., maxval=1., dtype=tf.float32,
-                                           name="rand_options")
-          probability_of_random_option = self._exploration_options.value(self.total_steps)
-          condition = local_random > tf.tile(probability_of_random_option[None, ...], [1])
-          self.current_option = tf.where(condition, max_options, exp_options)
-          self.v = tf.reduce_max(self.q_val, axis=1) * (1 - probability_of_random_option) + \
-              probability_of_random_option * tf.reduce_mean(self.q_val, axis=1)
+        max_options = tf.cast(tf.argmax(self.q_val, 1), dtype=tf.int32)
+        exp_options = tf.random_uniform(shape=[1], minval=0, maxval=self._config.nb_options,
+                                        dtype=tf.int32)
+        local_random = tf.random_uniform(shape=[1], minval=0., maxval=1., dtype=tf.float32,
+                                         name="rand_options")
+        probability_of_random_option = self._exploration_options.value(self.total_steps)
+        condition = local_random > tf.tile(probability_of_random_option[None, ...], [1])
+        self.current_option = tf.where(condition, max_options, exp_options)
+        self.v = tf.reduce_max(self.q_val, axis=1) * (1 - probability_of_random_option) + \
+            probability_of_random_option * tf.reduce_mean(self.q_val, axis=1)
 
         with tf.variable_scope("i_o_policies"):
           self.options = []
@@ -284,18 +288,27 @@ class SFNetwork(tf.contrib.rnn.RNNCell):
         if scope != 'global':
           self.actions_placeholder = tf.placeholder(shape=[None], dtype=tf.int32, name="Actions")
           self.options_placeholder = tf.placeholder(shape=[None], dtype=tf.int32, name="Options")
-          self.target_return = tf.placeholder(shape=[None], dtype=tf.float32)
+          self.target_sf = tf.placeholder(shape=[None], dtype=tf.float32)
+          self.target_sf = tf.placeholder(shape=[None], dtype=tf.float32)
           self.target_v = tf.placeholder(shape=[None], dtype=tf.float32)
           self.delib = tf.placeholder(shape=[], dtype=tf.float32)
 
           policy = self.get_intra_option_policy(self.options_placeholder)
           responsible_outputs = self.get_responsible_outputs(policy, self.actions_placeholder)
+          sf_o = self.get_sf(self.options_placeholder)
           q_val = self.get_q(self.options_placeholder)
           termination = self.get_o_term(self.options_placeholder)
 
-          with tf.name_scope('critic_loss'):
-            td_error = tf.stop_gradient(self.target_return) - q_val
-            self.critic_loss = tf.reduce_mean(self._config.critic_coef * 0.5 * tf.square((td_error)))
+          with tf.name_scope('sf_loss'):
+            sf_td_error = self.target_sf - sf_o
+            self.sf_loss = tf.reduce_mean(self._config.sf_coef * tf.square(sf_td_error))
+          with tf.name_scope('instant_r_loss'):
+            instant_r_error = self.target_r - self.instant_r
+            self.instant_r_loss = tf.reduce_mean(self._config.instant_r_coef * tf.square(instant_r_error))
+          with tf.name_scope('autoencoder_loss'):
+            auto_error = decoder_out - self.observation
+            self.auto_loss = tf.reduce_mean(self._config.auto_coef * tf.square(auto_error))
+
           with tf.name_scope('termination_loss'):
             self.term_loss = tf.reduce_mean(termination * (tf.stop_gradient(q_val) - self.target_v + self.delib))
           with tf.name_scope('entropy_loss'):
@@ -303,6 +316,7 @@ class SFNetwork(tf.contrib.rnn.RNNCell):
                                                                                            tf.log(policy +
                                                                                     1e-7), axis=1))
           with tf.name_scope('policy_loss'):
+            td_error = self.target_return - tf.stop_gradient(q_val)
             self.policy_loss = -tf.reduce_sum(tf.log(responsible_outputs + 1e-7) * td_error)
 
           self.loss = self.policy_loss + self.entropy_loss + self.critic_loss + self.term_loss
