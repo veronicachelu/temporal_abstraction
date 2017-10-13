@@ -105,21 +105,18 @@ class AOCAgent():
 
         feed_dict = {self.local_network.observation: np.stack([s]),
                      self.local_network.total_steps: self.total_steps}
-        option = sess.run([self.local_network.current_option], feed_dict=feed_dict)[0]
+        option = sess.run([self.local_network.current_option], feed_dict=feed_dict)[0][0]
         while not d:
           feed_dict = {self.local_network.observation: np.stack([s]),
                        self.local_network.total_steps: self.total_steps}
-          try:
-            options, value, q_value, o_term = sess.run([self.local_network.options, self.local_network.v,
-                                                        self.local_network.q_val, self.local_network.termination], feed_dict=feed_dict)
-            o_term = o_term[0, option] > np.random.uniform()
-            q_value = q_value[0, option]
-            value = value[0]
-            pi = options[0, option]
-            action= np.random.choice(pi[0], p=pi[0])
-            action = np.argmax(pi == action)
-          except:
-            print("dadsad")
+          options, value, q_value, o_term = sess.run([self.local_network.options, self.local_network.v,
+                                                      self.local_network.q_val, self.local_network.termination], feed_dict=feed_dict)
+          o_term = o_term[0, option] > np.random.uniform()
+          q_value = q_value[0, option]
+          value = value[0]
+          pi = options[0, option]
+          action= np.random.choice(pi, p=pi)
+          action = np.argmax(pi == action)
           s1, r, d, _ = self.env.step(action)
 
           r = np.clip(r, -1, 1)
@@ -151,29 +148,31 @@ class AOCAgent():
             if o_term:
               feed_dict = {self.local_network.observation: np.stack([s]),
                            self.local_network.total_steps: self.total_steps}
-              option = sess.run([self.local_network.current_option], feed_dict=feed_dict)[0]
+              option = sess.run([self.local_network.current_option], feed_dict=feed_dict)[0][0]
 
         print("Episode {} >>> Step {} >>> Length: {} >>> Reward: {} >>> Mean Value: {} >>> Mean Q_Value: {} "
               ">>> O_Term: {}".format(episode_count, self.total_steps, t, episode_reward,
-                                      np.mean(episode_values), np.mean(episode_q_values), o_term))
-        self.episode_rewards.append(episode_reward)
-        self.episode_lengths.append(t)
-        self.episode_mean_values.append(np.mean(episode_values))
-        self.episode_mean_q_values.append(np.mean(episode_q_values))
+                                      np.mean(episode_values[-min(self.config.summary_interval, t):]),
+                                      np.mean(episode_q_values[-min(self.config.summary_interval, t):]),
+                                      np.mean(o_term[-min(self.config.summary_interval, t):])))
+        # self.episode_rewards.append(episode_reward)
+        # self.episode_lengths.append(t)
+        # self.episode_mean_values.append(np.mean(episode_values))
+        # self.episode_mean_q_values.append(np.mean(episode_q_values))
 
-        if episode_count % self.config.checkpoint_interval == 0 and self.name == 'worker_0' and FLAGS.train == True and \
-                episode_count != 0:
-          saver.save(sess, self.model_path + '/model-' + str(episode_count) + '.cptk',
+        if self.total_steps % self.config.checkpoint_interval == 0 and self.name == 'worker_0' and FLAGS.train == True and \
+                self.total_steps != 0:
+          saver.save(sess, self.model_path + '/model-' + str(self.total_steps) + '.cptk',
                      global_step=self.global_step)
-          print("Saved Model at {}".format(self.model_path + '/model-' + str(episode_count) + '.cptk'))
+          print("Saved Model at {}".format(self.model_path + '/model-' + str(self.total_steps) + '.cptk'))
 
-        if FLAGS.train and episode_count % self.config.summary_interval == 0 and episode_count != 0 and \
+        if FLAGS.train and self.total_steps % self.config.summary_interval == 0 and self.total_steps != 0 and \
                 self.name == 'worker_0':
 
-          mean_reward = np.mean(self.episode_rewards[-self.config.summary_interval:])
-          mean_length = np.mean(self.episode_lengths[-self.config.summary_interval:])
-          mean_value = np.mean(self.episode_mean_values[-self.config.summary_interval:])
-          mean_q_value = np.mean(self.episode_mean_q_values[-self.config.summary_interval:])
+          mean_reward = np.mean(self.episode_rewards[-min(self.config.summary_interval, t):])
+          mean_length = np.mean(self.episode_lengths[-min(self.config.summary_interval, t):])
+          mean_value = np.mean(self.episode_mean_values[-min(self.config.summary_interval, t):])
+          mean_q_value = np.mean(self.episode_mean_q_values[-min(self.config.summary_interval, t):])
 
           self.summary.value.add(tag='Perf/Reward', simple_value=float(mean_reward))
           self.summary.value.add(tag='Perf/Length', simple_value=float(mean_length))

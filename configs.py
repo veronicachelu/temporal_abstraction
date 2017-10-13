@@ -100,8 +100,8 @@ def aoc():
   delib_cost = 0
   margin_cost = 0
   gradient_clip_value = 40
-  summary_interval = 1
-  checkpoint_interval = 1
+  summary_interval = 100
+  checkpoint_interval = 100
 
 
   return locals()

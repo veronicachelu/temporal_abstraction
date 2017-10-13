@@ -28,7 +28,7 @@ class AOCNetwork(tf.contrib.rnn.RNNCell):
                                    dtype=tf.float32, name="Inputs")
       self.total_steps = tf.placeholder(shape=[], dtype=tf.int32, name="total_steps")
 
-      self.image_summaries = tf.summary.image('input', self.observation, max_outputs=1)
+      self.image_summaries = tf.summary.image('input', self.observation[:, :, :, 0:1] * 255, max_outputs=30)
       self.summaries = []
       with tf.variable_scope('conv'):
         for i, (kernel_size, stride, nb_kernels) in enumerate(self._conv_layers):
@@ -125,7 +125,7 @@ class AOCNetwork(tf.contrib.rnn.RNNCell):
                                                   tf.summary.scalar('avg_entropy_loss', self.entropy_loss),
                                                   tf.summary.scalar('avg_policy_loss', self.policy_loss),
                                                   tf.summary.scalar('gradient_norm', tf.global_norm(gradients)),
-                                                  tf.summary.scalar('cliped_gradient_norm', tf.global_norm(grads),
+                                                  tf.summary.scalar('cliped_gradient_norm', tf.global_norm(grads)),
                                                   gradient_summaries(zip(grads, local_vars))] + self.summaries)
 
           global_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, 'global')
@@ -200,7 +200,7 @@ class SFNetwork(tf.contrib.rnn.RNNCell):
                                    dtype=tf.float32, name="Inputs")
       self.total_steps = tf.placeholder(shape=[], dtype=tf.int32, name="total_steps")
 
-      self.image_summaries = tf.summary.image('input', self.observation[:, :, 0], max_outputs=10)
+      self.image_summaries = tf.summary.image('input', self.observation[:, :, :, 0] * 255, max_outputs=10)
       self.summaries = []
       with tf.variable_scope('conv'):
         for i, (kernel_size, stride, nb_kernels) in enumerate(self._conv_layers):
@@ -246,9 +246,9 @@ class SFNetwork(tf.contrib.rnn.RNNCell):
                                                     outputs_collections="activations", scope="instant_r_w")
           self.summaries.append(tf.contrib.layers.summarize_activation(self.instant_r))
 
-        with tf.variable_scope("autoencoder"):
-          self.decoder_input = tf.expand_dims(tf.expand_dims(out, 1), 1)
-          for i, nb_filt in enumerate(self._sf_layers):
+        # with tf.variable_scope("autoencoder"):
+        #   self.decoder_input = tf.expand_dims(tf.expand_dims(out, 1), 1)
+        #   for i, nb_filt in enumerate(self._sf_layers):
 
 
         with tf.variable_scope("q_val"):
