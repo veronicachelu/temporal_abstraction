@@ -92,6 +92,7 @@ class AOCAgent():
         episode_values = []
         episode_q_values = []
         episode_oterm = []
+        episode_returns = []
         episode_reward = 0
         d = False
         t = 0
@@ -99,6 +100,7 @@ class AOCAgent():
         o_t = True
         self.delib = self.config.delib_cost
         self.frame_counter = 0
+        R = 0
 
         s = self.env.reset()
         # pil_image = Image.fromarray(np.uint8(s[:, :, 0] * 255))
@@ -139,12 +141,14 @@ class AOCAgent():
             delib_cost = self.delib * float(self.frame_counter > 1)
             value = value - delib_cost if o_term else q_value
             R = 0 if d else value
+
             ms, img_summ, loss, policy_loss, entropy_loss, critic_loss, term_loss = self.train(episode_buffer, sess, R)
             #print("Timestep {} >>> Ep_done {} >>> Option_Term {} >>> t_counter {} >>> loss {} >>> policy_loss {} >>> "
             #      "entropy_loss {} >>> critic_loss {} >>> term_loss {}".format(t, d, o_term, t_counter, loss,
             #                                                                   policy_loss, entropy_loss, critic_loss,
             #                                                                   term_loss))
             t_counter = 0
+          episode_returns.append(R)
           if not d:
             self.delib = self.config.delib_cost
             if o_term:
@@ -153,10 +157,11 @@ class AOCAgent():
               option = sess.run([self.local_network.current_option], feed_dict=feed_dict)[0][0]
 
         print("Episode {} >>> Step {} >>> Length: {} >>> Reward: {} >>> Mean Value: {} >>> Mean Q_Value: {} "
-              ">>> O_Term: {}".format(episode_count, self.total_steps, t, episode_reward,
+              ">>> O_Term: {} >>> Return {}".format(episode_count, self.total_steps, t, episode_reward,
                                       np.mean(episode_values[-min(self.config.summary_interval, t):]),
                                       np.mean(episode_q_values[-min(self.config.summary_interval, t):]),
-                                      np.mean(episode_oterm[-min(self.config.summary_interval, t):])))
+                                      np.mean(episode_oterm[-min(self.config.summary_interval, t):]),
+                                      np.mean(episode_returns[-min(self.config.summary_interval, t):])))
         # self.episode_rewards.append(episode_reward)
         # self.episode_lengths.append(t)
         # self.episode_mean_values.append(np.mean(episode_values))
@@ -180,6 +185,7 @@ class AOCAgent():
           # self.summary.value.add(tag='Perf/Length', simple_value=float(mean_length))
           self.summary.value.add(tag='Perf/Value', simple_value=float(np.mean(episode_values[-min(self.config.summary_interval, t):])))
           self.summary.value.add(tag='Perf/QValue', simple_value=float(np.mean(episode_q_values[-min(self.config.summary_interval, t):])))
+          self.summary.value.add(tag='Perf/Return', simple_value=float(np.mean(episode_returns[-min(self.config.summary_interval, t):])))
           self.summary.value.add(tag='Perf/Oterm', simple_value=float(np.mean(episode_oterm[-min(self.config.summary_interval, t):])))
 
           if FLAGS.train:
