@@ -199,7 +199,8 @@ class AOCAgent():
         self.episode_mean_returns.append(np.mean(episode_returns))
         self.episode_mean_oterms.append(np.mean(episode_oterm))
 
-        if episode_count % self.config.eval_interval == 0:
+        if FLAGS.train and episode_count % self.config.eval_interval == 0 and episode_count != 0 and \
+                self.name == 'worker_0':
           eval_reward = self.evaluate_agent(sess)
           self.summary.value.add(tag='Perf/EvalReward', simple_value=float(eval_reward))
           self.summary_writer.add_summary(self.summary, self.total_steps)
