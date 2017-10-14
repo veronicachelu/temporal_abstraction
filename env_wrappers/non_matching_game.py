@@ -75,20 +75,20 @@ class Gridworld_NonMatching():
 
   def reset(self):
     if self.deterministic:
-      apple_color = [0, 1, 0]
+      apple_color = [0, 255, 0]
     else:
       while True:
         apple_color = [np.random.uniform(), np.random.uniform(), np.random.uniform()]
-        if apple_color != [0, 0, 1] and apple_color[0] != [1, 1, 0] and apple_color != [1, 1, 1] and apple_color != [0,
+        if apple_color != [0, 0, 255] and apple_color[0] != [255, 255, 0] and apple_color != [255, 255, 255] and apple_color != [0,
                                                                                                                      0,
                                                                                                                      0]:
           break
     self.choice_first_room = np.random.choice(2, 1)
     self.objects = []
     self.apple_color = apple_color
-    self.orange_color = [1 - a for a in self.apple_color]
+    self.orange_color = [255 - a for a in self.apple_color]
     self.orientation = 0
-    self.hero = gameOb(self.newPosition(0), 1, [0, 0, 1], None, 'hero')
+    self.hero = gameOb(self.newPosition(0), 1, [0, 0, 255], None, 'hero')
     self.objects.append(self.hero)
     # for i in range(self.nb_apples):
     #     apple = gameOb(self.newPosition(0), 1, self.apple_color, 1, 'apple')
@@ -96,7 +96,7 @@ class Gridworld_NonMatching():
     # for i in range(self.nb_oranges):
     #     orange = gameOb(self.newPosition(0), 1, self.orange_color, self.orange_reward, 'orange')
     #     self.objects.append(orange)
-    self.teleporter = gameOb(self.newPosition(0), 1, [1, 1, 1], 0.1, 'teleporter')
+    self.teleporter = gameOb(self.newPosition(0), 1, [255, 255, 255], 0.1, 'teleporter')
     self.objects.append(self.teleporter)
     if self.choice_first_room[0]:
       obj = gameOb(self.newPosition(0), 1, self.apple_color, 0, 'apple')
@@ -113,7 +113,7 @@ class Gridworld_NonMatching():
 
     # return state, None, None, {"goal": (zagoal.y, zagoal.x), "hero": (self.hero.y, self.hero.x), "grid": (self.sizeY, self.sizeX)}
     self.first_room = True
-    return state * 255
+    return state
 
   def moveChar(self, action):
     # 0 - up, 1 - down, 2 - left, 3 - right, 4 - 90 counter-clockwise, 5 - 90 clockwise
@@ -213,25 +213,26 @@ class Gridworld_NonMatching():
           return fruit.reward, True
     return 0.0, False
 
-  def render(self):
+  def render(self, state):
 
-    time.sleep(0.1)
+    # time.sleep(1)
 
-    state, state_big = self.renderEnv()
+    # state, state_big = self.renderEnv()
     #
-    # screen = Image.fromarray(state_big, 'RGB')
+    # screen = Image.fromarray(state*255)
     # screen = screen.resize((512, 512))
-    #
-    # self.win.geometry('%dx%d' % (screen.size[0], screen.size[1]))
-    #
-    # tkpi = ImageTk.PhotoImage(screen)
-    # label_img = tkinter.Label(self.win, image=tkpi)
-    # label_img.place(x=0, y=0,
-    #                 width=screen.size[0], height=screen.size[1])
-    #
-    # # self.win.mainloop()            # wait until user clicks the window
-    # self.win.update_idletasks()
-    # self.win.update()
+    screen = Image.fromarray(scipy.misc.imresize(state*255, [512, 512, 1], interp='nearest'))
+
+    self.win.geometry('%dx%d' % (512, 512))
+
+    tkpi = ImageTk.PhotoImage(screen)
+    label_img = tkinter.Label(self.win, image=tkpi)
+    label_img.place(x=0, y=0,
+                    width=512, height=512)
+
+    # self.win.mainloop()            # wait until user clicks the window
+    self.win.update_idletasks()
+    self.win.update()
 
     # import matplotlib.pyplot as plt
     # pil_image = Image.fromarray(state_big)
@@ -288,13 +289,52 @@ class Gridworld_NonMatching():
       print(reward)
       print(penalty)
       if done:
-        return state*255, (reward + penalty), done, {}
-      return state*255, (reward + penalty), done, {"goal": (zagoal.y, zagoal.x), "hero": (self.hero.y, self.hero.x),
+        return state, (reward + penalty), done, {}
+      return state, (reward + penalty), done, {"goal": (zagoal.y, zagoal.x), "hero": (self.hero.y, self.hero.x),
                                                "grid": (self.sizeY, self.sizeX)}
     else:
 
       if done:
-        return state*255, (reward + penalty), done, {}
+        return state, (reward + penalty), done, {}
       # return state, s_big, (reward + penalty), done, [self.objects[0].y, self.objects[0].x] + [goal.y, goal.x]
-      return state*255, (reward + penalty), done, {"goal": (zagoal.y, zagoal.x), "hero": (self.hero.y, self.hero.x),
+      return state, (reward + penalty), done, {"goal": (zagoal.y, zagoal.x), "hero": (self.hero.y, self.hero.x),
                                                       "grid": (self.sizeY, self.sizeX)}
+
+
+
+if __name__ == '__main__':
+
+  import time
+  import tkinter
+  from PIL import Image
+  from PIL import ImageTk
+  import numpy as np
+  from tools import wrappers
+
+  player_rng = np.random.RandomState(0)
+  game = Gridworld_NonMatching()
+  game = wrappers.LimitDuration(game, 100)
+  game = wrappers.FrameHistoryGrayscaleResize(game, 5)
+  # game = wrappers.ConvertTo32Bit(game)
+
+  start = time.time()
+  # reward_color = [np.random.uniform(), np.random.uniform(), np.random.uniform()]
+  # reward_color = [1,0,0]
+  s = game.reset()
+  ep = 0
+  step = 0
+  tot_rw = 0
+
+  while True:
+    a = player_rng.choice(4)
+    print("action is {}".format(a))
+    s, r, d, _ = game.step(a)
+    step += 1
+    game.render(s[:, :, 0])
+    tot_rw += r
+    if d:
+      ep += 1
+      s = game.reset()
+
+  print("Finished %d episodes in %d steps in %.2f. Total reward: %d.",
+        (ep, step, time.time() - start, tot_rw))

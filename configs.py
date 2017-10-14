@@ -101,7 +101,7 @@ def aoc():
   max_update_freq = 30
   min_update_freq = 5
   steps = 1e6  # 1M
-  explore_steps = 1e4
+  explore_steps = 1
   final_random_action_prob = 0.1
   initial_random_action_prob = 1.0
   delib_cost = 0
