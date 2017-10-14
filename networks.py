@@ -52,14 +52,14 @@ class AOCNetwork(tf.contrib.rnn.RNNCell):
           self.termination = layers.fully_connected(out, num_outputs=self._nb_options,
                                                                     activation_fn=tf.nn.sigmoid,
                                                                     variables_collections=tf.get_collection("variables"),
-                                                                    outputs_collections="activations")
+                                                                    outputs_collections="activations", scope="fc_option_term")
           self.summaries.append(tf.contrib.layers.summarize_activation(self.termination))
 
         with tf.variable_scope("q_val"):
           self.q_val = layers.fully_connected(out, num_outputs=self._nb_options,
                                                       activation_fn=None,
                                                       variables_collections=tf.get_collection("variables"),
-                                                      outputs_collections="activations")
+                                                      outputs_collections="activations", scope="fc_q_val")
           self.summaries.append(tf.contrib.layers.summarize_activation(self.q_val))
 
           max_options = tf.cast(tf.argmax(self.q_val, 1), dtype=tf.int32)
@@ -75,11 +75,11 @@ class AOCNetwork(tf.contrib.rnn.RNNCell):
 
         with tf.variable_scope("i_o_policies"):
           self.options = []
-          for _ in range(self._nb_options):
+          for i in range(self._nb_options):
             option = layers.fully_connected(out, num_outputs=self._action_size,
                                                 activation_fn=tf.nn.softmax,
                                                 variables_collections=tf.get_collection("variables"),
-                                                outputs_collections="activations")
+                                                outputs_collections="activations", scope="option_{}".format(i))
 
             self.summaries.append(tf.contrib.layers.summarize_activation(option))
             self.options.append(option)

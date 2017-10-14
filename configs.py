@@ -82,7 +82,7 @@ def aoc():
   conv_layers = (5, 2, 32),
   deconv_layers = (4, 2, 0, 128), (4, 2, 1, 64), (4, 2, 0, 32), ()
   # fc_layers = 256,
-  fc_layers = 32,
+  fc_layers = 128,
   sf_layers = 256, 128, 256
   # Optimization
   network_optimizer = 'AdamOptimizer'
