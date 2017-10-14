@@ -169,6 +169,13 @@ class AOCAgent():
           option_term = (o_term and t_counter >= self.config.min_update_freq)
           if t_counter == self.config.max_update_freq or d or option_term:
             delib_cost = self.delib * float(self.frame_counter > 1)
+            feed_dict = {self.local_network.observation: np.stack([s]),
+                         self.local_network.total_steps: self.total_steps}
+            value, q_value = sess.run([self.local_network.v, self.local_network.q_val],
+                                                       feed_dict=feed_dict)
+            q_value = q_value[0, option]
+            value = value[0]
+
             value = value - delib_cost if o_term else q_value
             R = 0 if d else value
 
@@ -177,6 +184,7 @@ class AOCAgent():
             #      "entropy_loss {} >>> critic_loss {} >>> term_loss {}".format(t, d, o_term, t_counter, loss,
             #                                                                   policy_loss, entropy_loss, critic_loss,
             #                                                                   term_loss))
+            episode_buffer = []
             t_counter = 0
           episode_returns.append(R)
           if not d:
