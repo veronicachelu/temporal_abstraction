@@ -42,6 +42,32 @@ class AOCAgent():
     self.update_local_vars = update_target_graph('global', self.name)
     self.env = game
 
+  def evaluate_agent(self, sess):
+    episode_reward = 0
+    s = self.env.reset()
+    feed_dict = {self.local_network.observation: np.stack([s]),
+                 self.local_network.total_steps: self.total_steps}
+    option = sess.run([self.local_network.current_option], feed_dict=feed_dict)[0][0]
+    d = False
+    while not d:
+      feed_dict = {self.local_network.observation: np.stack([s]),
+                   self.local_network.total_steps: self.total_steps}
+      options, o_term = sess.run([self.local_network.options, self.local_network.termination], feed_dict=feed_dict)
+      o_term = o_term[0, option] > np.random.uniform()
+      pi = options[0, option]
+      action = np.random.choice(pi, p=pi)
+      action = np.argmax(pi == action)
+      s1, r, d, _ = self.env.step(action)
+
+      r = np.clip(r, -1, 1)
+      episode_reward += r
+
+      if not d and o_term:
+          feed_dict = {self.local_network.observation: np.stack([s]),
+                       self.local_network.total_steps: self.total_steps}
+          option = sess.run([self.local_network.current_option], feed_dict=feed_dict)[0][0]
+    return episode_reward
+
   def train(self, rollout, sess, bootstrap_value, summaries=False):
     rollout = np.array(rollout)
     observations = rollout[:, 0]
@@ -81,6 +107,8 @@ class AOCAgent():
     with sess.as_default(), sess.graph.as_default():
       episode_count = sess.run(self.global_step)
       self.total_steps = sess.run(self.total_steps_tensor)
+
+      eval_reward = 0
       # if not FLAGS.train:
       #     test_episode_count = 0
       # self.total_steps.assign(tf.zeros_like(self.total_steps))
@@ -171,6 +199,12 @@ class AOCAgent():
         self.episode_mean_returns.append(np.mean(episode_returns))
         self.episode_mean_oterms.append(np.mean(episode_oterm))
 
+        if episode_count % self.config.eval_interval == 0:
+          eval_reward = self.evaluate_agent()
+          self.summary.value.add(tag='Perf/EvalReward', simple_value=float(eval_reward))
+          self.summary_writer.add_summary(self.summary, self.total_steps)
+          self.summary_writer.flush()
+
         if episode_count % self.config.checkpoint_interval == 0 and self.name == 'worker_0' and FLAGS.train == True and \
                 self.total_steps != 0:
           saver.save(sess, self.model_path + '/model-' + str(episode_count) + '.cptk',
@@ -202,8 +236,12 @@ class AOCAgent():
           self.summary_writer.add_summary(self.summary, self.total_steps)
           self.summary_writer.flush()
 
+
         if self.name == 'worker_0':
           sess.run(self.increment_global_step)
         # if not FLAGS.train:
         #     test_episode_count += 1
         episode_count += 1
+
+
+

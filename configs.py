@@ -109,6 +109,7 @@ def aoc():
   gradient_clip_value = 40
   summary_interval = 100
   checkpoint_interval = 100
+  eval_interval = 1000
 
 
   return locals()
