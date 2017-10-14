@@ -120,6 +120,6 @@ if __name__ == '__main__':
     'Show gym envs.')
   tf.app.flags.DEFINE_string(
     'load_from', None,
-    # 'load_from', "/home/ioana/turi/rl/AOC/logdir/0-aoc",
+    # 'load_from', "./logdir/7-aoc",
     'Load directory to load models from.')
   tf.app.run()

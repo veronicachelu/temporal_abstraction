@@ -96,7 +96,7 @@ class Gridworld_NonMatching():
     # for i in range(self.nb_oranges):
     #     orange = gameOb(self.newPosition(0), 1, self.orange_color, self.orange_reward, 'orange')
     #     self.objects.append(orange)
-    self.teleporter = gameOb(self.newPosition(0), 1, [1, 1, 1], 1, 'teleporter')
+    self.teleporter = gameOb(self.newPosition(0), 1, [1, 1, 1], 0.1, 'teleporter')
     self.objects.append(self.teleporter)
     if self.choice_first_room[0]:
       obj = gameOb(self.newPosition(0), 1, self.apple_color, 0, 'apple')
@@ -185,20 +185,20 @@ class Gridworld_NonMatching():
     for fruit in fruits:
       if hero.x == fruit.x and hero.y == fruit.y and hero != fruit:
         if self.first_room:
-          if fruit.reward == 1:
+          if fruit.reward == 0.1:
             self.objects = self.objects[:1]
             for i in range(self.nb_apples):
               if self.choice_first_room[0]:
-                reward = -10
+                reward = -1
               else:
-                reward = 10
+                reward = 1
 
             apple = gameOb(self.newPosition(0), 1, self.apple_color, reward, 'apple')
             self.objects.append(apple)
             orange = gameOb(self.newPosition(0), 1, self.orange_color, -reward, 'orange')
             self.objects.append(orange)
             self.first_room = False
-            return 1, False
+            return 0.1, False
           else:
             self.objects.remove(fruit)
             if self.choice_first_room:

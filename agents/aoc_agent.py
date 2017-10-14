@@ -200,7 +200,7 @@ class AOCAgent():
         self.episode_mean_oterms.append(np.mean(episode_oterm))
 
         if episode_count % self.config.eval_interval == 0:
-          eval_reward = self.evaluate_agent()
+          eval_reward = self.evaluate_agent(sess)
           self.summary.value.add(tag='Perf/EvalReward', simple_value=float(eval_reward))
           self.summary_writer.add_summary(self.summary, self.total_steps)
           self.summary_writer.flush()
