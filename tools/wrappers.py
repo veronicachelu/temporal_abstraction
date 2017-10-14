@@ -560,7 +560,7 @@ class ConvertTo32Bit(object):
 class FrameHistoryGrayscaleResize(object):
   """Augment the observation with past observations by taking the maximum."""
 
-  def __init__(self, env):
+  def __init__(self, env, game_size):
     """Augment the observation with past observations.
 
     Implemented as a Numpy ring buffer holding the necessary past observations.
@@ -582,8 +582,8 @@ class FrameHistoryGrayscaleResize(object):
     self._buffer = None
     self._capacity = 4
     self.resize = True
-    self.resized_width = 84
-    self.resized_height = 84
+    self.resized_width = game_size
+    self.resized_height = game_size
 
 
   def __getattr__(self, name):

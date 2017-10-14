@@ -17,7 +17,7 @@ def _create_environment(config):
     env = config.env()
   if config.max_length:
     env = wrappers.LimitDuration(env, config.max_length)
-  env = wrappers.FrameHistoryGrayscaleResize(env)
+  env = wrappers.FrameHistoryGrayscaleResize(env, config.input_size)
   # env = tools.wrappers.ClipAction(env)
   env = wrappers.ConvertTo32Bit(env)
   return env
@@ -119,7 +119,7 @@ if __name__ == '__main__':
     'show_training', False,
     'Show gym envs.')
   tf.app.flags.DEFINE_string(
-    # 'load_from', None,
-    'load_from', "/home/ioana/turi/rl/AOC/logdir/0-aoc",
+    'load_from', None,
+    # 'load_from', "/home/ioana/turi/rl/AOC/logdir/0-aoc",
     'Load directory to load models from.')
   tf.app.run()

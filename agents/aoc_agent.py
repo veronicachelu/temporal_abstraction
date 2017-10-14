@@ -23,6 +23,8 @@ class AOCAgent():
     self.episode_lengths = []
     self.episode_mean_values = []
     self.episode_mean_q_values = []
+    self.episode_mean_returns = []
+    self.episode_mean_oterms = []
     self.config = config
     self.total_steps_tensor = tf.Variable(0, dtype=tf.int32, name='total_steps_tensor', trainable=False)
     self.increment_total_steps_tensor = self.total_steps_tensor.assign_add(1)
@@ -86,7 +88,7 @@ class AOCAgent():
       print("Starting worker " + str(self.thread_id))
 
       # while not coord.should_stop():
-      while episode_count < self.config.steps:
+      while self.total_steps < self.config.steps:
         sess.run(self.update_local_vars)
         episode_buffer = []
         episode_values = []
@@ -156,37 +158,41 @@ class AOCAgent():
                            self.local_network.total_steps: self.total_steps}
               option = sess.run([self.local_network.current_option], feed_dict=feed_dict)[0][0]
 
-        print("Episode {} >>> Step {} >>> Length: {} >>> Reward: {} >>> Mean Value: {} >>> Mean Q_Value: {} "
-              ">>> O_Term: {} >>> Return {}".format(episode_count, self.total_steps, t, episode_reward,
-                                      np.mean(episode_values[-min(self.config.summary_interval, t):]),
-                                      np.mean(episode_q_values[-min(self.config.summary_interval, t):]),
-                                      np.mean(episode_oterm[-min(self.config.summary_interval, t):]),
-                                      np.mean(episode_returns[-min(self.config.summary_interval, t):])))
-        # self.episode_rewards.append(episode_reward)
-        # self.episode_lengths.append(t)
-        # self.episode_mean_values.append(np.mean(episode_values))
-        # self.episode_mean_q_values.append(np.mean(episode_q_values))
+          print("Episode {} >>> Step {} >>> Length: {} >>> Reward: {} >>> Mean Value: {} >>> Mean Q_Value: {} "
+                ">>> O_Term: {} >>> Return {}".format(episode_count, self.total_steps, t, episode_reward,
+                                        np.mean(episode_values[-min(self.config.summary_interval, t):]),
+                                        np.mean(episode_q_values[-min(self.config.summary_interval, t):]),
+                                        np.mean(episode_oterm[-min(self.config.summary_interval, t):]),
+                                        np.mean(episode_returns[-min(self.config.summary_interval, t):])))
+        self.episode_rewards.append(episode_reward)
+        self.episode_lengths.append(t)
+        self.episode_mean_values.append(np.mean(episode_values))
+        self.episode_mean_q_values.append(np.mean(episode_q_values))
+        self.episode_mean_returns.append(np.mean(episode_returns))
+        self.episode_mean_oterms.append(np.mean(episode_oterm))
 
-        if self.total_steps % self.config.checkpoint_interval == 0 and self.name == 'worker_0' and FLAGS.train == True and \
+        if episode_count % self.config.checkpoint_interval == 0 and self.name == 'worker_0' and FLAGS.train == True and \
                 self.total_steps != 0:
-          saver.save(sess, self.model_path + '/model-' + str(self.total_steps) + '.cptk',
+          saver.save(sess, self.model_path + '/model-' + str(episode_count) + '.cptk',
                      global_step=self.global_step)
-          print("Saved Model at {}".format(self.model_path + '/model-' + str(self.total_steps) + '.cptk'))
+          print("Saved Model at {}".format(self.model_path + '/model-' + str(episode_count) + '.cptk'))
 
-        if FLAGS.train and self.total_steps % self.config.summary_interval == 0 and self.total_steps != 0 and \
+        if FLAGS.train and episode_count % self.config.summary_interval == 0 and episode_count != 0 and \
                 self.name == 'worker_0':
 
-          # mean_reward = np.mean(self.episode_rewards[-min(self.config.summary_interval, t):])
-          # mean_length = np.mean(self.episode_lengths[-min(self.config.summary_interval, t):])
-          # mean_value = np.mean(self.episode_mean_values[-min(self.config.summary_interval, t):])
-          # mean_q_value = np.mean(self.episode_mean_q_values[-min(self.config.summary_interval, t):])
+          mean_reward = np.mean(self.episode_rewards[-min(self.config.summary_interval, t):])
+          mean_length = np.mean(self.episode_lengths[-min(self.config.summary_interval, t):])
+          mean_value = np.mean(self.episode_mean_values[-min(self.config.summary_interval, t):])
+          mean_q_value = np.mean(self.episode_mean_q_values[-min(self.config.summary_interval, t):])
+          mean_return = np.mean(self.episode_mean_returns[-min(self.config.summary_interval, t):])
+          mean_oterm = np.mean(self.episode_mean_oterms[-min(self.config.summary_interval, t):])
 
-          self.summary.value.add(tag='Perf/Reward', simple_value=float(episode_reward))
-          # self.summary.value.add(tag='Perf/Length', simple_value=float(mean_length))
-          self.summary.value.add(tag='Perf/Value', simple_value=float(np.mean(episode_values[-min(self.config.summary_interval, t):])))
-          self.summary.value.add(tag='Perf/QValue', simple_value=float(np.mean(episode_q_values[-min(self.config.summary_interval, t):])))
-          self.summary.value.add(tag='Perf/Return', simple_value=float(np.mean(episode_returns[-min(self.config.summary_interval, t):])))
-          self.summary.value.add(tag='Perf/Oterm', simple_value=float(np.mean(episode_oterm[-min(self.config.summary_interval, t):])))
+          self.summary.value.add(tag='Perf/Reward', simple_value=float(mean_reward))
+          self.summary.value.add(tag='Perf/Length', simple_value=float(mean_length))
+          self.summary.value.add(tag='Perf/Value', simple_value=float(mean_value))
+          self.summary.value.add(tag='Perf/QValue', simple_value=float(mean_q_value))
+          self.summary.value.add(tag='Perf/Return', simple_value=float(mean_return))
+          self.summary.value.add(tag='Perf/Oterm', simple_value=float(mean_oterm))
 
           if FLAGS.train:
             self.summary_writer.add_summary(ms, self.total_steps)

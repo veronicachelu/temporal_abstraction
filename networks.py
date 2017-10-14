@@ -24,7 +24,7 @@ class AOCNetwork(tf.contrib.rnn.RNNCell):
                                                  self._config.initial_random_action_prob)
 
     with tf.variable_scope(scope):
-      self.observation = tf.placeholder(shape=[None, 84, 84, 4],
+      self.observation = tf.placeholder(shape=[None, config.input_size, config.input_size, 4],
                                    dtype=tf.float32, name="Inputs")
       self.total_steps = tf.placeholder(shape=[], dtype=tf.int32, name="total_steps")
 
@@ -331,6 +331,7 @@ class SFNetwork(tf.contrib.rnn.RNNCell):
           #   self.summaries.append(tf.summary.histogram(weight.name, weight))
 
           self.merged_summary = tf.summary.merge([tf.summary.scalar('avg_critic_loss', tf.reduce_mean(self.critic_loss)),
+                                                  tf.summary.scalar('probability_of_random_option', probability_of_random_option),
                                                   tf.summary.scalar('avg_termination_loss', tf.reduce_mean(self.term_loss)),
                                                   tf.summary.scalar('avg_entropy_loss', tf.reduce_mean(self.entropy_loss)),
                                                   tf.summary.scalar('avg_policy_loss', tf.reduce_mean(self.policy_loss)),

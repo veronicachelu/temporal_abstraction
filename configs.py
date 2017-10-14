@@ -22,6 +22,7 @@ from __future__ import print_function
 
 from agents import AOCAgent
 from env_wrappers import GridWorld
+from env_wrappers import Gridworld_NonMatching
 import functools
 import networks
 
@@ -76,9 +77,12 @@ def aoc():
       q_val=r'.*/q_val/.*',
       policy=r'.*/i_o_policies/.*')
 
-  conv_layers = (8, 4, 16), (4, 2, 32)
+  # conv_layers = (8, 4, 16), (4, 2, 32)
+  input_size = 5
+  conv_layers = (5, 2, 32),
   deconv_layers = (4, 2, 0, 128), (4, 2, 1, 64), (4, 2, 0, 32), ()
-  fc_layers = 256,
+  # fc_layers = 256,
+  fc_layers = 32,
   sf_layers = 256, 128, 256
   # Optimization
   network_optimizer = 'AdamOptimizer'
@@ -90,9 +94,10 @@ def aoc():
   critic_coef = 0.5
 
   # nb_options = 8
-  nb_options = 8
-  env = functools.partial(
-    GridWorld, "./mdps/4rooms.mdp")
+  nb_options = 2
+  # env = functools.partial(
+  #   GridWorld, "./mdps/4rooms.mdp")
+  env = Gridworld_NonMatching
   max_update_freq = 30
   min_update_freq = 5
   steps = 1e6  # 1M
