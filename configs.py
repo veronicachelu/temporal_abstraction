@@ -87,12 +87,14 @@ def aoc():
   sf_layers = 256, 128, 256
   # Optimization
   network_optimizer = 'AdamOptimizer'
-  lr = 0.0007
-  # Losses
-  discount = 0.99
+  # lr = 0.0007
+  lr = 1e-3
 
-  entropy_coef = 0.01
-  critic_coef = 0.25
+  # Losses
+  discount = 0.95
+
+  entropy_coef = 1e-4 #0.01
+  critic_coef = 0.5
 
   # nb_options = 8
   nb_options = 2

@@ -240,8 +240,7 @@ class AOCAgent():
           self.summary.value.add(tag='Perf/Oterm', simple_value=float(mean_oterm))
           self.summary.histogram.add(tag='Perf/Options', simple_value=self.episode_options[-min(self.config.summary_interval, t):])
 
-          if FLAGS.train:
-            self.summary_writer.add_summary(ms, self.total_steps)
+          self.summary_writer.add_summary(ms, self.total_steps)
 
           self.summary_writer.add_summary(img_summ, self.total_steps)
 

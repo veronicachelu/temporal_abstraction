@@ -28,7 +28,10 @@ class AOCNetwork(tf.contrib.rnn.RNNCell):
                                    dtype=tf.float32, name="Inputs")
       self.total_steps = tf.placeholder(shape=[], dtype=tf.int32, name="total_steps")
 
-      self.image_summaries = tf.summary.image('input', self.observation[:, :, :, 0:1] * 255, max_outputs=30)
+      if self._config.history_size == 3:
+        self.image_summaries = tf.summary.image('input', self.observation * 255, max_outputs=30)
+      else:
+        self.image_summaries = tf.summary.image('input', self.observation[:, :, :, 0:1] * 255, max_outputs=30)
       self.summaries = []
       with tf.variable_scope('conv'):
         for i, (kernel_size, stride, nb_kernels) in enumerate(self._conv_layers):
