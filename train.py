@@ -17,7 +17,11 @@ def _create_environment(config):
     env = config.env()
   if config.max_length:
     env = wrappers.LimitDuration(env, config.max_length)
-  env = wrappers.FrameHistoryGrayscaleResize(env, config.input_size)
+  if config.history_size == 3:
+    env = wrappers.FrameResize(env, config.input_size)
+  else:
+    env = wrappers.FrameHistoryGrayscaleResize(env, config.input_size)
+
   # env = tools.wrappers.ClipAction(env)
   env = wrappers.ConvertTo32Bit(env)
   return env

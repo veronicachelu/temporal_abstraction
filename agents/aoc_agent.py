@@ -25,6 +25,7 @@ class AOCAgent():
     self.episode_mean_q_values = []
     self.episode_mean_returns = []
     self.episode_mean_oterms = []
+    self.episode_options = []
     self.config = config
     self.total_steps_tensor = tf.Variable(0, dtype=tf.int32, name='total_steps_tensor', trainable=False)
     self.increment_total_steps_tensor = self.total_steps_tensor.assign_add(1)
@@ -84,7 +85,7 @@ class AOCAgent():
     discounted_rewards = discount(rewards_plus, self.config.discount)[:-1]
 
     feed_dict = {self.local_network.target_return: discounted_rewards,
-                 self.local_network.target_v: values,
+                 # self.local_network.target_v: values,
                  self.local_network.delib: self.delib + self.config.margin_cost,
                  self.local_network.observation: np.stack(observations, axis=0),
                  self.local_network.actions_placeholder: actions,
@@ -139,6 +140,7 @@ class AOCAgent():
         feed_dict = {self.local_network.observation: np.stack([s]),
                      self.local_network.total_steps: self.total_steps}
         option = sess.run([self.local_network.current_option], feed_dict=feed_dict)[0][0]
+        self.episode_options.append(option)
         while not d:
           feed_dict = {self.local_network.observation: np.stack([s]),
                        self.local_network.total_steps: self.total_steps}
@@ -156,7 +158,7 @@ class AOCAgent():
           self.frame_counter += 1
           self.total_steps += 1
           sess.run(self.increment_total_steps_tensor)
-          processed_reward = float(r) - (float(o_term) * self.delib * float(self.frame_counter > 1))
+          processed_reward = r #- (float(o_term) * self.delib * float(self.frame_counter > 1))
           episode_buffer.append([s, option, action, processed_reward, t, d, o_term, value, q_value])
           episode_values.append(value)
           episode_q_values.append(q_value)
@@ -176,7 +178,7 @@ class AOCAgent():
             q_value = q_value[0, option]
             value = value[0]
 
-            value = value - delib_cost if o_term else q_value
+            value = value #- delib_cost if o_term else q_value
             R = 0 if d else value
 
             ms, img_summ, loss, policy_loss, entropy_loss, critic_loss, term_loss = self.train(episode_buffer, sess, R)
@@ -236,6 +238,7 @@ class AOCAgent():
           self.summary.value.add(tag='Perf/QValue', simple_value=float(mean_q_value))
           self.summary.value.add(tag='Perf/Return', simple_value=float(mean_return))
           self.summary.value.add(tag='Perf/Oterm', simple_value=float(mean_oterm))
+          self.summary.histogram.add(tag='Perf/Options', simple_value=self.episode_options[-min(self.config.summary_interval, t):])
 
           if FLAGS.train:
             self.summary_writer.add_summary(ms, self.total_steps)

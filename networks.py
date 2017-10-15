@@ -24,7 +24,7 @@ class AOCNetwork(tf.contrib.rnn.RNNCell):
                                                  self._config.initial_random_action_prob)
 
     with tf.variable_scope(scope):
-      self.observation = tf.placeholder(shape=[None, config.input_size, config.input_size, 4],
+      self.observation = tf.placeholder(shape=[None, config.input_size, config.input_size, config.history_size],
                                    dtype=tf.float32, name="Inputs")
       self.total_steps = tf.placeholder(shape=[], dtype=tf.int32, name="total_steps")
 
@@ -67,8 +67,11 @@ class AOCNetwork(tf.contrib.rnn.RNNCell):
                                           dtype=tf.int32)
           local_random = tf.random_uniform(shape=[1], minval=0., maxval=1., dtype=tf.float32,
                                            name="rand_options")
-          probability_of_random_option = self._exploration_options.value(self.total_steps)
-          condition = local_random > tf.tile(probability_of_random_option[None, ...], [1])
+          # probability_of_random_option = self._exploration_options.value(self.total_steps)
+          probability_of_random_option = self._config.final_random_action_prob
+          # condition = local_random > tf.tile(probability_of_random_option[None, ...], [1])
+          condition = local_random > probability_of_random_option
+
           self.current_option = tf.where(condition, max_options, exp_options)
           self.v = tf.reduce_max(self.q_val, axis=1) * (1 - probability_of_random_option) + \
               probability_of_random_option * tf.reduce_mean(self.q_val, axis=1)
@@ -89,7 +92,7 @@ class AOCNetwork(tf.contrib.rnn.RNNCell):
           self.actions_placeholder = tf.placeholder(shape=[None], dtype=tf.int32, name="Actions")
           self.options_placeholder = tf.placeholder(shape=[None], dtype=tf.int32, name="Options")
           self.target_return = tf.placeholder(shape=[None], dtype=tf.float32)
-          self.target_v = tf.placeholder(shape=[None], dtype=tf.float32)
+          # self.target_v = tf.placeholder(shape=[None], dtype=tf.float32)
           self.delib = tf.placeholder(shape=[], dtype=tf.float32)
 
           self.policy = self.get_intra_option_policy(self.options_placeholder)
@@ -101,7 +104,7 @@ class AOCNetwork(tf.contrib.rnn.RNNCell):
             td_error = self.target_return - q_val
             self.critic_loss = tf.reduce_mean(self._config.critic_coef * tf.square(td_error))
           with tf.name_scope('termination_loss'):
-            self.term_loss = tf.reduce_mean(termination * (tf.stop_gradient(q_val) - self.target_v + self.delib))
+            self.term_loss = tf.reduce_mean(termination * (tf.stop_gradient(q_val) - tf.stop_gradient(self.v))) #+ self.delib))
           with tf.name_scope('entropy_loss'):
             self.entropy_loss = -self._config.entropy_coef * tf.reduce_mean(tf.reduce_sum(self.policy *
                                                                                            tf.log(self.policy +
@@ -143,25 +146,6 @@ class AOCNetwork(tf.contrib.rnn.RNNCell):
                                      name="actions_one_hot")
     responsible_outputs = tf.reduce_sum(policy * actions_onehot, [1])
     return responsible_outputs
-
-  def get_policy_over_options(self, batch_size, probability_of_random_option):
-    max_options = tf.cast(tf.argmax(self.q_val, 1), dtype=tf.int32)
-    exp_options = tf.random_uniform(shape=[batch_size], minval=0, maxval=self._config.nb_options,
-                                    dtype=tf.int32)
-    local_random = tf.random_uniform(shape=[batch_size], minval=0., maxval=1., dtype=tf.float32, name="rand_options")
-    condition = local_random > tf.tile(probability_of_random_option[None, ...], [batch_size])
-    options = tf.where(condition, max_options, exp_options)
-
-    return options
-
-  def get_action(self, o):
-    current_option_option_one_hot = tf.one_hot(o, self._config.nb_options, name="options_one_hot")
-    current_option_option_one_hot = current_option_option_one_hot[:, :, None]
-    current_option_option_one_hot = tf.tile(current_option_option_one_hot, [1, 1, self._action_size])
-    self.action_probabilities = tf.reduce_sum(tf.multiply(self.options, current_option_option_one_hot),
-                                              reduction_indices=1, name="P_a")
-    policy = tf.multinomial(tf.log(self.action_probabilities), 1)[:, 0]
-    return policy
 
   def get_q(self, o):
     current_option_option_one_hot = tf.one_hot(o, self._config.nb_options, name="options_one_hot")

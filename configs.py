@@ -79,6 +79,7 @@ def aoc():
 
   # conv_layers = (8, 4, 16), (4, 2, 32)
   input_size = 5
+  history_size = 3
   conv_layers = (5, 2, 32),
   deconv_layers = (4, 2, 0, 128), (4, 2, 1, 64), (4, 2, 0, 32), ()
   # fc_layers = 256,
@@ -91,7 +92,7 @@ def aoc():
   discount = 0.99
 
   entropy_coef = 0.01
-  critic_coef = 0.5
+  critic_coef = 0.25
 
   # nb_options = 8
   nb_options = 2
@@ -109,7 +110,7 @@ def aoc():
   gradient_clip_value = 40
   summary_interval = 100
   checkpoint_interval = 100
-  eval_interval = 1000
+  eval_interval = 100
 
 
   return locals()

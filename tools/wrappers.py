@@ -635,6 +635,53 @@ class FrameHistoryGrayscaleResize(object):
 
     return observ
 
+class FrameResize(object):
+
+    def __init__(self, env, game_size):
+      self._env = env
+      self._step = 0
+      self.resize = True
+      self._capacity = 3
+      self.resized_width = game_size
+      self.resized_height = game_size
+
+    def __getattr__(self, name):
+      return getattr(self._env, name)
+
+    @property
+    def observation_space(self):
+      low = self._env.observation_space.low
+      low = np.resize(low, [self.resized_width, self.resized_height])
+      high = self._env.observation_space.high
+      high = np.resize(high, [self.resized_width, self.resized_height])
+      low = np.repeat(low[..., None], self._capacity, 2)
+      high = np.repeat(high[..., None], self._capacity, 2)
+
+      return gym.spaces.Box(low, high)
+
+    def get_preprocessed_frame(self, observ):
+      img = Image.fromarray(observ)
+      img = img.resize((self.resized_width, self.resized_height))
+      pix = np.array(img).astype(float)
+      pix = pix.astype(float) / 255
+
+      # pil_image = Image.fromarray(np.uint8(pix * 255))
+      # pil_image.show()
+
+      return pix
+
+    def step(self, action):
+      observ, reward, done, info = self._env.step(action)
+      preprocessed_observ = self.get_preprocessed_frame(observ)
+      self._step += 1
+      return preprocessed_observ, reward, done, info
+
+    def reset(self):
+      observ = self._env.reset()
+      preprocessed_observ = self.get_preprocessed_frame(observ)
+      self._step = 0
+      return preprocessed_observ
+
 # if __name__ == '__main__':
 #   env = gym.make("Breakout-v0")
 #   env = FrameHistoryGrayscaleResize(env)
