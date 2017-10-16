@@ -116,8 +116,8 @@ class AOCAgent():
 
       print("Starting worker " + str(self.thread_id))
 
-      # while not coord.should_stop():
-      while self.total_steps < self.config.steps:
+      while not coord.should_stop():
+      # while self.total_steps < self.config.steps:
         sess.run(self.update_local_vars)
         episode_buffer = []
         episode_values = []
@@ -234,7 +234,7 @@ class AOCAgent():
           self.summary.value.add(tag='Perf/QValue', simple_value=float(mean_q_value))
           self.summary.value.add(tag='Perf/Return', simple_value=float(mean_return))
           self.summary.value.add(tag='Perf/Oterm', simple_value=float(mean_oterm))
-          self.summary.histogram.add(tag='Perf/Options', simple_value=self.episode_options[-min(self.config.summary_interval, t):])
+          # self.summary.histogram.add(tag='Perf/Options', simple_value=self.episode_options[-min(self.config.summary_interval, t):])
 
           self.summary_writer.add_summary(ms, self.total_steps)
 

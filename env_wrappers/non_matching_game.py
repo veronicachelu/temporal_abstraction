@@ -53,7 +53,7 @@ class Gridworld_NonMatching():
     x = screen_width + 100
     y = screen_height + 100
 
-    self.win.geometry('+%d+%d' % (200, 200))
+    self.win.geometry('%sx%s+%s+%s' % (512, 512, x, y))
     self.win.title("Gridworld")
     # self.win.bind("<Button>", button_click_exit_mainloop)
     self.old_screen_label = None
@@ -74,16 +74,17 @@ class Gridworld_NonMatching():
     return np.array([self.objects[0].x, self.objects[0].y]) / float(self.sizeX)
 
   def reset(self):
-    if self.deterministic:
-      apple_color = [0, 255, 0]
-    else:
-      while True:
-        apple_color = [np.random.uniform(), np.random.uniform(), np.random.uniform()]
-        if apple_color != [0, 0, 255] and apple_color[0] != [255, 255, 0] and apple_color != [255, 255, 255] and apple_color != [0,
-                                                                                                                     0,
-                                                                                                                     0]:
-          break
+    # if self.deterministic:
+    apple_color = [0, 255, 0]
+    # else:
+    #   while True:
+    #     apple_color = [np.random.uniform(), np.random.uniform(), np.random.uniform()]
+    #     if apple_color != [0, 0, 255] and apple_color[0] != [255, 255, 0] and apple_color != [255, 255, 255] and apple_color != [0,
+    #                                                                                                                  0,
+    #                                                                                                                  0]:
+    #       break
     self.choice_first_room = np.random.choice(2, 1)
+    self.choice_first_room = [0]
     self.objects = []
     self.apple_color = apple_color
     self.orange_color = [255 - a for a in self.apple_color]
@@ -221,9 +222,8 @@ class Gridworld_NonMatching():
     #
     # screen = Image.fromarray(state*255)
     # screen = screen.resize((512, 512))
-    screen = Image.fromarray(scipy.misc.imresize(state*255, [512, 512, 1], interp='nearest'))
+    screen = Image.fromarray(scipy.misc.imresize(state*255, [512, 512, 4], interp='nearest'))
 
-    self.win.geometry('%dx%d' % (512, 512))
 
     tkpi = ImageTk.PhotoImage(screen)
     label_img = tkinter.Label(self.win, image=tkpi)
@@ -314,7 +314,7 @@ if __name__ == '__main__':
   player_rng = np.random.RandomState(0)
   game = Gridworld_NonMatching()
   game = wrappers.LimitDuration(game, 100)
-  game = wrappers.FrameHistoryGrayscaleResize(game, 5)
+  game = wrappers.FrameResize(game, 5)
   # game = wrappers.ConvertTo32Bit(game)
 
   start = time.time()
@@ -330,7 +330,7 @@ if __name__ == '__main__':
     print("action is {}".format(a))
     s, r, d, _ = game.step(a)
     step += 1
-    game.render(s[:, :, 0])
+    game.render(s)
     tot_rw += r
     if d:
       ep += 1
