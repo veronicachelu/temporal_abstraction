@@ -137,13 +137,11 @@ class AOCAgent():
         # pil_image = Image.fromarray(np.uint8(s[:, :, 0] * 255))
         # pil_image.show()
 
-        feed_dict = {self.local_network.observation: np.stack([s]),
-                     self.local_network.total_steps: self.total_steps}
+        feed_dict = {self.local_network.observation: np.stack([s])}
         option = sess.run([self.local_network.current_option], feed_dict=feed_dict)[0][0]
         self.episode_options.append(option)
         while not d:
-          feed_dict = {self.local_network.observation: np.stack([s]),
-                       self.local_network.total_steps: self.total_steps}
+          feed_dict = {self.local_network.observation: np.stack([s])}
           options, value, q_value, o_term = sess.run([self.local_network.options, self.local_network.v,
                                                       self.local_network.q_val, self.local_network.termination], feed_dict=feed_dict)
           o_term = o_term[0, option] > np.random.uniform()
@@ -171,8 +169,7 @@ class AOCAgent():
           option_term = (o_term and t_counter >= self.config.min_update_freq)
           if t_counter == self.config.max_update_freq or d or option_term:
             delib_cost = self.delib * float(self.frame_counter > 1)
-            feed_dict = {self.local_network.observation: np.stack([s]),
-                         self.local_network.total_steps: self.total_steps}
+            feed_dict = {self.local_network.observation: np.stack([s])}
             value, q_value = sess.run([self.local_network.v, self.local_network.q_val],
                                                        feed_dict=feed_dict)
             q_value = q_value[0, option]
@@ -192,8 +189,7 @@ class AOCAgent():
           if not d:
             self.delib = self.config.delib_cost
             if o_term:
-              feed_dict = {self.local_network.observation: np.stack([s]),
-                           self.local_network.total_steps: self.total_steps}
+              feed_dict = {self.local_network.observation: np.stack([s])}
               option = sess.run([self.local_network.current_option], feed_dict=feed_dict)[0][0]
 
           print("Episode {} >>> Step {} >>> Length: {} >>> Reward: {} >>> Mean Value: {} >>> Mean Q_Value: {} "
@@ -209,20 +205,20 @@ class AOCAgent():
         self.episode_mean_returns.append(np.mean(episode_returns))
         self.episode_mean_oterms.append(np.mean(episode_oterm))
 
-        if FLAGS.train and episode_count % self.config.eval_interval == 0 and episode_count != 0 and \
+        if episode_count % self.config.eval_interval == 0 and self.total_steps != 0 and \
                 self.name == 'worker_0':
           eval_reward = self.evaluate_agent(sess)
           self.summary.value.add(tag='Perf/EvalReward', simple_value=float(eval_reward))
           self.summary_writer.add_summary(self.summary, self.total_steps)
           self.summary_writer.flush()
 
-        if episode_count % self.config.checkpoint_interval == 0 and self.name == 'worker_0' and FLAGS.train == True and \
+        if episode_count % self.config.checkpoint_interval == 0 and self.name == 'worker_0' and \
                 self.total_steps != 0:
           saver.save(sess, self.model_path + '/model-' + str(episode_count) + '.cptk',
                      global_step=self.global_step)
           print("Saved Model at {}".format(self.model_path + '/model-' + str(episode_count) + '.cptk'))
 
-        if FLAGS.train and episode_count % self.config.summary_interval == 0 and episode_count != 0 and \
+        if episode_count % self.config.summary_interval == 0 and self.total_steps != 0 and \
                 self.name == 'worker_0':
 
           mean_reward = np.mean(self.episode_rewards[-min(self.config.summary_interval, t):])

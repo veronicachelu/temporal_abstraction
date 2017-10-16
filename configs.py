@@ -110,8 +110,8 @@ def aoc():
   delib_cost = 0
   margin_cost = 0
   gradient_clip_value = 40
-  summary_interval = 100
-  checkpoint_interval = 100
+  summary_interval = 10
+  checkpoint_interval = 10
   eval_interval = 100
 
 
