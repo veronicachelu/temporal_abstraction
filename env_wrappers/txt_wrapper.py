@@ -31,16 +31,17 @@ class GridWorld:
     # calculate position x and y coordinates
     x = screen_width + 100
     y = screen_height + 100
-
-    self.win.geometry('%sx%s+%s+%s' % (512, 512, x, y))
+    self.h = self.MDP.shape[0] * 42
+    self.w = self.MDP.shape[1] * 42
+    self.win.geometry('%sx%s+%s+%s' % (self.w, self.h, x, y))
     self.win.title("Gridworld")
 
   def render(self):
     time.sleep(0.1)
     s = self.pix_state
-    screen = scipy.misc.imresize(s, [200, 200, 3], interp='nearest')
+    screen = scipy.misc.imresize(s, [self.h, self.w,  3], interp='nearest')
     screen = Image.fromarray(screen, 'RGB')
-    screen = screen.resize((512, 512))
+    # screen = screen.resize((self.w, self.h))
     screen_width = self.win.winfo_screenwidth()
     screen_height = self.win.winfo_screenheight()
     # x = screen_width + 100
@@ -209,9 +210,10 @@ if __name__ == '__main__':
   from tools import wrappers
 
   player_rng = np.random.RandomState(0)
-  game = GridWorld("/home/ioana/turi/rl/AOC/mdps/4rooms.mdp")
+  # game = GridWorld("../mdps/longI.mdp")
+  game = GridWorld("../mdps/large_grid.mdp")
   game = wrappers.LimitDuration(game, 100)
-  game = wrappers.FrameHistoryGrayscaleResize(game)
+  game = wrappers.FrameResize(game, (12,12))
   game = wrappers.ConvertTo32Bit(game)
 
   start = time.time()
@@ -221,14 +223,19 @@ if __name__ == '__main__':
   ep = 0
   step = 0
   tot_rw = 0
+  ep_r = 0
 
   while True:
     s, r, d, _ = game.step(player_rng.choice(4))
     step += 1
-    game.render(s[:, :, 0])
+    ep_r += r
+    game.render()
     tot_rw += r
     if d:
       ep += 1
+      print("ep {} reward is {} ep steps {}".format(ep, ep_r, step))
+      ep_r = 0
+      step = 0
       s = game.reset()
 
   print("Finished %d episodes in %d steps in %.2f. Total reward: %d.",

@@ -582,8 +582,8 @@ class FrameHistoryGrayscaleResize(object):
     self._buffer = None
     self._capacity = 4
     self.resize = True
-    self.resized_width = game_size
-    self.resized_height = game_size
+    self.resized_width = game_size[1]
+    self.resized_height = game_size[0]
 
 
   def __getattr__(self, name):
@@ -642,8 +642,8 @@ class FrameResize(object):
       self._step = 0
       self.resize = True
       self._capacity = 3
-      self.resized_width = game_size
-      self.resized_height = game_size
+      self.resized_width = game_size[1]
+      self.resized_height = game_size[0]
 
     def __getattr__(self, name):
       return getattr(self._env, name)

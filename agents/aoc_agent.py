@@ -4,9 +4,12 @@ from tools.utils import update_target_graph, discount, set_image_bandit, set_ima
 import os
 from agents.schedules import LinearSchedule, TFLinearSchedule
 from PIL import Image
-
+import scipy.stats
 FLAGS = tf.app.flags.FLAGS
 
+def get_mode(arr):
+  u, indices = np.unique(arr, return_inverse=True)
+  return u[np.argmax(np.bincount(indices))]
 
 class AOCAgent():
   def __init__(self, game, thread_id, global_step, config):
@@ -25,6 +28,7 @@ class AOCAgent():
     self.episode_mean_q_values = []
     self.episode_mean_returns = []
     self.episode_mean_oterms = []
+    self.episode_mean_options = []
     self.episode_options = []
     self.config = config
     self.total_steps_tensor = tf.Variable(0, dtype=tf.int32, name='total_steps_tensor', trainable=False)
@@ -124,6 +128,7 @@ class AOCAgent():
         episode_q_values = []
         episode_oterm = []
         episode_returns = []
+        episode_options = []
         episode_reward = 0
         d = False
         t = 0
@@ -139,7 +144,7 @@ class AOCAgent():
 
         feed_dict = {self.local_network.observation: np.stack([s])}
         option = sess.run([self.local_network.current_option], feed_dict=feed_dict)[0][0]
-        self.episode_options.append(option)
+        episode_options.append(option)
         while not d:
           feed_dict = {self.local_network.observation: np.stack([s])}
           options, value, q_value, o_term = sess.run([self.local_network.options, self.local_network.v,
@@ -191,6 +196,7 @@ class AOCAgent():
             if o_term:
               feed_dict = {self.local_network.observation: np.stack([s])}
               option = sess.run([self.local_network.current_option], feed_dict=feed_dict)[0][0]
+              episode_options.append(option)
 
           print("Episode {} >>> Step {} >>> Length: {} >>> Reward: {} >>> Mean Value: {} >>> Mean Q_Value: {} "
                 ">>> O_Term: {} >>> Return {}".format(episode_count, self.total_steps, t, episode_reward,
@@ -204,6 +210,7 @@ class AOCAgent():
         self.episode_mean_q_values.append(np.mean(episode_q_values))
         self.episode_mean_returns.append(np.mean(episode_returns))
         self.episode_mean_oterms.append(np.mean(episode_oterm))
+        self.episode_mean_options.append(get_mode(episode_options))
 
         if episode_count % self.config.eval_interval == 0 and self.total_steps != 0 and \
                 self.name == 'worker_0':
@@ -227,6 +234,7 @@ class AOCAgent():
           mean_q_value = np.mean(self.episode_mean_q_values[-min(self.config.summary_interval, t):])
           mean_return = np.mean(self.episode_mean_returns[-min(self.config.summary_interval, t):])
           mean_oterm = np.mean(self.episode_mean_oterms[-min(self.config.summary_interval, t):])
+          mean_option = get_mode(self.episode_mean_options[-min(self.config.summary_interval, t):])
 
           self.summary.value.add(tag='Perf/Reward', simple_value=float(mean_reward))
           self.summary.value.add(tag='Perf/Length', simple_value=float(mean_length))
@@ -234,7 +242,7 @@ class AOCAgent():
           self.summary.value.add(tag='Perf/QValue', simple_value=float(mean_q_value))
           self.summary.value.add(tag='Perf/Return', simple_value=float(mean_return))
           self.summary.value.add(tag='Perf/Oterm', simple_value=float(mean_oterm))
-          # self.summary.histogram.add(tag='Perf/Options', simple_value=self.episode_options[-min(self.config.summary_interval, t):])
+          self.summary.value.add(tag='Perf/Options', simple_value=mean_option)
 
           self.summary_writer.add_summary(ms, self.total_steps)
 

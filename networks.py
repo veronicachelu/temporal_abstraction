@@ -24,7 +24,7 @@ class AOCNetwork(tf.contrib.rnn.RNNCell):
                                                  self._config.initial_random_action_prob)
 
     with tf.variable_scope(scope):
-      self.observation = tf.placeholder(shape=[None, config.input_size, config.input_size, config.history_size],
+      self.observation = tf.placeholder(shape=[None, config.input_size[0], config.input_size[1], config.history_size],
                                    dtype=tf.float32, name="Inputs")
       self.total_steps = tf.placeholder(shape=[], dtype=tf.int32, name="total_steps")
 
