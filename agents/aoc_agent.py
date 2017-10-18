@@ -265,7 +265,7 @@ class AOCAgent():
                             max=np.max(episode_options),
                             num=len(episode_options),
                             sum=np.sum(episode_options),
-                            sum_squares=np.sum(episode_options**2)
+                            sum_squares=np.sum([e**2 for e in episode_options])
                             )
           bin_edges = bin_edges[1:]
           # Add bin edges and counts
@@ -275,7 +275,7 @@ class AOCAgent():
             hist.bucket.append(c)
 
           self.summary.value.add(tag='Perf/OptionsHist', histo=hist)
-          episode_option_histogram
+          # episode_option_histogram
 
           self.summary_writer.add_summary(ms, self.total_steps)
 

@@ -97,7 +97,7 @@ def sf():
   use_gpu = False
 
   # Network
-  network = networks.AOCNetwork
+  network = networks.SFNetwork
   weight_summaries = dict(
       all=r'.*',
       conv=r'.*/conv/.*',

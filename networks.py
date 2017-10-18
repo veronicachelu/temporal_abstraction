@@ -218,14 +218,15 @@ class SFNetwork(tf.contrib.rnn.RNNCell):
           self.summaries.append(tf.contrib.layers.summarize_activation(self.termination))
 
         with tf.variable_scope("sf"):
-          self.sf = tf.tile(out[..., None], [None, self._fc_layers[-1], self._nb_options], name="sf_tile")
+          self.sf = tf.tile(out[..., None], [1, 1, self._nb_options], name="sf_tile")
           self.sf = tf.split(self.sf, num_or_size_splits=self._nb_options, axis=2, name="sf_split")
-          for j in self._nb_options:
+          self.sf = [tf.squeeze(sf, 2) for sf in self.sf]
+          for j in range(self._nb_options):
             for i, nb_filt in enumerate(self._sf_layers):
               self.sf[j] = layers.fully_connected(self.sf[j], num_outputs=nb_filt,
                                                activation_fn=None,
                                                variables_collections=tf.get_collection("variables"),
-                                               outputs_collections="activations", scope="sf_fc_{}".format(i))
+                                               outputs_collections="activations", scope="sf_{}_fc_{}".format(j, i))
               self.sf[j] = layer_norm_fn(self.sf[j], relu=True)
               self.summaries.append(tf.contrib.layers.summarize_activation(self.sf[j]))
           self.sf = tf.stack(self.sf, 2)
