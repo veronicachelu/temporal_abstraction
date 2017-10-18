@@ -107,13 +107,13 @@ def sf():
       policy=r'.*/i_o_policies/.*')
 
   # conv_layers = (8, 4, 16), (4, 2, 32)
-  input_size = (13,13)
+  input_size = (16, 16)
   history_size = 3
   conv_layers = (5, 2, 32),
-  deconv_layers = (4, 2, 0, 128), (4, 2, 1, 64), (4, 2, 0, 32), ()
+  deconv_layers = (4, 2, 0, 128), (4, 2, 1, 64), (2, 2, 0, 3)
   # fc_layers = 256,
   fc_layers = 128,
-  sf_layers = 256, 128, 256
+  sf_layers = 256, 128
   # Optimization
   network_optimizer = 'AdamOptimizer'
   # lr = 0.0007

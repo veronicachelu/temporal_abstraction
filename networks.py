@@ -173,6 +173,7 @@ class SFNetwork(tf.contrib.rnn.RNNCell):
     self._conv_layers = config.conv_layers
     self._fc_layers = config.fc_layers
     self._sf_layers = config.sf_layers
+    self._deconv_layers = config.deconv_layers
     self._action_size = action_size
     self._nb_options = config.nb_options
     self._nb_envs = config.num_agents
@@ -229,7 +230,7 @@ class SFNetwork(tf.contrib.rnn.RNNCell):
                                                outputs_collections="activations", scope="sf_{}_fc_{}".format(j, i))
               self.sf[j] = layer_norm_fn(self.sf[j], relu=True)
               self.summaries.append(tf.contrib.layers.summarize_activation(self.sf[j]))
-          self.sf = tf.stack(self.sf, 2)
+          # self.sf = tf.stack(self.sf, 2)
 
         with tf.variable_scope("instant_r"):
           self.instant_r = layers.fully_connected(out, num_outputs=1,
@@ -240,17 +241,19 @@ class SFNetwork(tf.contrib.rnn.RNNCell):
 
         with tf.variable_scope("autoencoder"):
           decoder_out = tf.expand_dims(tf.expand_dims(out, 1), 1)
-          for i, (kernel_size, stride, padding, nb_kernels) in enumerate(self._sf_layers):
+          for i, (kernel_size, stride, padding, nb_kernels) in enumerate(self._deconv_layers):
             decoder_out = layers.conv2d_transpose(decoder_out, num_outputs=nb_kernels, kernel_size=kernel_size,
                               stride=stride, activation_fn=tf.nn.relu, padding="same" if padding > 0 else "valid",
                               variables_collections=tf.get_collection("variables"),
                               outputs_collections="activations", scope="deconv_{}".format(i))
-          self.summaries.append(tf.contrib.layers.summarize_activation(decoder_out))
+            self.summaries.append(tf.contrib.layers.summarize_activation(decoder_out))
 
         with tf.variable_scope("q_val"):
-          w_r = tf.get_tensor_by_name("instant_r/instant_r_w:0")
-          w_r = tf.tile(w_r, [None, self._fc_layers[-1], self._nb_options])
-          self.q_val = tf.reduce_sum(self.sf * w_r, 1)
+          w_r = [v for v in tf.trainable_variables() if "instant_r/instant_r_w/weights:0" in v.name][0]
+          b_r = [v for v in tf.trainable_variables() if "instant_r/instant_r_w/biases:0" in v.name][0]
+          self.q_val = [tf.matmul(sf, w_r) + b_r for sf in self.sf]
+          self.q_val = tf.stack(self.q_val, 2)
+          self.sf = tf.stack(self.sf, 2)
 
           self.summaries.append(tf.contrib.layers.summarize_activation(self.q_val))
 
