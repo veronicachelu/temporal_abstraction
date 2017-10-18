@@ -96,7 +96,7 @@ class AOCNetwork(tf.contrib.rnn.RNNCell):
           self.options_placeholder = tf.placeholder(shape=[None], dtype=tf.int32, name="Options")
           self.target_return = tf.placeholder(shape=[None], dtype=tf.float32)
           # self.target_v = tf.placeholder(shape=[None], dtype=tf.float32)
-          self.delib = tf.placeholder(shape=[], dtype=tf.float32)
+          self.delib = tf.placeholder(shape=[None], dtype=tf.float32)
 
           self.policy = self.get_intra_option_policy(self.options_placeholder)
           self.responsible_outputs = self.get_responsible_outputs(self.policy, self.actions_placeholder)
