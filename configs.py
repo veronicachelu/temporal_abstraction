@@ -29,41 +29,15 @@ import networks
 
 def default():
   """Default configuration for PPO."""
-  # General
-  # algorithm = ppo.PPOAlgorithm
-  num_agents = 10
-  eval_episodes = 25
+  num_agents = 8
+  eval_episodes = 1
   use_gpu = False
-  # Network
-  weight_summaries = dict(
-      all=r'.*',
-      policy=r'.*/policy/.*',
-      value=r'.*/value/.*')
-  policy_layers = 200, 100
-  value_layers = 200, 100
-  init_mean_factor = 0.05
-  init_logstd = -1
-  # Optimization
-  update_every = 25
-  policy_optimizer = 'AdamOptimizer'
-  value_optimizer = 'AdamOptimizer'
-  update_epochs_policy = 50
-  update_epochs_value = 50
-  policy_lr = 1e-4
-  value_lr = 3e-4
-  # Losses
-  discount = 0.985
-  kl_target = 1e-2
-  kl_cutoff_factor = 2
-  kl_cutoff_coef = 1000
-  kl_init_penalty = 1
   max_length = 100
   return locals()
 
 def aoc():
   locals().update(default())
   agent = AOCAgent
-  # num_agents = 16
   num_agents = 8
   use_gpu = False
 
@@ -91,7 +65,7 @@ def aoc():
   lr = 1e-3
 
   # Losses
-  discount = 0.95
+  discount = 0.985
 
   entropy_coef = 1e-4 #0.01
   critic_coef = 0.5
@@ -110,17 +84,15 @@ def aoc():
   delib_cost = 0
   margin_cost = 0
   gradient_clip_value = 40
-  summary_interval = 10
-  checkpoint_interval = 10
+  summary_interval = 1
+  checkpoint_interval = 1
   eval_interval = 100
-
 
   return locals()
 
 def sf():
   locals().update(default())
   agent = AOCAgent
-  # num_agents = 16
   num_agents = 8
   use_gpu = False
 
@@ -135,7 +107,7 @@ def sf():
       policy=r'.*/i_o_policies/.*')
 
   # conv_layers = (8, 4, 16), (4, 2, 32)
-  input_size = 5
+  input_size = (13,13)
   history_size = 3
   conv_layers = (5, 2, 32),
   deconv_layers = (4, 2, 0, 128), (4, 2, 1, 64), (4, 2, 0, 32), ()
@@ -148,16 +120,16 @@ def sf():
   lr = 1e-3
 
   # Losses
-  discount = 0.95
+  discount = 0.985
 
   entropy_coef = 1e-4 #0.01
   critic_coef = 0.5
 
   # nb_options = 8
-  nb_options = 2
-  # env = functools.partial(
-  #   GridWorld, "./mdps/4rooms.mdp")
-  env = Gridworld_NonMatching
+  nb_options = 4
+  env = functools.partial(
+    GridWorld, "./mdps/toy.mdp")
+  # env = Gridworld_NonMatching
   max_update_freq = 30
   min_update_freq = 5
   steps = 1e6  # 1M
@@ -167,10 +139,9 @@ def sf():
   delib_cost = 0
   margin_cost = 0
   gradient_clip_value = 40
-  summary_interval = 10
-  checkpoint_interval = 10
+  summary_interval = 1
+  checkpoint_interval = 1
   eval_interval = 100
-
 
   return locals()
 

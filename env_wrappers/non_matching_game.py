@@ -83,7 +83,7 @@ class Gridworld_NonMatching():
     #                                                                                                                  0,
     #                                                                                                                  0]:
     #       break
-    self.choice_first_room = np.random.choice(2, 1)
+    # self.choice_first_room = np.random.choice(2, 1)
     self.choice_first_room = [0]
     self.objects = []
     self.apple_color = apple_color

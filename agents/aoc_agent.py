@@ -47,6 +47,11 @@ class AOCAgent():
     self.update_local_vars = update_target_graph('global', self.name)
     self.env = game
 
+  def render_frame(self, s):
+    screen = scipy.misc.imresize(s, [512, 512, 3], interp='nearest')
+    screen = Image.fromarray(screen, 'RGB')
+    screen.show()
+
   def evaluate_agent(self, sess):
     episode_reward = 0
     s = self.env.reset()
@@ -84,13 +89,14 @@ class AOCAgent():
     option_term = rollout[:, 6]
     values = rollout[:, 7]
     q_values = rollout[:, 8]
+    niu = rollout[:, 9]
 
     rewards_plus = np.asarray(rewards.tolist() + [bootstrap_value])
     discounted_rewards = discount(rewards_plus, self.config.discount)[:-1]
 
     feed_dict = {self.local_network.target_return: discounted_rewards,
                  # self.local_network.target_v: values,
-                 self.local_network.delib: self.delib + self.config.margin_cost,
+                 self.local_network.delib: niu,
                  self.local_network.observation: np.stack(observations, axis=0),
                  self.local_network.actions_placeholder: actions,
                  self.local_network.options_placeholder: options}
@@ -130,6 +136,7 @@ class AOCAgent():
         episode_returns = []
         episode_options = []
         episode_reward = 0
+        episode_option_histogram = np.zeros(self.config.nb_options)
         d = False
         t = 0
         t_counter = 0
@@ -145,6 +152,7 @@ class AOCAgent():
         feed_dict = {self.local_network.observation: np.stack([s])}
         option = sess.run([self.local_network.current_option], feed_dict=feed_dict)[0][0]
         episode_options.append(option)
+        episode_option_histogram[option] += 1
         while not d:
           feed_dict = {self.local_network.observation: np.stack([s])}
           options, value, q_value, o_term = sess.run([self.local_network.options, self.local_network.v,
@@ -156,13 +164,16 @@ class AOCAgent():
           action= np.random.choice(pi, p=pi)
           action = np.argmax(pi == action)
           s1, r, d, _ = self.env.step(action)
+          # if self.name == 'worker_0':
+          # self.render_frame(s1)
+            # self.env.render(s1)
 
           r = np.clip(r, -1, 1)
           self.frame_counter += 1
           self.total_steps += 1
           sess.run(self.increment_total_steps_tensor)
-          processed_reward = r #- (float(o_term) * self.delib * float(self.frame_counter > 1))
-          episode_buffer.append([s, option, action, processed_reward, t, d, o_term, value, q_value])
+          processed_reward = r - (float(o_term) * self.delib * float(self.frame_counter > 1))
+          episode_buffer.append([s, option, action, processed_reward, t, d, o_term, value, q_value, self.delib + self.config.margin_cost])
           episode_values.append(value)
           episode_q_values.append(q_value)
           episode_reward += r
@@ -180,7 +191,7 @@ class AOCAgent():
             q_value = q_value[0, option]
             value = value[0]
 
-            value = value #- delib_cost if o_term else q_value
+            value = value - self.delib * float(self.frame_counter > 1) if o_term else q_value
             R = 0 if d else value
 
             ms, img_summ, loss, policy_loss, entropy_loss, critic_loss, term_loss = self.train(episode_buffer, sess, R)
@@ -197,6 +208,7 @@ class AOCAgent():
               feed_dict = {self.local_network.observation: np.stack([s])}
               option = sess.run([self.local_network.current_option], feed_dict=feed_dict)[0][0]
               episode_options.append(option)
+              episode_option_histogram[option] += 1
 
           print("Episode {} >>> Step {} >>> Length: {} >>> Reward: {} >>> Mean Value: {} >>> Mean Q_Value: {} "
                 ">>> O_Term: {} >>> Return {}".format(episode_count, self.total_steps, t, episode_reward,
@@ -245,6 +257,25 @@ class AOCAgent():
           self.summary.value.add(tag='Perf/Return', simple_value=float(mean_return))
           self.summary.value.add(tag='Perf/Oterm', simple_value=float(mean_oterm))
           self.summary.value.add(tag='Perf/Options', simple_value=mean_option)
+
+          counts, bin_edges = np.histogram(episode_options, bins=list(range(self.config.nb_options)) + [self.config.nb_options])
+
+
+          hist = tf.HistogramProto(min=np.min(episode_options),
+                            max=np.max(episode_options),
+                            num=len(episode_options),
+                            sum=np.sum(episode_options),
+                            sum_squares=np.sum(episode_options**2)
+                            )
+          bin_edges = bin_edges[1:]
+          # Add bin edges and counts
+          for edge in bin_edges:
+            hist.bucket_limit.append(edge)
+          for c in counts:
+            hist.bucket.append(c)
+
+          self.summary.value.add(tag='Perf/OptionsHist', histo=hist)
+          episode_option_histogram
 
           self.summary_writer.add_summary(ms, self.total_steps)
 

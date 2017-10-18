@@ -36,14 +36,14 @@ class GridWorld:
     self.win.geometry('%sx%s+%s+%s' % (self.w, self.h, x, y))
     self.win.title("Gridworld")
 
-  def render(self):
-    time.sleep(0.1)
-    s = self.pix_state
+  def render(self, s):
+    # time.sleep(0.1)
+    # s = self.pix_state
     screen = scipy.misc.imresize(s, [self.h, self.w,  3], interp='nearest')
     screen = Image.fromarray(screen, 'RGB')
     # screen = screen.resize((self.w, self.h))
-    screen_width = self.win.winfo_screenwidth()
-    screen_height = self.win.winfo_screenheight()
+    # screen_width = self.win.winfo_screenwidth()
+    # screen_height = self.win.winfo_screenheight()
     # x = screen_width + 100
     # y = screen_height + 100
     #
@@ -52,7 +52,7 @@ class GridWorld:
     tkpi = ImageTk.PhotoImage(screen)
     label_img = tkinter.Label(self.win, image=tkpi)
     label_img.place(x=0, y=0,
-                    width=screen.size[0], height=screen.size[1])
+                    width=self.w, height=self.h)
 
     # self.win.mainloop()            # wait until user clicks the window
     self.win.update_idletasks()
@@ -67,6 +67,7 @@ class GridWorld:
     mdp_screen[self.goalX, self.goalY] = [255, 0, 0]
     self.pix_state = scipy.misc.imresize(mdp_screen, [200, 200, 3], interp='nearest')
     return self.pix_state
+    # return mdp_screen
 
   def reset(self):
     s = self.get_initial_state()
@@ -211,9 +212,9 @@ if __name__ == '__main__':
 
   player_rng = np.random.RandomState(0)
   # game = GridWorld("../mdps/longI.mdp")
-  game = GridWorld("../mdps/large_grid.mdp")
+  game = GridWorld("../mdps/4rooms.mdp")
   game = wrappers.LimitDuration(game, 100)
-  game = wrappers.FrameResize(game, (12,12))
+  game = wrappers.FrameResize(game, (13,13))
   game = wrappers.ConvertTo32Bit(game)
 
   start = time.time()
@@ -229,7 +230,7 @@ if __name__ == '__main__':
     s, r, d, _ = game.step(player_rng.choice(4))
     step += 1
     ep_r += r
-    game.render()
+    game.render(s)
     tot_rw += r
     if d:
       ep += 1

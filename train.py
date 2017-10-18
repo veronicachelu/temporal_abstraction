@@ -1,5 +1,6 @@
 import threading
-
+import matplotlib
+matplotlib.use('Agg')
 import datetime
 import os
 import gym
@@ -8,23 +9,7 @@ import tools
 import utility
 from tools import wrappers
 import configs
-
-
-def _create_environment(config):
-  if isinstance(config.env, str):
-    env = gym.make(config.env)
-  else:
-    env = config.env()
-  if config.max_length:
-    env = wrappers.LimitDuration(env, config.max_length)
-  if config.history_size == 3:
-    env = wrappers.FrameResize(env, config.input_size)
-  else:
-    env = wrappers.FrameHistoryGrayscaleResize(env, config.input_size)
-
-  # env = tools.wrappers.ClipAction(env)
-  env = wrappers.ConvertTo32Bit(env)
-  return env
+from env_wrappers import _create_environment
 
 
 def train(config, env_processes, logdir):
@@ -124,6 +109,6 @@ if __name__ == '__main__':
     'Show gym envs.')
   tf.app.flags.DEFINE_string(
     'load_from', None,
-    # 'load_from', "./logdir/23-aoc",
+    # 'load_from', "./logdir/5-aoc",
     'Load directory to load models from.')
   tf.app.run()
