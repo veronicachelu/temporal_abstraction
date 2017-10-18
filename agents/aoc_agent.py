@@ -228,16 +228,18 @@ class AOCAgent():
         if episode_count % self.config.summary_interval == 0 and self.total_steps != 0 and \
                 self.name == 'worker_0':
 
-          mean_reward = np.mean(self.episode_rewards[-min(self.config.summary_interval, t):])
-          mean_length = np.mean(self.episode_lengths[-min(self.config.summary_interval, t):])
+          # mean_reward = np.mean(self.episode_rewards[-min(self.config.summary_interval, t):])
+          last_reward = self.episode_rewards[-1]
+          # mean_length = np.mean(self.episode_lengths[-min(self.config.summary_interval, t):])
+          last_length = self.episode_lengths[-1]
           mean_value = np.mean(self.episode_mean_values[-min(self.config.summary_interval, t):])
           mean_q_value = np.mean(self.episode_mean_q_values[-min(self.config.summary_interval, t):])
           mean_return = np.mean(self.episode_mean_returns[-min(self.config.summary_interval, t):])
           mean_oterm = np.mean(self.episode_mean_oterms[-min(self.config.summary_interval, t):])
           mean_option = get_mode(self.episode_mean_options[-min(self.config.summary_interval, t):])
 
-          self.summary.value.add(tag='Perf/Reward', simple_value=float(mean_reward))
-          self.summary.value.add(tag='Perf/Length', simple_value=float(mean_length))
+          self.summary.value.add(tag='Perf/Reward', simple_value=float(last_reward))
+          self.summary.value.add(tag='Perf/Length', simple_value=float(last_length))
           self.summary.value.add(tag='Perf/Value', simple_value=float(mean_value))
           self.summary.value.add(tag='Perf/QValue', simple_value=float(mean_q_value))
           self.summary.value.add(tag='Perf/Return', simple_value=float(mean_return))
