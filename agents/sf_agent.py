@@ -5,13 +5,16 @@ import os
 from agents.schedules import LinearSchedule, TFLinearSchedule
 from PIL import Image
 import scipy.stats
+
 FLAGS = tf.app.flags.FLAGS
+
 
 def get_mode(arr):
   u, indices = np.unique(arr, return_inverse=True)
   return u[np.argmax(np.bincount(indices))]
 
-class AOCAgent():
+
+class SFAgent():
   def __init__(self, game, thread_id, global_step, config):
     self.name = "worker_" + str(thread_id)
     self.thread_id = thread_id
@@ -73,12 +76,12 @@ class AOCAgent():
       episode_reward += r
 
       if not d and o_term:
-          feed_dict = {self.local_network.observation: np.stack([s]),
-                       self.local_network.total_steps: self.total_steps}
-          option = sess.run([self.local_network.current_option], feed_dict=feed_dict)[0][0]
+        feed_dict = {self.local_network.observation: np.stack([s]),
+                     self.local_network.total_steps: self.total_steps}
+        option = sess.run([self.local_network.current_option], feed_dict=feed_dict)[0][0]
     return episode_reward
 
-  def train(self, rollout, sess, bootstrap_value, summaries=False):
+  def train(self, rollout, sess, bootstrap_value, bootstrap_sf, summaries=False):
     rollout = np.array(rollout)
     observations = rollout[:, 0]
     options = rollout[:, 1]
@@ -90,29 +93,35 @@ class AOCAgent():
     values = rollout[:, 7]
     q_values = rollout[:, 8]
     niu = rollout[:, 9]
+    sf = rollout[:, 10]
 
     rewards_plus = np.asarray(rewards.tolist() + [bootstrap_value])
+    sf_plus = np.asarray(sf.tolist() + [bootstrap_sf])
     discounted_rewards = discount(rewards_plus, self.config.discount)[:-1]
+    discounted_sf = discount(sf_plus, self.config.discount)[:-1]
 
     feed_dict = {self.local_network.target_return: discounted_rewards,
-                 # self.local_network.target_v: values,
+                 self.local_network.target_r: rewards,
+                 self.local_network.target_sf: np.stack(discounted_sf, axis=0),
                  self.local_network.delib: niu,
                  self.local_network.observation: np.stack(observations, axis=0),
                  self.local_network.actions_placeholder: actions,
                  self.local_network.options_placeholder: options}
 
-    _, ms, img_summ, loss, policy_loss, entropy_loss, critic_loss, term_loss = \
+    _, ms, img_summ, loss, policy_loss, entropy_loss, sf_loss, instant_r_loss, auto_loss, term_loss = \
       sess.run([self.local_network.apply_grads,
                 self.local_network.merged_summary,
                 self.local_network.image_summaries,
                 self.local_network.loss,
                 self.local_network.policy_loss,
                 self.local_network.entropy_loss,
-                self.local_network.critic_loss,
+                self.local_network.sf_loss,
+                self.local_network.instant_r_loss,
+                self.local_network.auto_loss,
                 self.local_network.term_loss],
                feed_dict=feed_dict)
     # sess.run(self.update_local_vars)
-    return ms, img_summ, loss, policy_loss, entropy_loss, critic_loss, term_loss
+    return ms, img_summ, loss, policy_loss, entropy_loss, sf_loss, instant_r_loss, auto_loss, term_loss
 
   def play(self, sess, coord, saver):
     with sess.as_default(), sess.graph.as_default():
@@ -127,9 +136,7 @@ class AOCAgent():
       print("Starting worker " + str(self.thread_id))
 
       while not coord.should_stop():
-        if episode_count > self.config.steps:
-          return 0
-      # while self.total_steps < self.config.steps:
+        # while self.total_steps < self.config.steps:
         sess.run(self.update_local_vars)
         episode_buffer = []
         episode_values = []
@@ -157,25 +164,30 @@ class AOCAgent():
         episode_option_histogram[option] += 1
         while not d:
           feed_dict = {self.local_network.observation: np.stack([s])}
-          options, value, q_value, o_term = sess.run([self.local_network.options, self.local_network.v,
-                                                      self.local_network.q_val, self.local_network.termination], feed_dict=feed_dict)
+          options, value, q_value, sf, exp_sf, o_term = sess.run([self.local_network.options, self.local_network.v,
+                                                                  self.local_network.q_val, self.local_network.sf,
+                                                                  self.local_network.exp_sf,
+                                                                  self.local_network.termination], feed_dict=feed_dict)
           o_term = o_term[0, option] > np.random.uniform()
           q_value = q_value[0, option]
+          sf = sf[0, :, option]
           value = value[0]
           pi = options[0, option]
-          action= np.random.choice(pi, p=pi)
+          action = np.random.choice(pi, p=pi)
           action = np.argmax(pi == action)
           s1, r, d, _ = self.env.step(action)
           # if self.name == 'worker_0':
           # self.render_frame(s1)
-            # self.env.render(s1)
+          # self.env.render(s1)
 
           r = np.clip(r, -1, 1)
           self.frame_counter += 1
           self.total_steps += 1
           sess.run(self.increment_total_steps_tensor)
           processed_reward = r - (float(o_term) * self.delib * float(self.frame_counter > 1))
-          episode_buffer.append([s, option, action, processed_reward, t, d, o_term, value, q_value, self.delib + self.config.margin_cost])
+          episode_buffer.append(
+            [s, option, action, processed_reward, t, d, o_term, value, q_value, self.delib + self.config.margin_cost,
+             sf])
           episode_values.append(value)
           episode_q_values.append(q_value)
           episode_reward += r
@@ -186,18 +198,27 @@ class AOCAgent():
 
           option_term = (o_term and t_counter >= self.config.min_update_freq)
           if t_counter == self.config.max_update_freq or d or option_term:
-            delib_cost = self.delib * float(self.frame_counter > 1)
+            # delib_cost = self.delib * float(self.frame_counter > 1)
             feed_dict = {self.local_network.observation: np.stack([s])}
             value, q_value = sess.run([self.local_network.v, self.local_network.q_val],
-                                                       feed_dict=feed_dict)
+                                      feed_dict=feed_dict)
+            exp_sf, sf = sess.run([self.local_network.exp_sf, self.local_network.sf],
+                                  feed_dict=feed_dict)
             q_value = q_value[0, option]
             value = value[0]
+
+            sf = sf[0, :, option]
+            exp_sf = exp_sf[0]
+
+            exp_sf = exp_sf if o_term else sf
+            sf_R = 0 if d else exp_sf
 
             value = value - self.delib * float(self.frame_counter > 1) if o_term else q_value
             R = 0 if d else value
 
-            ms, img_summ, loss, policy_loss, entropy_loss, critic_loss, term_loss = self.train(episode_buffer, sess, R)
-            #print("Timestep {} >>> Ep_done {} >>> Option_Term {} >>> t_counter {} >>> loss {} >>> policy_loss {} >>> "
+            ms, img_summ, loss, policy_loss, entropy_loss, sf_loss, instant_r_loss, auto_loss, term_loss = self.train(
+              episode_buffer, sess, R, sf_R)
+            # print("Timestep {} >>> Ep_done {} >>> Option_Term {} >>> t_counter {} >>> loss {} >>> policy_loss {} >>> "
             #      "entropy_loss {} >>> critic_loss {} >>> term_loss {}".format(t, d, o_term, t_counter, loss,
             #                                                                   policy_loss, entropy_loss, critic_loss,
             #                                                                   term_loss))
@@ -214,10 +235,10 @@ class AOCAgent():
 
           print("Episode {} >>> Step {} >>> Length: {} >>> Reward: {} >>> Mean Value: {} >>> Mean Q_Value: {} "
                 ">>> O_Term: {} >>> Return {}".format(episode_count, self.total_steps, t, episode_reward,
-                                        np.mean(episode_values[-min(self.config.summary_interval, t):]),
-                                        np.mean(episode_q_values[-min(self.config.summary_interval, t):]),
-                                        np.mean(episode_oterm[-min(self.config.summary_interval, t):]),
-                                        np.mean(episode_returns[-min(self.config.summary_interval, t):])))
+                                                      np.mean(episode_values[-min(self.config.summary_interval, t):]),
+                                                      np.mean(episode_q_values[-min(self.config.summary_interval, t):]),
+                                                      np.mean(episode_oterm[-min(self.config.summary_interval, t):]),
+                                                      np.mean(episode_returns[-min(self.config.summary_interval, t):])))
         self.episode_rewards.append(episode_reward)
         self.episode_lengths.append(t)
         self.episode_mean_values.append(np.mean(episode_values))
@@ -260,15 +281,15 @@ class AOCAgent():
           self.summary.value.add(tag='Perf/Oterm', simple_value=float(mean_oterm))
           self.summary.value.add(tag='Perf/Options', simple_value=mean_option)
 
-          counts, bin_edges = np.histogram(episode_options, bins=list(range(self.config.nb_options)) + [self.config.nb_options])
-
+          counts, bin_edges = np.histogram(episode_options,
+                                           bins=list(range(self.config.nb_options)) + [self.config.nb_options])
 
           hist = tf.HistogramProto(min=np.min(episode_options),
-                            max=np.max(episode_options),
-                            num=len(episode_options),
-                            sum=np.sum(episode_options),
-                            sum_squares=np.sum([e**2 for e in episode_options])
-                            )
+                                   max=np.max(episode_options),
+                                   num=len(episode_options),
+                                   sum=np.sum(episode_options),
+                                   sum_squares=np.sum([e ** 2 for e in episode_options])
+                                   )
           bin_edges = bin_edges[1:]
           # Add bin edges and counts
           for edge in bin_edges:
@@ -277,6 +298,7 @@ class AOCAgent():
             hist.bucket.append(c)
 
           self.summary.value.add(tag='Perf/OptionsHist', histo=hist)
+          # episode_option_histogram
 
           self.summary_writer.add_summary(ms, self.total_steps)
 
@@ -285,10 +307,8 @@ class AOCAgent():
           self.summary_writer.add_summary(self.summary, self.total_steps)
           self.summary_writer.flush()
 
-
         if self.name == 'worker_0':
           sess.run(self.increment_global_step)
+        # if not FLAGS.train:
+        #     test_episode_count += 1
         episode_count += 1
-
-
-

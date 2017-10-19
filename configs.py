@@ -21,6 +21,7 @@ from __future__ import print_function
 # pylint: disable=unused-variable
 
 from agents import AOCAgent
+from agents import SFAgent
 from env_wrappers import GridWorld
 from env_wrappers import Gridworld_NonMatching
 import functools
@@ -92,7 +93,7 @@ def aoc():
 
 def sf():
   locals().update(default())
-  agent = AOCAgent
+  agent = SFAgent
   num_agents = 8
   use_gpu = False
 
@@ -123,7 +124,10 @@ def sf():
   discount = 0.985
 
   entropy_coef = 1e-4 #0.01
-  critic_coef = 0.5
+  # critic_coef = 0.5
+  sf_coef = 0.5
+  instant_r_coef = 0.5
+  auto_coef = 1
 
   # nb_options = 8
   nb_options = 4
