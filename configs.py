@@ -149,3 +149,48 @@ def sf():
 
   return locals()
 
+def ac():
+  locals().update(default())
+  agent = ACAgent
+  num_agents = 8
+  use_gpu = False
+
+  # Network
+  network = networks.ACNetwork
+  weight_summaries = dict(
+      all=r'.*',
+      conv=r'.*/conv/.*',
+      fc=r'.*/fc/.*',
+      term=r'.*/option_term/.*',
+      q_val=r'.*/q_val/.*',
+      policy=r'.*/i_o_policies/.*')
+
+  # conv_layers = (8, 4, 16), (4, 2, 32)
+  input_size = (5, 5)
+  history_size = 3
+  conv_layers = (5, 2, 32),
+  fc_layers = 128,
+  # Optimization
+  network_optimizer = 'AdamOptimizer'
+  # lr = 0.0007
+  lr = 1e-3
+  discount = 0.985
+  entropy_coef = 1e-4 #0.01
+  critic_coef = 0.5
+
+  env = functools.partial(
+    GridWorld, "./mdps/toy.mdp")
+  max_update_freq = 30
+  min_update_freq = 5
+  steps = 1e6  # 1M
+  explore_steps = 1e5
+  final_random_action_prob = 0.1
+  initial_random_action_prob = 1.0
+  delib_cost = 0
+  margin_cost = 0
+  gradient_clip_value = 40
+  summary_interval = 1
+  checkpoint_interval = 1
+  eval_interval = 10
+
+  return locals()

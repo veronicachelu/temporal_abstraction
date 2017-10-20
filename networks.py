@@ -390,7 +390,7 @@ class ACNetwork():
     self._config = config
     self._network_optimizer = config.network_optimizer(
       self._config.lr, name='network_optimizer')
-    self._exploration_options = TFLinearSchedule(self._config.explore_steps, self._config.final_random_action_prob,
+    self._exploration_policy = TFLinearSchedule(self._config.explore_steps, self._config.final_random_action_prob,
                                                  self._config.initial_random_action_prob)
 
     with tf.variable_scope(scope):
@@ -425,6 +425,7 @@ class ACNetwork():
                                       activation_fn=tf.nn.softmax,
                                       variables_collections=tf.get_collection("variables"),
                                       outputs_collections="activations", scope="Policy")
+    
       self.summaries.append(tf.contrib.layers.summarize_activation(option))
 
       self.value = layers.fully_connected(out, num_outputs=1,
