@@ -21,6 +21,10 @@ from __future__ import print_function
 # pylint: disable=unused-variable
 
 from agents import AOCAgent
+from agents import ACAgent
+from agents import ACSFAgent
+from agents import ACOptionAgent
+from agents import ACMatrixAgent
 from agents import SFAgent
 from env_wrappers import GridWorld
 from env_wrappers import Gridworld_NonMatching
@@ -151,10 +155,13 @@ def sf():
 
 def ac():
   locals().update(default())
-  agent = ACAgent
+  policy_agent = ACAgent
+  sf_agent = ACSFAgent
+  option_agent = ACOptionAgent
+  matrix_agent = ACMatrixAgent
   num_agents = 8
   use_gpu = False
-
+  nb_options = 4
   # Network
   network = networks.ACNetwork
   weight_summaries = dict(
@@ -170,13 +177,18 @@ def ac():
   history_size = 3
   conv_layers = (5, 2, 32),
   fc_layers = 128,
+  sf_layers = 256, 128
   # Optimization
   network_optimizer = 'AdamOptimizer'
   # lr = 0.0007
   lr = 1e-3
+  sf_lr = 1e-3
   discount = 0.985
   entropy_coef = 1e-4 #0.01
   critic_coef = 0.5
+  sf_coef = 1
+  instant_r_coef = 1
+  auto_coef = 1
 
   env = functools.partial(
     GridWorld, "./mdps/toy.mdp")
@@ -189,8 +201,12 @@ def ac():
   delib_cost = 0
   margin_cost = 0
   gradient_clip_value = 40
-  summary_interval = 1
+  summary_interval = 10
   checkpoint_interval = 1
-  eval_interval = 10
+  eval_interval = 1
+  policy_steps = 200 #e3
+  sf_transition_matrix_steps = 300#e3
+  sf_transition_options_steps = 400#e3
+  sf_transition_matrix_size = 1e3
 
   return locals()

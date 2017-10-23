@@ -27,55 +27,6 @@ import tensorflow as tf
 import collections
 
 
-def define_simulation_graph(batch_env, algo_cls, config, sess):
-  """Define the algortihm and environment interaction.
-
-  Args:
-    batch_env: In-graph environments object.
-    algo_cls: Constructor of a batch algorithm.
-    config: Configuration object for the algorithm.
-
-  Returns:
-    Object providing graph elements via attributes.
-  """
-  # pylint: disable=unused-variable
-  step = tf.Variable(0, False, dtype=tf.int32, name='global_step')
-  is_training = tf.placeholder(tf.bool, name='is_training')
-  should_log = tf.placeholder(tf.bool, name='should_log')
-  do_report = tf.placeholder(tf.bool, name='do_report')
-  force_reset = tf.placeholder(tf.bool, name='force_reset')
-  algo = algo_cls(batch_env, step, is_training, should_log, config, sess)
-  done, score, summary = tools.simulate(
-      batch_env, algo, should_log, force_reset)
-  message = 'Graph contains {} trainable variables.'
-  tf.logging.info(message.format(tools.count_weights()))
-  # pylint: enable=unused-variable
-  return tools.AttrDict(locals())
-
-
-def define_batch_env(constructor, num_agents, env_processes):
-  """Create environments and apply all desired wrappers.
-
-  Args:
-    constructor: Constructor of an OpenAI gym environment.
-    num_agents: Number of environments to combine in the batch.
-    env_processes: Whether to step environment in external processes.
-
-  Returns:
-    In-graph environments object.
-  """
-  with tf.variable_scope('environments'):
-    if env_processes:
-      envs = [
-          tools.wrappers.ExternalProcess(constructor)
-          for _ in range(num_agents)]
-    else:
-      envs = [constructor() for _ in range(num_agents)]
-    batch_env = tools.BatchEnv(envs, blocking=not env_processes)
-    batch_env = tools.InGraphBatchEnv(batch_env)
-  return batch_env
-
-
 def define_saver(exclude=None):
   """Create a saver for the variables we want to checkpoint.
 

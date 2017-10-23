@@ -149,6 +149,21 @@ class GridWorld:
 
     return reward
 
+  def get_state(self, idx):
+    x, y = self.get_state_xy(idx)
+    self.agentX, self.agentY = x, y
+
+    screen = self.build_screen()
+
+    return screen, x, y
+
+  def not_wall(self, i, j):
+    if self.MDP[i][j] != -1:
+      return True
+    else:
+      return False
+
+
   def get_state_xy(self, idx):
     y = idx % self.nb_cols
     x = int((idx - y) / self.nb_rows)

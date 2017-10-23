@@ -15,21 +15,24 @@ from env_wrappers import _create_environment
 def train(config, env_processes, logdir):
   tf.reset_default_graph()
   sess = tf.Session()
+  stage_logdir = os.path.join(logdir, "stage1")
+  tf.gfile.MakeDirs(stage_logdir)
   with sess:
     with tf.device("/cpu:0"):
       with config.unlocked:
         config.logdir = logdir
+        config.stage_logdir = stage_logdir
         config.network_optimizer = getattr(tf.train, config.network_optimizer)
         global_step = tf.Variable(0, dtype=tf.int32, name='global_step', trainable=False)
         envs = [_create_environment(config) for _ in range(config.num_agents)]
         action_size = envs[0].action_space.n
         global_network = config.network("global", config, action_size)
-        agents = [config.agent(envs[i], i, global_step, config) for i in range(config.num_agents)]
+        agents = [config.policy_agent(envs[i], i, global_step, config) for i in range(config.num_agents)]
 
       saver = loader = utility.define_saver(exclude=(r'.*_temporary/.*',))
       if FLAGS.load_from is not None:
         sess.run(tf.global_variables_initializer())
-        ckpt = tf.train.get_checkpoint_state(os.path.join(FLAGS.load_from, "models"))
+        ckpt = tf.train.get_checkpoint_state(os.path.join(os.path.join(FLAGS.load_from, "stage1"), "models"))
         print("Loading Model from {}".format(ckpt.model_checkpoint_path))
         loader.restore(sess, ckpt.model_checkpoint_path)
         sess.run(tf.local_variables_initializer())
@@ -73,7 +76,6 @@ def main(_):
       run_number = 0
     logdir = FLAGS.logdir and os.path.expanduser(os.path.join(
       FLAGS.logdir, '{}-{}'.format(run_number, FLAGS.config)))
-    # recreate_directory_structure(logdir)
   try:
     config = utility.load_config(logdir)
   except IOError:

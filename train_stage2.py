@@ -15,26 +15,28 @@ from env_wrappers import _create_environment
 def train(config, env_processes, logdir):
   tf.reset_default_graph()
   sess = tf.Session()
+  previous_stage_logdir = os.path.join(logdir, "stage1")
+  stage_logdir = os.path.join(logdir, "stage2")
+  tf.gfile.MakeDirs(stage_logdir)
   with sess:
     with tf.device("/cpu:0"):
       with config.unlocked:
         config.logdir = logdir
+        config.stage_logdir = stage_logdir
         config.network_optimizer = getattr(tf.train, config.network_optimizer)
         global_step = tf.Variable(0, dtype=tf.int32, name='global_step', trainable=False)
         envs = [_create_environment(config) for _ in range(config.num_agents)]
         action_size = envs[0].action_space.n
-        global_network = config.network("global", config, action_size)
-        agents = [config.agent(envs[i], i, global_step, config) for i in range(config.num_agents)]
+        global_network = config.network("global", config, action_size, 2)
+        agents = [config.sf_agent(envs[i], i, global_step, config) for i in range(config.num_agents)]
 
-      saver = loader = utility.define_saver(exclude=(r'.*_temporary/.*',))
-      if FLAGS.load_from is not None:
-        sess.run(tf.global_variables_initializer())
-        ckpt = tf.train.get_checkpoint_state(os.path.join(FLAGS.load_from, "models"))
-        print("Loading Model from {}".format(ckpt.model_checkpoint_path))
-        loader.restore(sess, ckpt.model_checkpoint_path)
-        sess.run(tf.local_variables_initializer())
-      else:
-        sess.run([tf.global_variables_initializer(), tf.local_variables_initializer()])
+      saver = utility.define_saver(exclude=(r'.*_temporary/.*',))
+      loader = utility.define_saver(exclude=(r'.*_temporary/.*', r'.*sf/.*'))
+      sess.run(tf.global_variables_initializer())
+      ckpt = tf.train.get_checkpoint_state(os.path.join(previous_stage_logdir, "models"))
+      print("Loading Model from {}".format(ckpt.model_checkpoint_path))
+      loader.restore(sess, ckpt.model_checkpoint_path)
+      sess.run(tf.local_variables_initializer())
 
       coord = tf.train.Coordinator()
 
@@ -73,7 +75,6 @@ def main(_):
       run_number = 0
     logdir = FLAGS.logdir and os.path.expanduser(os.path.join(
       FLAGS.logdir, '{}-{}'.format(run_number, FLAGS.config)))
-    # recreate_directory_structure(logdir)
   try:
     config = utility.load_config(logdir)
   except IOError:
@@ -109,7 +110,7 @@ if __name__ == '__main__':
     'task', "sf",
     'Task nature')
   tf.app.flags.DEFINE_string(
-    'load_from', None,
-    # 'load_from', "./logdir/0-ac",
+    # 'load_from', None,
+    'load_from', "./logdir/1-ac",
     'Load directory to load models from.')
   tf.app.run()
