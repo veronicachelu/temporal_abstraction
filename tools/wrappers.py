@@ -291,7 +291,7 @@ class LimitDuration(object):
 
   def step(self, action):
     if self._step is None:
-      raise RuntimeError('Must reset environment.')
+      self._step = 0
     observ, reward, done, info = self._env.step(action)
     self._step += 1
     if self._step >= self._duration:
@@ -660,7 +660,7 @@ class FrameResize(object):
       return gym.spaces.Box(low, high)
 
     def get_preprocessed_frame(self, observ):
-      img = Image.fromarray(observ)
+      img = Image.fromarray(np.asarray(observ, np.uint8))
       img = img.resize((self.resized_width, self.resized_height))
       pix = np.array(img).astype(float)
       pix = pix.astype(float) / 255

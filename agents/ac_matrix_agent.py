@@ -71,8 +71,8 @@ class ACMatrixAgent():
           a = np.argmax(pi == a)
           sf = sf[0, :, a]
 
-          if old_sf is not None:
-            self.build_sf_matrix(old_sf, sf)
+          # if old_sf is not None:
+          self.build_sf_matrix(sf)
 
           s1, r, d, _ = self.env.step(a)
 
@@ -98,11 +98,11 @@ class ACMatrixAgent():
           sess.run(self.increment_global_step)
         episode_count += 1
 
-  def build_sf_matrix(self, sf_old, sf_new):
+  def build_sf_matrix(self, sf_new):
     if len(self.sf_transition_matrix) == self.config.sf_transition_matrix_size:
       print("Matrix is full")
       np.save(os.path.join(self.model_path, "sf_transition_matrix.npy"), np.asarray(self.sf_transition_matrix))
       self.sf_transition_matrix.popleft()
 
-    self.sf_transition_matrix.append(sf_new - sf_old)
+    self.sf_transition_matrix.append(sf_new)
 

@@ -99,7 +99,7 @@ class ACAgent():
       print("Starting worker " + str(self.thread_id))
 
       while not coord.should_stop():
-        if episode_count > self.config.policy_steps:
+        if self.total_steps > self.config.steps:
           return 0
 
         sess.run(self.update_local_vars)

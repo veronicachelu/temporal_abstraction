@@ -50,7 +50,7 @@ class ACSFAgent():
     fi = rollout[:, 3]
 
     sf_plus = np.asarray(fi.tolist() + [bootstrap_sf])
-    discounted_sf = discount(sf_plus, self.config.sf_discount)[:-1]
+    discounted_sf = discount(sf_plus, self.config.discount)[:-1]
 
     feed_dict = {self.local_network.target_sf: np.stack(discounted_sf, axis=0),
                  self.local_network.observation: np.stack(observations, axis=0),

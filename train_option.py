@@ -15,17 +15,17 @@ from env_wrappers import _create_environment
 def get_direction(matrix_folder):
   matrix = np.load(os.path.join(os.path.join(matrix_folder, "models"), "sf_transition_matrix.npy"))
   u, s, v = np.linalg.svd(matrix)
-  reduce_noise = s > 1
-  s = s[reduce_noise][::-1]
-  v = v[reduce_noise][::-1]
+  # reduce_noise = s > 1
+  # s = s[reduce_noise][::-1]
+  # v = v[reduce_noise][::-1]
   return s[FLAGS.option], v[FLAGS.option]
 
 def train(config, env_processes, logdir):
   tf.reset_default_graph()
   sess = tf.Session()
-  previous_stage_logdir = os.path.join(logdir, "stage2")
-  matrix_stage_logdir = os.path.join(logdir, "stage3")
-  stage_logdir = os.path.join(logdir, "stage4")
+  previous_stage_logdir = os.path.join(logdir, "sf_repres")
+  matrix_stage_logdir = os.path.join(logdir, "sf_matrix")
+  stage_logdir = os.path.join(logdir, "options")
   tf.gfile.MakeDirs(stage_logdir)
   with sess:
     with tf.device("/cpu:0"):
@@ -42,13 +42,22 @@ def train(config, env_processes, logdir):
         global_network.option = FLAGS.option
         agents = [config.option_agent(envs[i], i, global_step, config, FLAGS.option, eval, evect) for i in range(config.num_agents)]
 
-      saver = utility.define_saver(exclude=(r'.*_temporary/.*',))
-      loader = utility.define_saver(exclude=(r'.*options/.*',))
-      sess.run(tf.global_variables_initializer())
-      ckpt = tf.train.get_checkpoint_state(os.path.join(previous_stage_logdir, "models"))
-      print("Loading Model from {}".format(ckpt.model_checkpoint_path))
-      loader.restore(sess, ckpt.model_checkpoint_path)
-      sess.run(tf.local_variables_initializer())
+      if FLAGS.resume:
+        saver = utility.define_saver(exclude=(r'.*_temporary/.*',))
+        loader = utility.define_saver(exclude=(r'.*_temporary/.*',))
+        sess.run(tf.global_variables_initializer())
+        ckpt = tf.train.get_checkpoint_state(os.path.join(stage_logdir, "models"))
+        print("Loading Model from {}".format(ckpt.model_checkpoint_path))
+        loader.restore(sess, ckpt.model_checkpoint_path)
+        sess.run(tf.local_variables_initializer())
+      else:
+        saver = utility.define_saver(exclude=(r'.*_temporary/.*',))
+        loader = utility.define_saver(exclude=(r'.*options/.*',))
+        sess.run(tf.global_variables_initializer())
+        ckpt = tf.train.get_checkpoint_state(os.path.join(previous_stage_logdir, "models"))
+        print("Loading Model from {}".format(ckpt.model_checkpoint_path))
+        loader.restore(sess, ckpt.model_checkpoint_path)
+        sess.run(tf.local_variables_initializer())
 
       coord = tf.train.Coordinator()
 
@@ -122,10 +131,10 @@ if __name__ == '__main__':
     'task', "sf",
     'Task nature')
   tf.app.flags.DEFINE_integer(
-    'option', 0,
+    'option', 1,
     'option to learn')
   tf.app.flags.DEFINE_string(
     # 'load_from', None,
-    'load_from', "./logdir/1-ac",
+    'load_from', "./logdir/6-ac",
     'Load directory to load models from.')
   tf.app.run()

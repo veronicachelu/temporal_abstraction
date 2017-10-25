@@ -17,11 +17,12 @@ FLAGS = tf.app.flags.FLAGS
 
 
 class ACOptionAgent():
-  def __init__(self, game, thread_id, global_step, config, option, eval, evect, stage=None):
+  def __init__(self, game, thread_id, global_step, config, option, eval, evect, flip=False, stage=None):
     self.name = "worker_" + str(thread_id)
     self.thread_id = thread_id
     self.option = option
     self.eval = eval
+    self.flip = flip
     self.evect = evect
     self.config = config
     self.optimizer = config.network_optimizer
@@ -99,6 +100,16 @@ class ACOptionAgent():
       for idx in range(self.config.input_size[0] * self.config.input_size[1]):
         s, i, j = self.env.get_state(idx)
 
+        # if not self.env.not_wall(i, j):
+        #   plt.gca().add_patch(
+        #     patches.Rectangle(
+        #       (j, self.config.input_size[0] - i - 1),  # (x,y)
+        #       1.0,  # width
+        #       1.0,  # height
+        #       facecolor="gray"
+        #     ))
+        #   continue
+
         feed_dict = {self.local_network.observation: np.stack([s])}
         pi, v, sf = sess.run(
           [self.local_network.option_policy, self.local_network.option_value, self.local_network.sf],
@@ -147,8 +158,8 @@ class ACOptionAgent():
           plt.axhline(j, color='k', linestyle=':')
         plt.axhline(self.config.input_size[0], color='k', linestyle=':')
 
-        plt.savefig(os.path.join(self.outputPath, "SuccessorFeatures_" + self.option + 'policy.png'))
-        plt.close()
+      plt.savefig(os.path.join(self.outputPath, "SuccessorFeatures_" + str(self.option) + 'policy.png'))
+      plt.close()
 
           # sf = sf[0, :, a]
           # s1, r, d, _ = self.env.step(a)
@@ -164,6 +175,148 @@ class ACOptionAgent():
           # else:
           #   sf_next = sf_next[0, :, a_next]
           #   r = self.get_reward(sf, sf_next)
+
+  def plot_sf(self, sess, coord, saver):
+    plt.clf()
+    with sess.as_default(), sess.graph.as_default():
+      episode_count = sess.run(self.global_step)
+      self.total_steps = sess.run(self.total_steps_tensor)
+
+      print("Starting worker " + str(self.thread_id))
+
+      sess.run(self.update_local_vars)
+
+      for idx in range(self.config.input_size[0] * self.config.input_size[1]):
+        s, i, j = self.env.get_state(idx)
+        if not self.env.not_wall(i, j):
+          plt.gca().add_patch(
+            patches.Rectangle(
+              (j, self.config.input_size[0] - i - 1),  # (x,y)
+              1.0,  # width
+              1.0,  # height
+              facecolor="gray"
+            )
+          )
+          continue
+
+        feed_dict = {self.local_network.observation: np.stack([s])}
+        sf = sess.run(
+          self.local_network.sf,
+          feed_dict=feed_dict)
+        actions = [0, 1, 2, 3]
+        rewards = []
+
+        for a in actions:
+          sf_old = sf[0, :, a]
+          r = self.get_reward(sf_old)
+          rewards.append(r)
+
+        actions.append(4)
+        rewards.append(0)
+        max_r_index = np.argmax(rewards)
+        a = actions[max_r_index]
+
+        dx = 0
+        dy = 0
+        if a == 0:  # up
+          dy = 0.35
+        elif a == 1:  # right
+          dx = 0.35
+        elif a == 2:  # down
+          dy = -0.35
+        elif a == 3:  # left
+          dx = -0.35
+        elif a == self.action_size and self.env.not_wall(i, j):  # termination
+          circle = plt.Circle(
+            (j + 0.5, self.config.input_size[0] - i + 0.5 - 1), 0.025, color='k')
+          plt.gca().add_artist(circle)
+
+        plt.arrow(j + 0.5, self.config.input_size[0] - i + 0.5 - 1, dx, dy,
+                  head_width=0.05, head_length=0.05, fc='k', ec='k')
+
+        plt.xlim([0, self.config.input_size[1]])
+        plt.ylim([0, self.config.input_size[0]])
+
+        for i in range(self.config.input_size[1]):
+          plt.axvline(i, color='k', linestyle=':')
+        plt.axvline(self.config.input_size[1], color='k', linestyle=':')
+
+        for j in range(self.config.input_size[0]):
+          plt.axhline(j, color='k', linestyle=':')
+        plt.axhline(self.config.input_size[0], color='k', linestyle=':')
+
+      plt.savefig(os.path.join(self.outputPath, "SuccessorFeatures_" + str(self.option) + (
+      '_policy.png' if not self.flip else "_flipped_policy.png")))
+      plt.close()
+
+  def plot_heatmap(self, sess, coord, saver):
+    plt.clf()
+    with sess.as_default(), sess.graph.as_default():
+      episode_count = sess.run(self.global_step)
+      self.total_steps = sess.run(self.total_steps_tensor)
+
+      print("Starting worker " + str(self.thread_id))
+
+      sess.run(self.update_local_vars)
+
+      for idx in range(self.config.input_size[0] * self.config.input_size[1]):
+        s, i, j = self.env.get_state(idx)
+        if not self.env.not_wall(i, j):
+          plt.gca().add_patch(
+            patches.Rectangle(
+              (j, self.config.input_size[0] - i - 1),  # (x,y)
+              1.0,  # width
+              1.0,  # height
+              facecolor="gray"
+            )
+          )
+          continue
+
+        feed_dict = {self.local_network.observation: np.stack([s])}
+        sf = sess.run(
+          self.local_network.sf,
+          feed_dict=feed_dict)
+        actions = [0, 1, 2, 3]
+        rewards = []
+
+        for a in actions:
+          sf_old = sf[0, :, a]
+          r = self.get_reward(sf_old)
+          rewards.append(r)
+
+        actions.append(4)
+        rewards.append(0)
+        max_r = np.max(rewards)
+
+        plt.gca().add_patch(
+          patches.Rectangle(
+            (j, self.config.input_size[0] - i - 1),  # (x,y)
+            1.0,  # width
+            1.0,  # height
+            facecolor="gray"
+          )
+        )
+
+          circle = plt.Circle(
+            (j + 0.5, self.config.input_size[0] - i + 0.5 - 1), 0.025, color='k')
+          plt.gca().add_artist(circle)
+
+        plt.arrow(j + 0.5, self.config.input_size[0] - i + 0.5 - 1, dx, dy,
+                  head_width=0.05, head_length=0.05, fc='k', ec='k')
+
+        plt.xlim([0, self.config.input_size[1]])
+        plt.ylim([0, self.config.input_size[0]])
+
+        for i in range(self.config.input_size[1]):
+          plt.axvline(i, color='k', linestyle=':')
+        plt.axvline(self.config.input_size[1], color='k', linestyle=':')
+
+        for j in range(self.config.input_size[0]):
+          plt.axhline(j, color='k', linestyle=':')
+        plt.axhline(self.config.input_size[0], color='k', linestyle=':')
+
+      plt.savefig(os.path.join(self.outputPath, "SuccessorFeatures_" + str(self.option) + ('_policy.png' if not self.flip else "_flipped_policy.png")))
+      plt.close()
 
   def play(self, sess, coord, saver):
     with sess.as_default(), sess.graph.as_default():
@@ -197,22 +350,25 @@ class ACOptionAgent():
           a = np.random.choice(pi, p=pi)
           a = np.argmax(pi == a)
           if a == self.action_size:
-            break
-
-          sf = sf[0, :, a]
-          s1, r, d, _ = self.env.step(a)
-          feed_dict = {self.local_network.observation: np.stack([s1])}
-          sf_next, pi_next = sess.run([self.local_network.sf, self.local_network.option_policy],
-                            feed_dict=feed_dict)
-          pi_next = pi_next[0, self.option]
-          a_next = np.random.choice(pi_next, p=pi_next)
-          a_next = np.argmax(pi_next == a_next)
-          if a_next == self.action_size:
             r = 0
+            s1 = s
             d = True
           else:
-            sf_next = sf_next[0, :, a_next]
-            r = self.get_reward(sf, sf_next)
+            sf = sf[0, :, a]
+            s1, r, d, _ = self.env.step(a)
+            r = self.get_reward(sf)
+          # feed_dict = {self.local_network.observation: np.stack([s1])}
+          # sf_next, pi_next = sess.run([self.local_network.sf, self.local_network.option_policy],
+          #                   feed_dict=feed_dict)
+          # pi_next = pi_next[0, self.option]
+          # a_next = np.random.choice(pi_next, p=pi_next)
+          # a_next = np.argmax(pi_next == a_next)
+          # if a_next == self.action_size:
+          #   r = 0
+          #   d = True
+          # else:
+          #   sf_next = sf_next[0, :, a_next]
+          #   r = self.get_reward(sf, sf_next)
 
           self.total_steps += 1
           sess.run(self.increment_total_steps_tensor)
@@ -233,23 +389,18 @@ class ACOptionAgent():
 
             episode_buffer = []
             t_counter = 0
+
           episode_returns.append(R)
           if self.name == "worker_0":
             print("Episode {} >>> Step {} >>> Length: {} >>> Reward: {} >>> Mean Value: {} "
                   " >>> Return {}".format(episode_count, self.total_steps, t, episode_reward,
-                                                        np.mean(episode_values[-min(self.config.summary_interval, t):]),
-                                                        np.mean(episode_returns[-min(self.config.summary_interval, t):])))
+                                                        episode_values[-1],
+                                                        episode_returns[-1]))
         self.episode_rewards.append(episode_reward)
         self.episode_lengths.append(t)
         self.episode_mean_values.append(np.mean(episode_values))
         self.episode_mean_returns.append(np.mean(episode_returns))
 
-        if episode_count % self.config.eval_interval == 0 and self.total_steps != 0 and \
-                self.name == 'worker_0':
-          eval_reward = self.evaluate_agent(sess)
-          self.summary.value.add(tag='Perf/EvalReward', simple_value=float(eval_reward))
-          self.summary_writer.add_summary(self.summary, self.total_steps)
-          self.summary_writer.flush()
 
         if episode_count % self.config.checkpoint_interval == 0 and self.name == 'worker_0' and \
                 self.total_steps != 0:
@@ -281,8 +432,8 @@ class ACOptionAgent():
           sess.run(self.increment_global_step)
         episode_count += 1
 
-  def get_reward(self, sf_old, sf_new):
-      state_dif = sf_new - sf_old
+  def get_reward(self, sf_new):
+      state_dif = sf_new
       state_dif_norm = np.linalg.norm(state_dif)
       state_dif_normalized = state_dif / (state_dif_norm + 1e-8)
 

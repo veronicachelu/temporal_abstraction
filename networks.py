@@ -289,7 +289,7 @@ class SFNetwork(tf.contrib.rnn.RNNCell):
           self.actions_placeholder = tf.placeholder(shape=[None], dtype=tf.int32, name="Actions")
           self.options_placeholder = tf.placeholder(shape=[None], dtype=tf.int32, name="Options")
           self.target_return = tf.placeholder(shape=[None], dtype=tf.float32)
-          self.target_sf = tf.placeholder(shape=[None, self._fc_layers[-1]], dtype=tf.float32)
+          self.target_sf = tf.placeholder(shape=[None, self._sf_layers[-1]], dtype=tf.float32)
           self.target_r = tf.placeholder(shape=[None], dtype=tf.float32)
           #self.target_v = tf.placeholder(shape=[None], dtype=tf.float32)
           self.delib = tf.placeholder(shape=[None], dtype=tf.float32)
@@ -359,7 +359,7 @@ class SFNetwork(tf.contrib.rnn.RNNCell):
 
   def get_sf(self, o):
     current_option_option_one_hot = tf.expand_dims(tf.one_hot(o, self._config.nb_options, name="options_one_hot"), 1)
-    current_option_option_one_hot = tf.tile(current_option_option_one_hot, [1, self._fc_layers[-1], 1])
+    current_option_option_one_hot = tf.tile(current_option_option_one_hot, [1, self._sf_layers[-1], 1])
     sf_values = tf.reduce_sum(tf.multiply(self.sf, current_option_option_one_hot),
                              reduction_indices=2, name="Values_SF")
     return sf_values
@@ -444,7 +444,7 @@ class ACNetwork():
         self.sf = [tf.squeeze(sf, 2) for sf in self.sf]
         for j in range(self._action_size):
           for i, nb_filt in enumerate(self._sf_layers):
-            self.sf[j] = layers.fully_connected(self.sf[j], num_outputs=self._fc_layers[-1],
+            self.sf[j] = layers.fully_connected(self.sf[j], num_outputs=nb_filt,
                                                     activation_fn=None, trainable=self.trainable_sf,
                                                     variables_collections=tf.get_collection("variables"),
                                                     outputs_collections="activations", scope="sf_{}_fc_{}".format(j, i))
@@ -520,7 +520,7 @@ class ACNetwork():
         self.option_actions_onehot = tf.one_hot(self.actions_placeholder, self._action_size + 1, dtype=tf.float32,
                                          name="Actions_Onehot")
         self.target_return = tf.placeholder(shape=[None], dtype=tf.float32)
-        self.target_sf = tf.placeholder(shape=[None, self._fc_layers[-1]], dtype=tf.float32)
+        self.target_sf = tf.placeholder(shape=[None, self._sf_layers[-1]], dtype=tf.float32)
         # self.target_r = tf.placeholder(shape=[None], dtype=tf.float32)
 
         self.responsible_outputs = tf.reduce_sum(self.policy * self.actions_onehot, [1])
@@ -548,7 +548,7 @@ class ACNetwork():
           self.option_policy_loss = -tf.reduce_mean(tf.log(self.responsible_outputs_options + 1e-7) * tf.stop_gradient(option_td_error))
 
         with tf.name_scope('option_entropy_loss'):
-          self.option_entropy_loss = -self._config.entropy_coef * tf.reduce_mean(tf.reduce_sum(self.option_policy[:, self.option, :] *
+          self.option_entropy_loss = -self._config.option_entropy_coef * tf.reduce_mean(tf.reduce_sum(self.option_policy[:, self.option, :] *
                                                                                          tf.log(self.option_policy[:, self.option, :] +
                                                                                   1e-7), axis=1))
 
@@ -570,9 +570,10 @@ class ACNetwork():
           self.loss = self.sf_loss #+ self.instant_r_loss
           loss_summaries = [tf.summary.scalar('avg_sf_loss', self.sf_loss)]
         elif self.trainable_options:
-          self.loss = self.option_policy_loss + self.option_critic_loss
+          self.loss = self.option_policy_loss + self.option_critic_loss + self.option_entropy_loss
           loss_summaries = [tf.summary.scalar('option_critic_loss', self.option_critic_loss),
-                            tf.summary.scalar('option_policy_loss', self.option_policy_loss)]
+                            tf.summary.scalar('option_policy_loss', self.option_policy_loss),
+                            tf.summary.scalar('option_entropy_loss', self.option_entropy_loss)]
 
         if hasattr(self, "loss"):
           local_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope)
@@ -594,7 +595,7 @@ class ACNetwork():
 
   def get_sf(self, a):
     current_action_one_hot = tf.expand_dims(tf.one_hot(a, self._action_size, name="actions_one_hot"), 1)
-    current_action_one_hot = tf.tile(current_action_one_hot, [1, self._fc_layers[-1], 1])
+    current_action_one_hot = tf.tile(current_action_one_hot, [1, self._sf_layers[-1], 1])
     sf_values = tf.reduce_sum(tf.multiply(self.sf, current_action_one_hot),
                              reduction_indices=2, name="Values_SF")
     return sf_values

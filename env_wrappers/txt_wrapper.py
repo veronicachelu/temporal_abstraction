@@ -65,7 +65,8 @@ class GridWorld:
     mdp_screen = np.tile(mdp_screen, [1, 1, 3])
     mdp_screen[self.agentX, self.agentY] = [0, 255, 0]
     mdp_screen[self.goalX, self.goalY] = [255, 0, 0]
-    self.pix_state = scipy.misc.imresize(mdp_screen, [200, 200, 3], interp='nearest')
+    self.pix_state = mdp_screen
+    # self.pix_state = scipy.misc.imresize(mdp_screen, [200, 200, 3], interp='nearest')
     return self.pix_state
     # return mdp_screen
 
@@ -166,7 +167,7 @@ class GridWorld:
 
   def get_state_xy(self, idx):
     y = idx % self.nb_cols
-    x = int((idx - y) / self.nb_rows)
+    x = int((idx - y) / self.nb_cols)
 
     return x, y
 

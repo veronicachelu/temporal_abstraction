@@ -15,7 +15,8 @@ from env_wrappers import _create_environment
 def train(config, env_processes, logdir):
   tf.reset_default_graph()
   sess = tf.Session()
-  stage_logdir = os.path.join(logdir, "stage1")
+  previous_stage_logdir = os.path.join(logdir, "sf_repres")
+  stage_logdir = os.path.join(logdir, "sf_matrix")
   tf.gfile.MakeDirs(stage_logdir)
   with sess:
     with tf.device("/cpu:0"):
@@ -24,33 +25,25 @@ def train(config, env_processes, logdir):
         config.stage_logdir = stage_logdir
         config.network_optimizer = getattr(tf.train, config.network_optimizer)
         global_step = tf.Variable(0, dtype=tf.int32, name='global_step', trainable=False)
-        envs = [_create_environment(config) for _ in range(config.num_agents)]
-        action_size = envs[0].action_space.n
-        global_network = config.network("global", config, action_size)
-        agents = [config.policy_agent(envs[i], i, global_step, config) for i in range(config.num_agents)]
+        env = _create_environment(config)
+        action_size = env.action_space.n
+        global_network = config.network("global", config, action_size, 3)
+        agent = config.matrix_agent(env, global_step, config)
 
-      saver = loader = utility.define_saver(exclude=(r'.*_temporary/.*',))
-      if FLAGS.load_from is not None:
-        sess.run(tf.global_variables_initializer())
-        ckpt = tf.train.get_checkpoint_state(os.path.join(os.path.join(FLAGS.load_from, "stage1"), "models"))
-        print("Loading Model from {}".format(ckpt.model_checkpoint_path))
-        loader.restore(sess, ckpt.model_checkpoint_path)
-        sess.run(tf.local_variables_initializer())
-      else:
-        sess.run([tf.global_variables_initializer(), tf.local_variables_initializer()])
+      saver = utility.define_saver(exclude=(r'.*_temporary/.*',))
+      loader = utility.define_saver(exclude=(r'.*_temporary/.*',))
+      sess.run(tf.global_variables_initializer())
+      ckpt = tf.train.get_checkpoint_state(os.path.join(previous_stage_logdir, "models"))
+      print("Loading Model from {}".format(ckpt.model_checkpoint_path))
+      loader.restore(sess, ckpt.model_checkpoint_path)
+      sess.run(tf.local_variables_initializer())
 
       coord = tf.train.Coordinator()
 
       agent_threads = []
-      for agent in agents:
-        thread = threading.Thread(target=(lambda: agent.play(sess, coord, saver)))
-        thread.start()
-        agent_threads.append(thread)
-
-      while True:
-        if FLAGS.show_training:
-          for env in envs:
-            env.render()
+      thread = threading.Thread(target=(lambda: agent.play(sess, coord, saver)))
+      thread.start()
+      agent_threads.append(thread)
 
       coord.join(agent_threads)
 
@@ -111,7 +104,7 @@ if __name__ == '__main__':
     'task', "sf",
     'Task nature')
   tf.app.flags.DEFINE_string(
-    'load_from', None,
-    # 'load_from', "./logdir/0-ac",
+    # 'load_from', None,
+    'load_from', "./logdir/6-ac",
     'Load directory to load models from.')
   tf.app.run()

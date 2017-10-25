@@ -8,30 +8,43 @@ import tensorflow as tf
 import tools
 import utility
 from tools import wrappers
+import numpy as np
 import configs
 from env_wrappers import _create_environment
 
+def get_direction(matrix_folder):
+  matrix = np.load(os.path.join(os.path.join(matrix_folder, "models"), "sf_transition_matrix.npy"))
+  u, s, v = np.linalg.svd(matrix)
+  # reduce_noise = s > 1
+  # s = s[reduce_noise][::-1]
+  # v = v[reduce_noise][::-1]
+
+  return s[FLAGS.option], v[FLAGS.option] if not FLAGS.flip_eigen else -v[FLAGS.option]
 
 def train(config, env_processes, logdir):
   tf.reset_default_graph()
   sess = tf.Session()
-  previous_stage_logdir = os.path.join(logdir, "stage1")
-  stage_logdir = os.path.join(logdir, "stage2")
+  previous_stage_logdir = os.path.join(logdir, "sf_repres")
+  matrix_stage_logdir = os.path.join(logdir, "sf_matrix")
+  stage_logdir = os.path.join(logdir, "plot_sf_policy")
   tf.gfile.MakeDirs(stage_logdir)
   with sess:
     with tf.device("/cpu:0"):
       with config.unlocked:
         config.logdir = logdir
         config.stage_logdir = stage_logdir
+        config.matrix_stage_logdir = matrix_stage_logdir
+        eval, evect = get_direction(config.matrix_stage_logdir)
         config.network_optimizer = getattr(tf.train, config.network_optimizer)
         global_step = tf.Variable(0, dtype=tf.int32, name='global_step', trainable=False)
-        envs = [_create_environment(config) for _ in range(config.num_agents)]
-        action_size = envs[0].action_space.n
-        global_network = config.network("global", config, action_size, 2)
-        agents = [config.sf_agent(envs[i], i, global_step, config) for i in range(config.num_agents)]
+        env = _create_environment(config)
+        action_size = env.action_space.n
+        global_network = config.network("global", config, action_size, 5)
+        global_network.option = FLAGS.option
+        agent = config.option_agent(env, 0, global_step, config, FLAGS.option, eval, evect, FLAGS.flip_eigen, 5)
 
       saver = utility.define_saver(exclude=(r'.*_temporary/.*',))
-      loader = utility.define_saver(exclude=(r'.*_temporary/.*', r'.*sf/.*'))
+      loader = utility.define_saver(exclude=(r'.*_temporary/.*',))
       sess.run(tf.global_variables_initializer())
       ckpt = tf.train.get_checkpoint_state(os.path.join(previous_stage_logdir, "models"))
       print("Loading Model from {}".format(ckpt.model_checkpoint_path))
@@ -41,15 +54,9 @@ def train(config, env_processes, logdir):
       coord = tf.train.Coordinator()
 
       agent_threads = []
-      for agent in agents:
-        thread = threading.Thread(target=(lambda: agent.play(sess, coord, saver)))
-        thread.start()
-        agent_threads.append(thread)
-
-      while True:
-        if FLAGS.show_training:
-          for env in envs:
-            env.render()
+      thread = threading.Thread(target=(lambda: agent.plot_heatmap(sess, coord, saver)))
+      thread.start()
+      agent_threads.append(thread)
 
       coord.join(agent_threads)
 
@@ -109,8 +116,14 @@ if __name__ == '__main__':
   tf.app.flags.DEFINE_string(
     'task', "sf",
     'Task nature')
+  tf.app.flags.DEFINE_integer(
+    'option', 3,
+    'option to learn')
+  tf.app.flags.DEFINE_boolean(
+    'flip_eigen', True,
+    'flip the direction of the eigenvector')
   tf.app.flags.DEFINE_string(
     # 'load_from', None,
-    'load_from', "./logdir/1-ac",
+    'load_from', "./logdir/6-ac",
     'Load directory to load models from.')
   tf.app.run()

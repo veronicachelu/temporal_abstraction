@@ -8,62 +8,44 @@ import tensorflow as tf
 import tools
 import utility
 from tools import wrappers
-import numpy as np
 import configs
 from env_wrappers import _create_environment
 
-def get_direction(matrix_folder):
-  matrix = np.load(os.path.join(os.path.join(matrix_folder, "models"), "sf_transition_matrix.npy"))
-  u, s, v = np.linalg.svd(matrix)
-  reduce_noise = s > 1
-  s = s[reduce_noise][::-1]
-  v = v[reduce_noise][::-1]
-  return s[FLAGS.option], v[FLAGS.option]
-
-def get_direction(matrix_folder):
-  matrix = np.load(os.path.join(os.path.join(matrix_folder, "models"), "sf_transition_matrix.npy"))
-  u, s, v = np.linalg.svd(matrix)
-  reduce_noise = s > 1
-  s = s[reduce_noise][::-1]
-  v = v[reduce_noise][::-1]
-  return s[FLAGS.option], v[FLAGS.option]
 
 def train(config, env_processes, logdir):
   tf.reset_default_graph()
   sess = tf.Session()
-  previous_stage_logdir = os.path.join(logdir, "stage4")
-  matrix_stage_logdir = os.path.join(logdir, "stage3")
-  stage_logdir = os.path.join(logdir, "stage5")
+  stage_logdir = os.path.join(logdir, "optimal_policy")
   tf.gfile.MakeDirs(stage_logdir)
   with sess:
     with tf.device("/cpu:0"):
       with config.unlocked:
         config.logdir = logdir
         config.stage_logdir = stage_logdir
-        config.matrix_stage_logdir = matrix_stage_logdir
-        eval, evect = get_direction(config.matrix_stage_logdir)
         config.network_optimizer = getattr(tf.train, config.network_optimizer)
         global_step = tf.Variable(0, dtype=tf.int32, name='global_step', trainable=False)
-        env = _create_environment(config)
-        action_size = env.action_space.n
-        global_network = config.network("global", config, action_size, 5)
-        global_network.option = FLAGS.option
-        agent = config.option_agent(env, global_step, config, FLAGS.option, eval, evect, 5)
+        envs = [_create_environment(config) for _ in range(config.num_agents)]
+        action_size = envs[0].action_space.n
+        global_network = config.network("global", config, action_size)
+        agents = [config.policy_agent(envs[i], i, global_step, config) for i in range(config.num_agents)]
 
-      saver = utility.define_saver(exclude=(r'.*_temporary/.*',))
-      loader = utility.define_saver(exclude=(r'.*_temporary/.*',))
-      sess.run(tf.global_variables_initializer())
-      ckpt = tf.train.get_checkpoint_state(os.path.join(previous_stage_logdir, "models"))
-      print("Loading Model from {}".format(ckpt.model_checkpoint_path))
-      loader.restore(sess, ckpt.model_checkpoint_path)
-      sess.run(tf.local_variables_initializer())
+      saver = loader = utility.define_saver(exclude=(r'.*_temporary/.*',))
+      if FLAGS.resume:
+        sess.run(tf.global_variables_initializer())
+        ckpt = tf.train.get_checkpoint_state(os.path.join(os.path.join(FLAGS.load_from, "stage1"), "models"))
+        print("Loading Model from {}".format(ckpt.model_checkpoint_path))
+        loader.restore(sess, ckpt.model_checkpoint_path)
+        sess.run(tf.local_variables_initializer())
+      else:
+        sess.run([tf.global_variables_initializer(), tf.local_variables_initializer()])
 
       coord = tf.train.Coordinator()
 
       agent_threads = []
-      thread = threading.Thread(target=(lambda: agent.plot(sess, coord, saver)))
-      thread.start()
-      agent_threads.append(thread)
+      for agent in agents:
+        thread = threading.Thread(target=(lambda: agent.play(sess, coord, saver)))
+        thread.start()
+        agent_threads.append(thread)
 
       coord.join(agent_threads)
 
@@ -115,7 +97,7 @@ if __name__ == '__main__':
     'train', True,
     'Training.')
   tf.app.flags.DEFINE_boolean(
-    'resume', False,
+    'resume', True,
     'Resume.')
   tf.app.flags.DEFINE_boolean(
     'show_training', False,
@@ -123,11 +105,8 @@ if __name__ == '__main__':
   tf.app.flags.DEFINE_string(
     'task', "sf",
     'Task nature')
-  tf.app.flags.DEFINE_integer(
-    'option', 0,
-    'option to learn')
   tf.app.flags.DEFINE_string(
     # 'load_from', None,
-    'load_from', "./logdir/1-ac",
+    'load_from', "./logdir/6-ac",
     'Load directory to load models from.')
   tf.app.run()

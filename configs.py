@@ -173,11 +173,11 @@ def ac():
       policy=r'.*/i_o_policies/.*')
 
   # conv_layers = (8, 4, 16), (4, 2, 32)
-  input_size = (5, 5)
+  input_size = (7, 6)
   history_size = 3
   conv_layers = (5, 2, 32),
   fc_layers = 128,
-  sf_layers = 256, 128
+  sf_layers = 128, 128
   # Optimization
   network_optimizer = 'AdamOptimizer'
   # lr = 0.0007
@@ -188,10 +188,11 @@ def ac():
   critic_coef = 0.5
   sf_coef = 1
   instant_r_coef = 1
+  option_entropy_coef = 0.01
   auto_coef = 1
 
   env = functools.partial(
-    GridWorld, "./mdps/toy.mdp")
+    GridWorld, "./mdps/2rooms.mdp")
   max_update_freq = 30
   min_update_freq = 5
   steps = 1e6  # 1M
@@ -204,7 +205,7 @@ def ac():
   summary_interval = 10
   checkpoint_interval = 1
   eval_interval = 1
-  policy_steps = 200 #e3
+  policy_steps = 1e3
   sf_transition_matrix_steps = 300#e3
   sf_transition_options_steps = 400#e3
   sf_transition_matrix_size = 1e3
