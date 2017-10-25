@@ -287,22 +287,16 @@ class ACOptionAgent():
         actions.append(4)
         rewards.append(0)
         max_r = np.max(rewards)
+        max_r = np.clip(-1, 1)
 
         plt.gca().add_patch(
           patches.Rectangle(
             (j, self.config.input_size[0] - i - 1),  # (x,y)
             1.0,  # width
             1.0,  # height
-            facecolor="gray"
+            facecolor=(max_r, 0, 0)
           )
         )
-
-          circle = plt.Circle(
-            (j + 0.5, self.config.input_size[0] - i + 0.5 - 1), 0.025, color='k')
-          plt.gca().add_artist(circle)
-
-        plt.arrow(j + 0.5, self.config.input_size[0] - i + 0.5 - 1, dx, dy,
-                  head_width=0.05, head_length=0.05, fc='k', ec='k')
 
         plt.xlim([0, self.config.input_size[1]])
         plt.ylim([0, self.config.input_size[0]])
