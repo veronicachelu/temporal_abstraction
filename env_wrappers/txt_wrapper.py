@@ -208,7 +208,7 @@ class GridWorld:
 
     screen = self.build_screen()
 
-    return screen, reward, done, None
+    return screen, reward, done, nextStateIdx
 
   def get_action_set(self):
     return range(0, 4)

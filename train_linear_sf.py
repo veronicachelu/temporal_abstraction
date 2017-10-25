@@ -10,13 +10,12 @@ import utility
 from tools import wrappers
 import configs
 from env_wrappers import _create_environment
-import numpy as np
-import math
+
 
 def train(config, env_processes, logdir):
   tf.reset_default_graph()
   sess = tf.Session()
-  stage_logdir = os.path.join(logdir, "tabular_sf")
+  stage_logdir = os.path.join(logdir, "linear_sf")
   tf.gfile.MakeDirs(stage_logdir)
   with sess:
     with tf.device("/cpu:0"):
@@ -24,26 +23,40 @@ def train(config, env_processes, logdir):
         config.logdir = logdir
         config.stage_logdir = stage_logdir
         config.network_optimizer = getattr(tf.train, config.network_optimizer)
-        env =_create_environment(config)
-        action_size = env.action_space.n
-        nb_states = env.nb_states
-        sf = np.eye((env.nb_states))
-        delta = np.inf
-        theta = 1
-        while (theta < delta):
-          delta = 0.0
-          for s in range(nb_states):
-            sf_s = sf[s]
-            a = np.random.choice(range(action_size))
-            s1, r = env.get_next_state_and_reward(
-              s, a)
-            state_features = np.identity(nb_states)
-            sf_s1 = state_features[s] + config.discount * sf[s1]
-            delta = max(delta, np.sum(np.abs(sf_s - sf_s1)))
-            sf[s] = sf_s1
+        global_step = tf.Variable(0, dtype=tf.int32, name='global_step', trainable=False)
+        envs = [_create_environment(config) for _ in range(config.num_agents)]
+        action_size = envs[0].action_space.n
+        nb_states = envs[0].nb_states
+        global_network = config.network("global", config, action_size, nb_states)
+        if FLAGS.task == "matrix":
+          agent = config.linear_sf_agent(envs[0], 0, global_step, config)
+        else:
+          agents = [config.linear_sf_agent(envs[i], i, global_step, config) for i in range(config.num_agents)]
 
-        u, s, v = np.linalg.svd(sf)
-        print(s)
+      saver = loader = utility.define_saver(exclude=(r'.*_temporary/.*',))
+      if FLAGS.resume:
+        sess.run(tf.global_variables_initializer())
+        ckpt = tf.train.get_checkpoint_state(os.path.join(os.path.join(FLAGS.load_from, "linear_sf"), "models"))
+        print("Loading Model from {}".format(ckpt.model_checkpoint_path))
+        loader.restore(sess, ckpt.model_checkpoint_path)
+        sess.run(tf.local_variables_initializer())
+      else:
+        sess.run([tf.global_variables_initializer(), tf.local_variables_initializer()])
+
+      coord = tf.train.Coordinator()
+
+      agent_threads = []
+      if FLAGS.task == "matrix":
+        thread = threading.Thread(target=(lambda: agent.build_matrix(sess, coord, saver)))
+        thread.start()
+        agent_threads.append(thread)
+      else:
+        for agent in agents:
+          thread = threading.Thread(target=(lambda: agent.play(sess, coord, saver)))
+          thread.start()
+          agent_threads.append(thread)
+
+      coord.join(agent_threads)
 
 def recreate_directory_structure(logdir):
   if not tf.gfile.Exists(logdir):
@@ -93,16 +106,16 @@ if __name__ == '__main__':
     'train', True,
     'Training.')
   tf.app.flags.DEFINE_boolean(
-    'resume', False,
+    'resume', True,
     'Resume.')
   tf.app.flags.DEFINE_boolean(
     'show_training', False,
     'Show gym envs.')
   tf.app.flags.DEFINE_string(
-    'task', "sf",
+    'task', "matrix",
     'Task nature')
   tf.app.flags.DEFINE_string(
-    'load_from', None,
-    # 'load_from', "./logdir/6-ac",
+    # 'load_from', None,
+    'load_from', "./logdir/6-linear",
     'Load directory to load models from.')
   tf.app.run()

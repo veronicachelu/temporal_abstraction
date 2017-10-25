@@ -22,9 +22,11 @@ from __future__ import print_function
 
 from agents import AOCAgent
 from agents import ACAgent
+from agents import TabSFAgent
 from agents import ACSFAgent
 from agents import ACOptionAgent
 from agents import ACMatrixAgent
+from agents import LinearSFAgent
 from agents import SFAgent
 from env_wrappers import GridWorld
 from env_wrappers import Gridworld_NonMatching
@@ -159,11 +161,69 @@ def ac():
   sf_agent = ACSFAgent
   option_agent = ACOptionAgent
   matrix_agent = ACMatrixAgent
+  tabular_sf_agent = TabSFAgent
+  linear_sf_agent = LinearSFAgent
   num_agents = 8
   use_gpu = False
   nb_options = 4
   # Network
   network = networks.ACNetwork
+  weight_summaries = dict(
+      all=r'.*',
+      conv=r'.*/conv/.*',
+      fc=r'.*/fc/.*',
+      term=r'.*/option_term/.*',
+      q_val=r'.*/q_val/.*',
+      policy=r'.*/i_o_policies/.*')
+
+  # conv_layers = (8, 4, 16), (4, 2, 32)
+  input_size = (7, 6)
+  history_size = 3
+  conv_layers = (5, 2, 32),
+  fc_layers = 128,
+  sf_layers = 128, 128
+  # Optimization
+  network_optimizer = 'AdamOptimizer'
+  # lr = 0.0007
+  lr = 1e-3
+  sf_lr = 1e-3
+  discount = 0.985
+  entropy_coef = 1e-4 #0.01
+  critic_coef = 0.5
+  sf_coef = 1
+  instant_r_coef = 1
+  option_entropy_coef = 0.01
+  auto_coef = 1
+
+  env = functools.partial(
+    GridWorld, "./mdps/2rooms.mdp")
+  max_update_freq = 30
+  min_update_freq = 5
+  steps = 1e6  # 1M
+  explore_steps = 1e5
+  final_random_action_prob = 0.1
+  initial_random_action_prob = 1.0
+  delib_cost = 0
+  margin_cost = 0
+  gradient_clip_value = 40
+  summary_interval = 10
+  checkpoint_interval = 1
+  eval_interval = 1
+  policy_steps = 1e3
+  sf_transition_matrix_steps = 300#e3
+  sf_transition_options_steps = 400#e3
+  sf_transition_matrix_size = 1e3
+
+  return locals()
+
+def linear():
+  locals().update(default())
+  linear_sf_agent = LinearSFAgent
+  num_agents = 8
+  use_gpu = False
+  nb_options = 4
+  # Network
+  network = networks.LinearSFNetwork
   weight_summaries = dict(
       all=r'.*',
       conv=r'.*/conv/.*',

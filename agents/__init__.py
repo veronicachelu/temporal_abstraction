@@ -11,3 +11,5 @@ from .ac_agent import ACAgent
 from .ac_sf_agent import ACSFAgent
 from .ac_option_agent import ACOptionAgent
 from .ac_matrix_agent import ACMatrixAgent
+from .tabular_sf_agent import TabSFAgent
+from .linear_sf_agent import LinearSFAgent
