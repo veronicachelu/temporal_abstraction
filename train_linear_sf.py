@@ -47,7 +47,7 @@ def train(config, env_processes, logdir):
 
       agent_threads = []
       if FLAGS.task == "matrix":
-        thread = threading.Thread(target=(lambda: agent.build_matrix(sess, coord, saver)))
+        thread = threading.Thread(target=(lambda: agent.build_matrix1(sess, coord, saver)))
         thread.start()
         agent_threads.append(thread)
       else:
@@ -116,6 +116,6 @@ if __name__ == '__main__':
     'Task nature')
   tf.app.flags.DEFINE_string(
     # 'load_from', None,
-    'load_from', "./logdir/6-linear",
+    'load_from', "./logdir/0-linear",
     'Load directory to load models from.')
   tf.app.run()

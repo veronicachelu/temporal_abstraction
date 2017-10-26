@@ -73,38 +73,42 @@ class LinearSFAgent():
         feed_dict = {self.local_network.observation: np.identity(self.nb_states)[s:s + 1]}
         self.matrix_sf[s] = sess.run(self.local_network.sf, feed_dict=feed_dict)[0]
 
-    return self.matrix_sf
+    self.eigen_decomp(self.matrix_sf)
 
   def eigen_decomp(self, matrix):
     u, s, v = np.linalg.svd(matrix)
     self.plot_basis_functions(s, v)
 
   def plot_basis_functions(self, eigenvalues, eigenvectors):
-    for i in range(len(eigenvalues)):
-      Z = eigenvectors[:, i].reshape(self.config.input_size[1], self.config.input_size[0])
-      X, Y = np.meshgrid(np.arange(self.config.input_size[0]), np.arange(self.config.input_size[1]))
+    for k in ["poz", "neg"]:
+      for i in range(len(eigenvalues)):
+        Z = eigenvectors[i].reshape(self.config.input_size[0], self.config.input_size[1])
+        if k in "neg":
+          Z -= Z
+        X, Y = np.meshgrid(np.arange(self.config.input_size[1]), np.arange(self.config.input_size[0]))
 
-      for ii in range(len(X)):
-        for j in range(int(len(X[ii]) / 2)):
-          tmp = X[ii][j]
-          X[ii][j] = X[ii][len(X[ii]) - j - 1]
-          X[ii][len(X[ii]) - j - 1] = tmp
+        for ii in range(len(X)):
+          for j in range(int(len(X[ii]) / 2)):
+            tmp = X[ii][j]
+            X[ii][j] = X[ii][len(X[ii]) - j - 1]
+            X[ii][len(X[ii]) - j - 1] = tmp
 
-      new_Z = Z[X][Y]
-      plt.pcolor(X, Y, Z, cmap=cm.Blues)
+        # new_Z = Z[X][Y]
+        plt.pcolor(X, Y, Z, cmap=cm.Blues)
+        plt.colorbar()
 
-      # my_col = cm.jet(np.random.rand(Z.shape[0], Z.shape[1]))
+        # my_col = cm.jet(np.random.rand(Z.shape[0], Z.shape[1]))
 
-      # surf = ax.plot_surface(X, Y, Z, rstride=1, cstride=1,
-      #                 cmap=cm.Blues, linewidth=0, antialiased=False)
-      # ax.zaxis.set_major_locator(LinearLocator(10))
-      # ax.zaxis.set_major_formatter(FormatStrFormatter('%.02f'))
-      # Add a color bar which maps values to colors.
-      # fig.colorbar(surf, shrink=0.5, aspect=5)
+        # surf = ax.plot_surface(X, Y, Z, rstride=1, cstride=1,
+        #                 cmap=cm.Blues, linewidth=0, antialiased=False)
+        # ax.zaxis.set_major_locator(LinearLocator(10))
+        # ax.zaxis.set_major_formatter(FormatStrFormatter('%.02f'))
+        # Add a color bar which maps values to colors.
+        # fig.colorbar(surf, shrink=0.5, aspect=5)
 
-      # plt.gca().view_init(elev=30, azim=30)
-      plt.savefig(os.path.join(self.summary_path, ("Eigenvector" + str(i) + '_eig' + '.png')))
-      plt.close()
+        # plt.gca().view_init(elev=30, azim=30)
+        plt.savefig(os.path.join(self.summary_path, ("Eigenvector" + str(i) + '_eig_' + k + '.png')))
+        plt.close()
 
     plt.plot(eigenvalues, 'o')
     plt.savefig(self.summary_path + 'eigenvalues.png')
