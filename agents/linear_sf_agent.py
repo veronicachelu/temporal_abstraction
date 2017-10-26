@@ -2,12 +2,23 @@ import numpy as np
 import tensorflow as tf
 from tools.utils import update_target_graph, discount, set_image_bandit, set_image_bandit_11_arms, make_gif
 import os
+import matplotlib.patches as patches
+import matplotlib.pylab as plt
+import mpl_toolkits.mplot3d.axes3d as axes3d
+# import plotly.plotly as py
+# import plotly.tools as tls
+# from matplotlib.ticker import LinearLocator, FormatStrFormatter
+import numpy as np
+from matplotlib import cm
 from collections import deque
 from agents.schedules import LinearSchedule, TFLinearSchedule
 from PIL import Image
 import scipy.stats
+import seaborn as sns
+sns.set()
 import matplotlib.pyplot as plt
 from matplotlib import cm
+from auxilary.policy_iteration import PolicyIteration
 FLAGS = tf.app.flags.FLAGS
 
 
@@ -77,41 +88,132 @@ class LinearSFAgent():
 
   def eigen_decomp(self, matrix):
     u, s, v = np.linalg.svd(matrix)
+    noise_reduction = s > 1
+    s = s[noise_reduction]
+    v = v[noise_reduction]
     self.plot_basis_functions(s, v)
+    self.plot_policy_and_value_function(s, v)
 
   def plot_basis_functions(self, eigenvalues, eigenvectors):
+    sns.plt.clf()
     for k in ["poz", "neg"]:
       for i in range(len(eigenvalues)):
         Z = eigenvectors[i].reshape(self.config.input_size[0], self.config.input_size[1])
-        if k in "neg":
-          Z -= Z
-        X, Y = np.meshgrid(np.arange(self.config.input_size[1]), np.arange(self.config.input_size[0]))
+        if k == "neg":
+          Z = -Z
+        # sns.palplot(sns.dark_palette("purple", reverse=True))
+        ax = sns.heatmap(Z, cmap="Blues")
 
-        for ii in range(len(X)):
-          for j in range(int(len(X[ii]) / 2)):
-            tmp = X[ii][j]
-            X[ii][j] = X[ii][len(X[ii]) - j - 1]
-            X[ii][len(X[ii]) - j - 1] = tmp
+        for idx in range(self.nb_states):
+          ii, jj = self.env.get_state_xy(idx)
+          if self.env.not_wall(ii, jj):
+           continue
+          else:
+            sns.plt.gca().add_patch(
+              patches.Rectangle(
+                (jj, self.config.input_size[0] - ii - 1),  # (x,y)
+                1.0,  # width
+                1.0,  # height
+                facecolor="gray"
+              )
+            )
+        sns.plt.savefig(os.path.join(self.summary_path, ("Eigenvector" + str(i) + '_eig_' + k + '.png')))
+        sns.plt.close()
 
-        # new_Z = Z[X][Y]
-        plt.pcolor(X, Y, Z, cmap=cm.Blues)
-        plt.colorbar()
+    sns.plt.plot(eigenvalues, 'o')
+    sns.plt.savefig(self.summary_path + 'eigenvalues.png')
 
-        # my_col = cm.jet(np.random.rand(Z.shape[0], Z.shape[1]))
+  def plot_policy_and_value_function(self, eigenvalues, eigenvectors):
+    epsilon = 0.0001
+    options = []
+    for k in ["poz", "neg"]:
+      for i in range(len(eigenvalues)):
+        polIter = PolicyIteration(0.9, self.env, augmentActionSet=True)
+        self.env.define_reward_function(eigenvectors[i] if k == "poz" else -eigenvectors[i])
+        V, pi = polIter.solvePolicyIteration()
 
-        # surf = ax.plot_surface(X, Y, Z, rstride=1, cstride=1,
-        #                 cmap=cm.Blues, linewidth=0, antialiased=False)
-        # ax.zaxis.set_major_locator(LinearLocator(10))
-        # ax.zaxis.set_major_formatter(FormatStrFormatter('%.02f'))
-        # Add a color bar which maps values to colors.
-        # fig.colorbar(surf, shrink=0.5, aspect=5)
+        # Now I will eliminate any actions that may give us a small improvement.
+        # This is where the epsilon parameter is important. If it is not set all
+        # it will never be considered, since I set it to a very small value
+        for j in range(len(V)):
+          if V[j] < epsilon:
+            pi[j] = len(self.env.get_action_set())
 
-        # plt.gca().view_init(elev=30, azim=30)
-        plt.savefig(os.path.join(self.summary_path, ("Eigenvector" + str(i) + '_eig_' + k + '.png')))
-        plt.close()
+        # if plotGraphs:
+        self.plot_value_function(V[0:self.nb_states], str(i) + '_' + k + "_")
+        self.plot_policy(pi[0:self.nb_states], str(i) + '_' + k + "_")
 
-    plt.plot(eigenvalues, 'o')
-    plt.savefig(self.summary_path + 'eigenvalues.png')
+        options.append(pi[0:self.nb_states])
+        # optionsActionSet = self.env.get_action_set()
+        # np.append(optionsActionSet, ['terminate'])
+        # actionSetPerOption.append(optionsActionSet)
+
+  def plot_value_function(self, value_function, prefix):
+    '''3d plot of a value function.'''
+    fig, ax = plt.subplots(subplot_kw=dict(projection='3d'))
+    X, Y = np.meshgrid(np.arange(self.config.input_size[1]), np.arange(self.config.input_size[0]))
+    Z = value_function.reshape(self.config.input_size[0], self.config.input_size[1])
+
+    for i in range(len(X)):
+        for j in range(int(len(X[i]) / 2)):
+            tmp = X[i][j]
+            X[i][j] = X[i][len(X[i]) - j - 1]
+            X[i][len(X[i]) - j - 1] = tmp
+
+    my_col = cm.jet(np.random.rand(Z.shape[0], Z.shape[1]))
+
+    ax.plot_surface(X, Y, Z, rstride=1, cstride=1,
+                    cmap=plt.get_cmap('jet'))
+    plt.gca().view_init(elev=30, azim=30)
+    plt.savefig(os.path.join(self.summary_path, "SuccessorFeatures" + prefix + 'value_function.png'))
+    plt.close()
+
+  def plot_policy(self, policy, prefix):
+    plt.clf()
+    for idx in range(len(policy)):
+        i, j = self.env.get_state_xy(idx)
+
+        dx = 0
+        dy = 0
+        if policy[idx] == 0:  # up
+            dy = 0.35
+        elif policy[idx] == 1:  # right
+            dx = 0.35
+        elif policy[idx] == 2:  # down
+            dy = -0.35
+        elif policy[idx] == 3:  # left
+            dx = -0.35
+        elif self.env.not_wall(i, j) and policy[idx] == 4:  # termination
+            circle = plt.Circle(
+                (j + 0.5, self.config.input_size[0] - i + 0.5 - 1), 0.025, color='k')
+            plt.gca().add_artist(circle)
+
+        if self.env.not_wall(i, j):
+            plt.arrow(j + 0.5, self.config.input_size[0] - i + 0.5 - 1, dx, dy,
+                      head_width=0.05, head_length=0.05, fc='k', ec='k')
+        else:
+            plt.gca().add_patch(
+                patches.Rectangle(
+                    (j, self.config.input_size[0] - i - 1),  # (x,y)
+                    1.0,  # width
+                    1.0,  # height
+                    facecolor="gray"
+                )
+            )
+
+    plt.xlim([0, self.config.input_size[1]])
+    plt.ylim([0, self.config.input_size[0]])
+
+    for i in range(self.config.input_size[1]):
+        plt.axvline(i, color='k', linestyle=':')
+    plt.axvline(self.config.input_size[1], color='k', linestyle=':')
+
+    for j in range(self.config.input_size[0]):
+        plt.axhline(j, color='k', linestyle=':')
+    plt.axhline(self.config.input_size[0], color='k', linestyle=':')
+
+    plt.savefig(os.path.join(self.summary_path, "SuccessorFeatures_" + prefix + 'policy.png'))
+    plt.close()
 
   def build_matrix(self, sess, coord, saver):
     with sess.as_default(), sess.graph.as_default():

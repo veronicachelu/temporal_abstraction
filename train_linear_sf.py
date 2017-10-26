@@ -116,6 +116,6 @@ if __name__ == '__main__':
     'Task nature')
   tf.app.flags.DEFINE_string(
     # 'load_from', None,
-    'load_from', "./logdir/0-linear",
+    'load_from', "./logdir/0-linear_4rooms",
     'Load directory to load models from.')
   tf.app.run()
