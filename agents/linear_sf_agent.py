@@ -83,14 +83,34 @@ class LinearSFAgent():
       for s in range(self.nb_states):
         feed_dict = {self.local_network.observation: np.identity(self.nb_states)[s:s + 1]}
         self.matrix_sf[s] = sess.run(self.local_network.sf, feed_dict=feed_dict)[0]
-
+    self.plot_sr_matrix(self.matrix_sf)
     self.eigen_decomp(self.matrix_sf)
+
+  def plot_sr_matrix(self, matrix):
+    sns.plt.clf()
+    ax = sns.heatmap(matrix, cmap="Blues")
+
+    # for s in range(self.nb_states):
+    #   ii, jj = self.env.get_state_xy(s)
+    #   if self.env.not_wall(ii, jj):
+    #     continue
+    #   else:
+    #     sns.plt.gca().add_patch(
+    #       patches.Rectangle(
+    #         (jj, self.config.input_size[0] - ii - 1),  # (x,y)
+    #         1.0,  # width
+    #         1.0,  # height
+    #         facecolor="gray"
+    #       )
+    #     )
+    sns.plt.savefig(os.path.join(self.summary_path, 'SR_matrix.png'))
+    sns.plt.close()
 
   def eigen_decomp(self, matrix):
     u, s, v = np.linalg.svd(matrix)
     noise_reduction = s > 1
-    s = s[noise_reduction]
-    v = v[noise_reduction]
+    # s = s[noise_reduction]
+    # v = v[noise_reduction]
     self.plot_basis_functions(s, v)
     self.plot_policy_and_value_function(s, v)
 
@@ -98,7 +118,7 @@ class LinearSFAgent():
     sns.plt.clf()
     for k in ["poz", "neg"]:
       for i in range(len(eigenvalues)):
-        Z = eigenvectors[i].reshape(self.config.input_size[0], self.config.input_size[1])
+        Z = eigenvectors[:, i].reshape(self.config.input_size[0], self.config.input_size[1])
         if k == "neg":
           Z = -Z
         # sns.palplot(sns.dark_palette("purple", reverse=True))
