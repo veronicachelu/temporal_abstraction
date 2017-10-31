@@ -129,6 +129,29 @@ class GridWorld:
     else:
       return self.agentX, self.agentY
 
+  def special_get_next_state(self, a, orig_nextX, orig_nextY):
+    action = ["up", "right", "down", "left", 'terminate']
+
+    nextX, nextY = orig_nextX, orig_nextY
+
+    if action[a] == 'terminate':
+      return -1, -1
+
+    if self.MDP[orig_nextX][orig_nextY] != -1:
+      if action[a] == 'up' and orig_nextY > 0:
+        nextX, nextY = orig_nextX - 1, orig_nextY
+      elif action[a] == 'right' and orig_nextY < self.nb_cols - 1:
+        nextX, nextY = orig_nextX, orig_nextY + 1
+      elif action[a] == 'down' and self.agentX < self.nb_rows - 1:
+        nextX, nextY = orig_nextX + 1, orig_nextY
+      elif action[a] == 'left' and orig_nextY > 0:
+        nextX, nextY = orig_nextX, orig_nextY - 1
+
+    if self.MDP[nextX][nextY] != -1:
+      return nextX, nextY
+    else:
+      return orig_nextX, orig_nextY
+
   def is_terminal(self, nextX, nextY):
     if nextX == self.goalX and nextY == self.goalY:
       return True
@@ -194,10 +217,30 @@ class GridWorld:
 
     return nextStateIdx, reward
 
+  def get_agent(self):
+    return self.agentX, self.agentY
+
   def step(self, a):
     nextX, nextY = self.get_next_state(a)
 
     self.agentX, self.agentY = nextX, nextY
+
+    done = False
+    if self.is_terminal(nextX, nextY):
+      done = True
+
+    reward = self.get_next_reward(nextX, nextY)
+    nextStateIdx = self.get_state_index(nextX, nextY)
+
+    screen = self.build_screen()
+
+    return screen, reward, done, nextStateIdx
+
+  def special_step(self, a, last_state_idx):
+    x, y = self.get_state_xy(last_state_idx)
+    nextX, nextY = self.special_get_next_state(a, x, y)
+
+    # new_x, new_y = nextX, nextY
 
     done = False
     if self.is_terminal(nextX, nextY):

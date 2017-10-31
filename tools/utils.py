@@ -20,8 +20,8 @@ def update_target_graph(from_scope, to_scope):
 
 
 def discount(x, gamma):
-    axis = len(x.shape) - 1
-    return np.flip(lfilter([1], [1, -gamma], np.flip(x, axis), axis=axis), axis=axis)
+    # axis = len(x.shape) - 1
+    return np.flip(lfilter([1], [1, -gamma], np.flip(x, 0), axis=0), axis=0)
 
 
 def normalized_columns_initializer(std=1.0):

@@ -30,8 +30,11 @@ class LinearSFAgent():
     self.global_step = global_step
     self.model_path = os.path.join(config.stage_logdir, "models")
     self.summary_path = os.path.join(config.stage_logdir, "summaries")
+
     tf.gfile.MakeDirs(self.model_path)
     tf.gfile.MakeDirs(self.summary_path)
+    tf.gfile.MakeDirs(os.path.join(os.path.join(config.stage_logdir, "summaries"), "sr_vectors"))
+
     self.increment_global_step = self.global_step.assign_add(1)
     self.episode_rewards = []
     self.episode_lengths = []
@@ -80,9 +83,14 @@ class LinearSFAgent():
   def build_matrix1(self, sess, coord, saver):
     with sess.as_default(), sess.graph.as_default():
       self.matrix_sf = np.zeros((self.nb_states, self.nb_states))
-      for s in range(self.nb_states):
-        feed_dict = {self.local_network.observation: np.identity(self.nb_states)[s:s + 1]}
-        self.matrix_sf[s] = sess.run(self.local_network.sf, feed_dict=feed_dict)[0]
+      for idx in range(self.nb_states):
+        ii, jj = self.env.get_state_xy(idx)
+        if self.env.not_wall(ii, jj):
+          feed_dict = {self.local_network.observation: np.identity(self.nb_states)[idx:idx + 1]}
+          self.matrix_sf[idx] = sess.run(self.local_network.sf, feed_dict=feed_dict)[0]
+    # plt.pcolor(self.matrix_sf, cmap='hot', interpolation='nearest')
+    # plt.savefig(os.path.join(self.summary_path, 'SR_matrix.png'))
+    self.plot_sr_vectors(self.matrix_sf)
     self.plot_sr_matrix(self.matrix_sf)
     self.eigen_decomp(self.matrix_sf)
 
@@ -105,6 +113,51 @@ class LinearSFAgent():
     #     )
     sns.plt.savefig(os.path.join(self.summary_path, 'SR_matrix.png'))
     sns.plt.close()
+
+  def plot_vector(self, vector, i):
+    sns.plt.clf()
+    Z = vector.reshape(self.config.input_size[0], self.config.input_size[1])
+    ax = sns.heatmap(Z, cmap="Blues")
+
+    for idx in range(self.nb_states):
+      ii, jj = self.env.get_state_xy(idx)
+      if self.env.not_wall(ii, jj):
+        continue
+      else:
+        sns.plt.gca().add_patch(
+          patches.Rectangle(
+            (jj, self.config.input_size[0] - ii - 1),  # (x,y)
+            1.0,  # width
+            1.0,  # height
+            facecolor="gray"
+          )
+        )
+    sns.plt.savefig(os.path.join(self.summary_path, ("sr_vectors/Return_VECTOR_" + str(i) + '.png')))
+    sns.plt.close()
+
+  def plot_sr_vectors(self, matrix):
+    sns.plt.clf()
+    for i in range(self.nb_states):
+      aa, bb = self.env.get_state_xy(i)
+      if self.env.not_wall(aa, bb):
+        Z = matrix[i].reshape(self.config.input_size[0], self.config.input_size[1])
+        ax = sns.heatmap(Z, cmap="Blues")
+
+        for idx in range(self.nb_states):
+          ii, jj = self.env.get_state_xy(idx)
+          if self.env.not_wall(ii, jj):
+            continue
+          else:
+            sns.plt.gca().add_patch(
+              patches.Rectangle(
+                (jj, self.config.input_size[0] - ii - 1),  # (x,y)
+                1.0,  # width
+                1.0,  # height
+                facecolor="gray"
+              )
+            )
+        sns.plt.savefig(os.path.join(self.summary_path, ("sr_vectors/SR_VECTOR_" + str(i) + '.png')))
+        sns.plt.close()
 
   def eigen_decomp(self, matrix):
     u, s, v = np.linalg.svd(matrix)
@@ -303,7 +356,7 @@ class LinearSFAgent():
           a = np.random.choice(range(self.action_size))
           # feed_dict = {self.local_network.observation: np.identity(self.nb_states)[s:s+1]}
           # sf = sess.run(self.local_network.sf, feed_dict=feed_dict)
-          _, r, d, s1 = self.env.step(a)
+          _, r, d, s1 = self.env.special_step(a, s)
 
           r = np.clip(r, -1, 1)
           self.total_steps += 1
