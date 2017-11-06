@@ -28,7 +28,7 @@
 * The eigenvectors, value function and policy learned are in ```logdir/linear_sf/summaries```.
 * The sr_vectors plotted on the game environment are in  ```logdir/linear_sf/summaries/sr_vectors```
 
-### Training Results
+### Training Results```````````````````````````````````````````````````````
 
 https://drive.google.com/drive/folders/0B_qT_xcPy4w3N1VoYmhBWlhadEk?usp=sharing
 

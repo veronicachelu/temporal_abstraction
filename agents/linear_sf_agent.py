@@ -90,11 +90,19 @@ class LinearSFAgent():
           self.matrix_sf[idx] = sess.run(self.local_network.sf, feed_dict=feed_dict)[0]
     # plt.pcolor(self.matrix_sf, cmap='hot', interpolation='nearest')
     # plt.savefig(os.path.join(self.summary_path, 'SR_matrix.png'))
-    self.plot_sr_vectors(self.matrix_sf)
-    self.plot_sr_matrix(self.matrix_sf)
-    self.eigen_decomp(self.matrix_sf)
+      self.reconstruct_sr(self.matrix_sf)
+    # self.plot_sr_vectors(self.matrix_sf)
+    # self.plot_sr_matrix(self.matrix_sf)
+    # self.eigen_decomp(self.matrix_sf)
 
-  def plot_sr_matrix(self, matrix):
+  def reconstruct_sr(self, matrix):
+    U, s, V = np.linalg.svd(matrix)
+    S = np.diag(s[2:60])
+    sr_r_m = np.dot(U[:, 2:60], np.dot(S, V[2:60]))
+    self.plot_sr_vectors(sr_r_m, "reconstructed_sr")
+    self.plot_sr_matrix(sr_r_m, "reconstructed_sr")
+
+  def plot_sr_matrix(self, matrix, folder):
     sns.plt.clf()
     ax = sns.heatmap(matrix, cmap="Blues")
 
@@ -111,7 +119,9 @@ class LinearSFAgent():
     #         facecolor="gray"
     #       )
     #     )
-    sns.plt.savefig(os.path.join(self.summary_path, 'SR_matrix.png'))
+    folder_path = os.path.join(os.path.join(self.config.stage_logdir, "summaries"), folder)
+    tf.gfile.MakeDirs(folder_path)
+    sns.plt.savefig(os.path.join(folder_path, 'SR_matrix.png'))
     sns.plt.close()
 
   def plot_vector(self, vector, i):
@@ -135,8 +145,10 @@ class LinearSFAgent():
     sns.plt.savefig(os.path.join(self.summary_path, ("sr_vectors/Return_VECTOR_" + str(i) + '.png')))
     sns.plt.close()
 
-  def plot_sr_vectors(self, matrix):
+  def plot_sr_vectors(self, matrix, folder):
     sns.plt.clf()
+    folder_path = os.path.join(os.path.join(self.config.stage_logdir, "summaries"), folder)
+    tf.gfile.MakeDirs(folder_path)
     for i in range(self.nb_states):
       aa, bb = self.env.get_state_xy(i)
       if self.env.not_wall(aa, bb):
@@ -156,7 +168,7 @@ class LinearSFAgent():
                 facecolor="gray"
               )
             )
-        sns.plt.savefig(os.path.join(self.summary_path, ("sr_vectors/SR_VECTOR_" + str(i) + '.png')))
+        sns.plt.savefig(os.path.join(folder_path, "SR_VECTOR_" + str(i) + '.png'))
         sns.plt.close()
 
   def eigen_decomp(self, matrix):
@@ -164,14 +176,14 @@ class LinearSFAgent():
     noise_reduction = s > 1
     # s = s[noise_reduction]
     # v = v[noise_reduction]
-    self.plot_basis_functions(s, v)
+    # self.plot_basis_functions(s, v)
     self.plot_policy_and_value_function(s, v)
 
   def plot_basis_functions(self, eigenvalues, eigenvectors):
     sns.plt.clf()
     for k in ["poz", "neg"]:
       for i in range(len(eigenvalues)):
-        Z = eigenvectors[:, i].reshape(self.config.input_size[0], self.config.input_size[1])
+        Z = eigenvectors[i].reshape(self.config.input_size[0], self.config.input_size[1])
         if k == "neg":
           Z = -Z
         # sns.palplot(sns.dark_palette("purple", reverse=True))
