@@ -187,7 +187,6 @@ class GridWorld:
     else:
       return False
 
-
   def get_state_xy(self, idx):
     y = idx % self.nb_cols
     x = int((idx - y) / self.nb_cols)
@@ -233,6 +232,25 @@ class GridWorld:
     nextStateIdx = self.get_state_index(nextX, nextY)
 
     screen = self.build_screen()
+
+    return screen, reward, done, nextStateIdx
+
+  def fake_step(self, a):
+    orig_agentX, orig_agentY = self.agentX, self.agentY
+    nextX, nextY = self.get_next_state(a)
+
+    self.agentX, self.agentY = nextX, nextY
+
+    done = False
+    if self.is_terminal(nextX, nextY):
+      done = True
+
+    reward = self.get_next_reward(nextX, nextY)
+    nextStateIdx = self.get_state_index(nextX, nextY)
+
+    screen = self.build_screen()
+
+    self.agentX, self.agentY = orig_agentX, orig_agentY
 
     return screen, reward, done, nextStateIdx
 

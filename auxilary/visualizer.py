@@ -19,6 +19,7 @@ sns.set()
 import matplotlib.pyplot as plt
 from matplotlib import cm
 from auxilary.policy_iteration import PolicyIteration
+from PIL import Image
 FLAGS = tf.app.flags.FLAGS
 
 class Visualizer():
@@ -67,13 +68,15 @@ class Visualizer():
             s = s1
       np.save(matrix_path, self.matrix_sf)
 
-    self.plot_eigenoptions("eigenoptions")
+    self.plot_eigenoptions("eigenoptions", sess)
       # self.plot_sr_vectors(self.matrix_sf, "sr_vectors")
       # self.plot_sr_matrix(self.matrix_sf, "sr_matrix")
       # self.eigen_decomp(self.matrix_sf)
 
-  def plot_eigenoptions(self, folder):
-    u, s, v = np.linalg.svd(self.matrix_sf)
+  def plot_eigenoptions(self, folder, sess):
+    feed_dict = {self.local_network.matrix_sf: self.matrix_sf}
+    s, v = sess.run([self.local_network.s, self.local_network.v], feed_dict=feed_dict)
+    # u, s, v = np.linalg.svd(self.matrix_sf)
     eigenvalues = s
     eigenvectors = v
 
@@ -88,6 +91,10 @@ class Visualizer():
     sns.plt.plot(eigenvalues, 'o')
     sns.plt.savefig(os.path.join(folder_path, 'Eignevalues.png'))
     sns.plt.close()
+    eigenvectors_path = os.path.join(os.path.join(self.config.stage_logdir, "models"), "eigenvectors.npy")
+    eigenvalues_path = os.path.join(os.path.join(self.config.stage_logdir, "models"), "eigenvalues.npy")
+    np.save(eigenvectors_path, eigenvectors)
+    np.save(eigenvalues_path, eigenvalues)
 
   def reconstruct_sr(self, matrix):
     U, s, V = np.linalg.svd(matrix)
@@ -95,7 +102,6 @@ class Visualizer():
     sr_r_m = np.dot(U[:, 2:60], np.dot(S, V[2:60]))
     self.plot_sr_vectors(sr_r_m, "reconstructed_sr")
     self.plot_sr_matrix(sr_r_m, "reconstructed_sr")
-
 
   def plot_sr_matrix(self, matrix, folder):
     sns.plt.clf()
@@ -254,6 +260,100 @@ class Visualizer():
     plt.savefig(os.path.join(self.summary_path, "SuccessorFeatures" + prefix + 'value_function.png'))
     plt.close()
 
+  def plot_options(self, sess, coord, saver):
+    eigenvectors_path = os.path.join(os.path.join(self.config.stage_logdir, "models"), "eigenvectors.npy")
+    eigenvalues_path = os.path.join(os.path.join(self.config.stage_logdir, "models"), "eigenvalues.npy")
+    eigenvectors = np.load(eigenvectors_path)
+    eigenvalues = np.load(eigenvalues_path)
+    for k in ["poz", "neg"]:
+      for option in range(len(eigenvalues)):
+        # eigenvalue = eigenvalues[option]
+        eigenvector = eigenvectors[option] if k == "poz" else -eigenvectors[option]
+        prefix = str(option) + '_' + k + "_"
+
+        plt.clf()
+
+        with sess.as_default(), sess.graph.as_default():
+          for idx in range(self.nb_states):
+            dx = 0
+            dy = 0
+            d = False
+            s, i, j = self.env.get_state(idx)
+
+            if not self.env.not_wall(i, j):
+              plt.gca().add_patch(
+                patches.Rectangle(
+                  (j, self.config.input_size[0] - i - 1),  # (x,y)
+                  1.0,  # width
+                  1.0,  # height
+                  facecolor="gray"
+                )
+              )
+              continue
+            # Image.fromarray(np.asarray(scipy.misc.imresize(s, [512, 512], interp='nearest'), np.uint8)).show()
+            feed_dict = {self.local_network.observation: np.stack([s])}
+            fi = sess.run(self.local_network.fi,
+                          feed_dict=feed_dict)[0]
+
+            transitions = []
+            terminations = []
+            for a in range(self.action_size):
+              s1, r, d, _ = self.env.fake_step(a)
+              feed_dict = {self.local_network.observation: np.stack([s1])}
+              fi1 = sess.run(self.local_network.fi,
+                            feed_dict=feed_dict)[0]
+              transitions.append(self.cosine_similarity((fi1 - fi), eigenvector))
+              terminations.append(d)
+
+            transitions.append(self.cosine_similarity(np.zeros_like(fi), eigenvector))
+            terminations.append(True)
+
+            a = np.argmax(transitions)
+            # if a == 4:
+            #   d = True
+
+            if a == 0: # up
+              dy = 0.35
+            elif a == 1:  # right
+              dx = 0.35
+            elif a == 2:  # down
+              dy = -0.35
+            elif a == 3:  # left
+              dx = -0.35
+
+            if terminations[a] or np.all(transitions[a] == np.zeros_like(fi)) : # termination
+              circle = plt.Circle(
+                (j + 0.5, self.config.input_size[0] - i + 0.5 - 1), 0.025, color='k')
+              plt.gca().add_artist(circle)
+              continue
+
+            plt.arrow(j + 0.5, self.config.input_size[0] - i + 0.5 - 1, dx, dy,
+                      head_width=0.05, head_length=0.05, fc='k', ec='k')
+
+          plt.xlim([0, self.config.input_size[1]])
+          plt.ylim([0, self.config.input_size[0]])
+
+          for i in range(self.config.input_size[1]):
+            plt.axvline(i, color='k', linestyle=':')
+          plt.axvline(self.config.input_size[1], color='k', linestyle=':')
+
+          for j in range(self.config.input_size[0]):
+            plt.axhline(j, color='k', linestyle=':')
+          plt.axhline(self.config.input_size[0], color='k', linestyle=':')
+
+          plt.savefig(os.path.join(self.summary_path, "SuccessorFeatures_" + prefix + 'policy.png'))
+          plt.close()
+
+
+
+
+  def cosine_similarity(self, next_sf, evect):
+      state_dif_norm = np.linalg.norm(next_sf)
+      state_dif_normalized = next_sf / (state_dif_norm + 1e-8)
+      evect_norm = np.linalg.norm(evect)
+      evect_normalized = evect / (evect_norm + 1e-8)
+
+      return np.dot(state_dif_normalized, evect_normalized)
 
   def plot_policy(self, policy, prefix):
     plt.clf()

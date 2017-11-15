@@ -350,14 +350,14 @@ def dif_4rooms():
   input_size = (13, 13)
   history_size = 3
   fc_layers = 128,
-  sf_layers = 128, 128
+  sf_layers = 128, 256, 128
   aux_fc_layers = 128,
   aux_deconv_layers = (5, 2, 0, 64), (5, 2, 0, 3),
   # Optimization
   network_optimizer = 'AdamOptimizer'
   # lr = 0.0007
-  lr = 1e-4
-  discount = 0.9
+  lr = 1e-5
+  discount = 0.985
   entropy_coef = 1e-4
   critic_coef = 0.5
   sf_coef = 1
@@ -369,8 +369,9 @@ def dif_4rooms():
     GridWorld, "./mdps/4rooms.mdp")
   max_update_freq = 30
   min_update_freq = 5
-  steps = 5e5   # 1M
-  explore_steps = 1e4
+  steps = 1e6   # 1M
+  training_steps = 5e5
+  explore_steps = 1e5
   final_random_action_prob = 0.1
   initial_random_action_prob = 1.0
   delib_cost = 0
@@ -380,8 +381,8 @@ def dif_4rooms():
   checkpoint_interval = 1
   eval_interval = 1
   policy_steps = 1e3
-  sf_transition_matrix_steps = 300#e3
-  sf_transition_options_steps = 400#e3
-  sf_transition_matrix_size = 1e3
+  # sf_transition_matrix_steps = 50000#e3
+  # sf_transition_options_steps = 50000#e3
+  sf_transition_matrix_size = 50000
 
   return locals()

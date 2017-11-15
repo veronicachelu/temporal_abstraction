@@ -696,9 +696,10 @@ class DIFNetwork():
       with tf.variable_scope('conv'):
         for i, (kernel_size, stride, nb_kernels) in enumerate(self._conv_layers):
           out = layers.conv2d(self.observation, num_outputs=nb_kernels, kernel_size=kernel_size,
-                              stride=stride, activation_fn=tf.nn.relu,
+                              stride=stride, activation_fn=None,
                               variables_collections=tf.get_collection("variables"),
                               outputs_collections="activations", scope="conv_{}".format(i))
+          out = layer_norm_fn(out, relu=True)
           self.summaries.append(tf.contrib.layers.summarize_activation(out))
         out = layers.flatten(out, scope="flatten")
 
@@ -708,40 +709,62 @@ class DIFNetwork():
                                        activation_fn=None,
                                        variables_collections=tf.get_collection("variables"),
                                        outputs_collections="activations", scope="fc_{}".format(i))
-          out = layer_norm_fn(out, relu=True)
+
+          if i < len(self._fc_layers) - 1:
+            out = layer_norm_fn(out, relu=False)
+            # out = layer_norm_fn(out, relu=True)
+            out = tf.nn.relu(out)
           self.summaries.append(tf.contrib.layers.summarize_activation(out))
       self.fi = out
 
-      out = tf.stop_gradient(self.fi)
+      out = tf.stop_gradient(layer_norm_fn(self.fi, relu=True))
       with tf.variable_scope("sf"):
         for i, nb_filt in enumerate(self._sf_layers):
           out = layers.fully_connected(out, num_outputs=nb_filt,
                                        activation_fn=None,
                                        variables_collections=tf.get_collection("variables"),
                                        outputs_collections="activations", scope="sf_{}".format(i))
-          out = layer_norm_fn(out, relu=True)
+          if i < len(self._sf_layers) - 1:
+            out = layer_norm_fn(out, relu=False)
+            out = tf.nn.relu(out)
           self.summaries.append(tf.contrib.layers.summarize_activation(out))
 
       self.sf = out
 
       out = self.fi
+      with tf.variable_scope("action_fc"):
+        self.actions_placeholder = tf.placeholder(shape=[None], dtype=tf.float32, name="Actions")
+        actions = layers.fully_connected(self.actions_placeholder[..., None], num_outputs=self._fc_layers[-1],
+                                     activation_fn=None,
+                                     variables_collections=tf.get_collection("variables"),
+                                     outputs_collections="activations", scope="action_fc{}".format(i))
+        out = layer_norm_fn(out, relu=False)
+      out = tf.add(out, actions)
+      out = layer_norm_fn(out, relu=True)
+
       with tf.variable_scope("aux_fc"):
         for i, nb_filt in enumerate(self._aux_fc_layers):
           out = layers.fully_connected(out, num_outputs=nb_filt,
                                        activation_fn=None,
                                        variables_collections=tf.get_collection("variables"),
                                        outputs_collections="activations", scope="aux_fc_{}".format(i))
-          out = layer_norm_fn(out, relu=True)
+          out = layer_norm_fn(out, relu=False)
+          if i > 0:
+            # out = layer_norm_fn(out, relu=True)
+            out= tf.nn.relu(out)
           self.summaries.append(tf.contrib.layers.summarize_activation(out))
 
       with tf.variable_scope("aux_deconv"):
         decoder_out = tf.expand_dims(tf.expand_dims(out, 1), 1)
         for i, (kernel_size, stride, padding, nb_kernels) in enumerate(self._aux_deconv_layers):
           decoder_out = layers.conv2d_transpose(decoder_out, num_outputs=nb_kernels, kernel_size=kernel_size,
-                                                stride=stride, activation_fn=tf.nn.relu,
+                                                stride=stride, activation_fn=None,
                                                 padding="same" if padding > 0 else "valid",
                                                 variables_collections=tf.get_collection("variables"),
                                                 outputs_collections="activations", scope="aux_deconv_{}".format(i))
+          if i < len(self._aux_deconv_layers) - 1:
+            decoder_out = layer_norm_fn(decoder_out, relu=False)
+            decoder_out = tf.nn.relu(decoder_out)
           self.summaries.append(tf.contrib.layers.summarize_activation(decoder_out))
 
       self.next_obs = decoder_out
@@ -756,6 +779,13 @@ class DIFNetwork():
         self.target_next_obs = tf.placeholder(
           shape=[None, config.input_size[0], config.input_size[1], config.history_size], dtype=tf.float32,
           name="target_next_obs")
+        if self._config.history_size == 3:
+          self.image_summaries.append(tf.summary.image('target_next_obs', self.target_next_obs * 255, max_outputs=30))
+        else:
+          self.image_summaries.append(tf.summary.image('target_next_obs', self.target_next_obs[:, :, :, 0:1] * 255, max_outputs=30))
+        self.matrix_sf = tf.placeholder(shape=[self._config.sf_transition_matrix_size, self._sf_layers[-1]],
+                                     dtype=tf.float32, name="matrix_sf")
+        self.s, self.u, self.v = tf.svd(self.matrix_sf)
 
         with tf.name_scope('sf_loss'):
           sf_td_error = self.target_sf - self.sf

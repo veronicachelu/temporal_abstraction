@@ -190,23 +190,26 @@ def gradient_summaries(grad_vars, groups=None, scope='gradients'):
   Returns:
     Summary tensor.
   """
-  groups = groups or {r'all': r'.*'}
-  grouped = collections.defaultdict(list)
+
+  # groups = groups or {r'all': r'.*'}
+  # grouped = collections.defaultdict(list)
+  summaries = []
   for grad, var in grad_vars:
     if grad is None:
       continue
-    for name, pattern in groups.items():
-      if re.match(pattern, var.name):
-        name = re.sub(pattern, name, var.name)
-        grouped[name].append(grad)
-  for name in groups:
-    if name not in grouped:
-      tf.logging.warn("No variables matching '{}' group.".format(name))
-  summaries = []
-  for name, grads in grouped.items():
-    grads = [tf.reshape(grad, [-1]) for grad in grads]
-    grads = tf.concat(grads, 0)
-    summaries.append(tf.summary.histogram(scope + '/' + name, grads))
+    # for name, pattern in groups.items():
+    #   if re.match(pattern, var.name):
+    #     name = re.sub(pattern, name, var.name)
+    #     grouped[name].append(grad)
+  # for name in groups:
+  #   if name not in grouped:
+  #     tf.logging.warn("No variables matching '{}' group.".format(name))
+  # summaries = []
+  # for grads in grouped.items():
+  #   grads = [tf.reshape(grad, [-1]) for grad in grads]
+  #   grads = tf.concat(grads, 0)
+    summaries.append(tf.summary.histogram(scope + '/' + var.name + '_grad', grad))
+    summaries.append(tf.summary.histogram(scope + '/' + var.name, var))
   return tf.summary.merge(summaries)
 
 

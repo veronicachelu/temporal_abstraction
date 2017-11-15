@@ -30,6 +30,8 @@ def train(config, env_processes, logdir):
         global_network = config.network("global", config, action_size, nb_states)
         if FLAGS.task == "matrix":
           agent = config.dif_agent(envs[0], 0, global_step, config)
+        elif FLAGS.task == "option":
+          agent = config.dif_agent(envs[0], 0, global_step, config)
         else:
           agents = [config.dif_agent(envs[i], i, global_step, config) for i in range(config.num_agents)]
 
@@ -48,6 +50,10 @@ def train(config, env_processes, logdir):
       agent_threads = []
       if FLAGS.task == "matrix":
         thread = threading.Thread(target=(lambda: agent.build_matrix_approx(sess, coord, saver)))
+        thread.start()
+        agent_threads.append(thread)
+      elif FLAGS.task == "option":
+        thread = threading.Thread(target=(lambda: agent.plot_options(sess, coord, saver)))
         thread.start()
         agent_threads.append(thread)
       else:
@@ -116,6 +122,6 @@ if __name__ == '__main__':
     'Task nature')
   tf.app.flags.DEFINE_string(
     # 'load_from', None,
-    'load_from', "./logdir/8-dif_4rooms",
+    'load_from', "./logdir/13-dif_4rooms",
     'Load directory to load models from.')
   tf.app.run()

@@ -59,18 +59,28 @@ class DIFAgent(Visualizer):
     self.env = game
     self.nb_states = game.nb_states
 
+    self.matrix_path = os.path.join(self.model_path, "matrix.npy")
+    if os.path.exists(self.matrix_path):
+      self.matrix_sf = np.load(self.matrix_path)
+      self.mat_counter = self.config.sf_transition_matrix_size
+    else:
+      self.matrix_sf = np.zeros((self.config.sf_transition_matrix_size, self.config.sf_layers[-1]))
+      self.mat_counter = 0
+
   def train(self, rollout, sess, bootstrap_sf, summaries=False):
     rollout = np.array(rollout)
     observations = rollout[:, 0]
     fi = rollout[:, 1]
     next_observations = rollout[:, 2]
+    actions = rollout[:, 3]
 
     sf_plus = np.asarray(fi.tolist() + [bootstrap_sf])
     discounted_sf = discount(sf_plus, self.config.discount)[:-1]
 
     feed_dict = {self.local_network.target_sf: np.stack(discounted_sf, axis=0),
                  self.local_network.observation: np.stack(observations, axis=0),
-                 self.local_network.target_next_obs: np.stack(next_observations, axis=0)}
+                 self.local_network.target_next_obs: np.stack(next_observations, axis=0),
+                 self.local_network.actions_placeholder: actions}
 
     _, ms, img_summ, loss, sf_loss, aux_loss = \
       sess.run([self.local_network.apply_grads,
@@ -91,7 +101,7 @@ class DIFAgent(Visualizer):
       print("Starting worker " + str(self.thread_id))
 
       while not coord.should_stop():
-        if episode_count > self.config.steps:
+        if self.total_steps > self.config.steps:
           return 0
 
         sess.run(self.update_local_vars)
@@ -107,30 +117,41 @@ class DIFAgent(Visualizer):
           a = np.random.choice(range(self.action_size))
 
           feed_dict = {self.local_network.observation: np.stack([s])}
-          fi = sess.run(self.local_network.fi,
-                                feed_dict=feed_dict)[0]
+          sf, fi = sess.run([self.local_network.sf, self.local_network.fi],
+                                feed_dict=feed_dict)
+          sf, fi = sf[0], fi[0]
+
+          if self.total_steps > self.config.training_steps:
+            self.matrix_sf[self.mat_counter % self.config.sf_transition_matrix_size] = sf
+            self.mat_counter += 1
+
+            if self.mat_counter == self.sf_transition_matrix_size:
+              self.plot_eigenoptions("eigenoptions", sess)
+              exit(0)
+
           s1, r, d, _ = self.env.step(a)
 
           r = np.clip(r, -1, 1)
           self.total_steps += 1
-          sess.run(self.increment_total_steps_tensor)
-          episode_buffer.append([s, fi, s1])
+          if self.total_steps < self.config.training_steps:
+            episode_buffer.append([s, fi, s1, a])
           episode_reward += r
           t += 1
           t_counter += 1
           s = s1
 
-          if t_counter == self.config.max_update_freq or d:
-            feed_dict = {self.local_network.observation: np.stack([s])}
-            sf = sess.run(self.local_network.sf,
-                                      feed_dict=feed_dict)[0]
-            bootstrap_sf = np.zeros_like(sf) if d else sf
-            ms, loss, sf_loss, aux_loss = self.train(episode_buffer, sess, bootstrap_sf)
-            if self.name == "worker_0":
-              print("Episode {} >>> Step {} >>> SF_loss {} >>> AUX_loss {} ".format(episode_count, self.total_steps, sf_loss, aux_loss))
+          if self.total_steps < self.config.training_steps:
+            if t_counter == self.config.max_update_freq or d:
+              feed_dict = {self.local_network.observation: np.stack([s])}
+              sf = sess.run(self.local_network.sf,
+                                        feed_dict=feed_dict)[0]
+              bootstrap_sf = np.zeros_like(sf) if d else sf
+              ms, loss, sf_loss, aux_loss = self.train(episode_buffer, sess, bootstrap_sf)
+              if self.name == "worker_0":
+                print("Episode {} >>> Step {} >>> SF_loss {} >>> AUX_loss {} ".format(episode_count, self.total_steps, sf_loss, aux_loss))
 
-            episode_buffer = []
-            t_counter = 0
+              episode_buffer = []
+              t_counter = 0
           if self.name == "worker_0":
             print("Episode {} >>> Step {} >>> Length: {} >>> Reward: {}".format(episode_count, self.total_steps, t, episode_reward))
         self.episode_rewards.append(episode_reward)
@@ -141,6 +162,9 @@ class DIFAgent(Visualizer):
           saver.save(sess, self.model_path + '/model-' + str(episode_count) + '.cptk',
                      global_step=self.global_step)
           print("Saved Model at {}".format(self.model_path + '/model-' + str(episode_count) + '.cptk'))
+          if self.mat_counter > self.config.sf_transition_matrix_size:
+            np.save(self.matrix_path, self.matrix_sf)
+            print("Saved Matrix at {}".format(self.matrix_path))
 
         if episode_count % self.config.summary_interval == 0 and self.total_steps != 0 and \
                 self.name == 'worker_0':
