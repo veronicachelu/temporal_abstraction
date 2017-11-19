@@ -130,7 +130,7 @@ if __name__ == '__main__':
     'train', True,
     'Training.')
   tf.app.flags.DEFINE_boolean(
-    'resume', False,
+    'resume', True,
     'Resume.')
   # tf.app.flags.DEFINE_boolean(
   #   'show_training', False,

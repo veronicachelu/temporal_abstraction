@@ -138,8 +138,8 @@ def dqn_sf_4rooms():
   # final_random_action_prob = 0.1
   # initial_random_action_prob = 1.0
   gradient_clip_value = 40
-  summary_interval = 1000
-  checkpoint_interval = 1000
+  summary_interval = 100000
+  checkpoint_interval = 100000
   eval_interval = 1
 
 

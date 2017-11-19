@@ -21,7 +21,7 @@ class DQNSFBaseAgent(BaseVisAgent):
     self.config = config
     if os.path.exists(self.buffer_path):
       self.load_buffer()
-      self.buf_counter = self.episode_buffer['counter']
+      # self.buf_counter = self.episode_buffer['counter']
     else:
       tf.gfile.MakeDirs(self.buffer_path)
       self.episode_buffer = {
@@ -36,7 +36,7 @@ class DQNSFBaseAgent(BaseVisAgent):
         'done': np.zeros(
           (self.config.observation_steps,)),
       }
-      self.buf_counter = 0
+      # self.buf_counter = 0
 
     tf.gfile.MakeDirs(self.model_path)
     tf.gfile.MakeDirs(self.summary_path)
@@ -73,8 +73,6 @@ class DQNSFBaseAgent(BaseVisAgent):
     print("Saved Model at {}".format(self.model_path + '/model-' + str(episode_count) + '.cptk'))
 
   def save_buffer(self):
-    # with open(self.buffer_path, 'wb') as output:
-    #   pickle.dump(self.episode_buffer, output, protocol=4)
     np.save(os.path.join(self.buffer_path, "observations.npy"), self.episode_buffer["observations"])
     np.save(os.path.join(self.buffer_path, "fi.npy"), self.episode_buffer["fi"])
     np.save(os.path.join(self.buffer_path, "next_observations.npy"), self.episode_buffer["next_observations"])

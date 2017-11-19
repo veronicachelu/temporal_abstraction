@@ -266,6 +266,22 @@ class DQNSFNetwork:
       else:
         self.image_summaries.append(tf.summary.image('next_obs', self.next_obs[:, :, :, 0:1] * 255, max_outputs=30))
 
+      # self.buffer_observations = tf.Variable(
+      #   tf.zeros(shape=[self.config.observation_steps, config.input_size[0], config.input_size[1], config.history_size]),
+      #                                   dtype=tf.float32, name="buffer_observations")
+      # self.buffer_next_observations = tf.Variable(
+      #   tf.zeros(shape=[self.config.observation_steps, config.input_size[0], config.input_size[1], config.history_size]),
+      #   dtype=tf.float32, name="buffer_next_observations")
+      # self.buffer_fi = tf.Variable(
+      #   tf.zeros(shape=[self.config.observation_steps, config.sf_layers[-1]]),
+      #   dtype=tf.float32, name="buffer_fi")
+      # self.buffer_actions = tf.Variable(
+      #   tf.zeros(shape=[self.config.observation_steps,]),
+      #   dtype=tf.int8, name="buffer_actions")
+      # self.buffer_done = tf.Variable(
+      #   tf.zeros(shape=[self.config.observation_steps,]),
+      #   dtype=tf.bool, name="buffer_done")
+
       if scope != 'target':
         self.target_sf = tf.placeholder(shape=[None, self.sf_layers[-1]], dtype=tf.float32, name="target_SF")
         self.target_next_obs = tf.placeholder(

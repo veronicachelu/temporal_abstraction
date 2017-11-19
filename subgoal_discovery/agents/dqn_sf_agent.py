@@ -46,8 +46,12 @@ class DQNSFAgent(DQNSFBaseAgent):
 
   def get_next_batch(self):
     while True:
-      for i in range(0, len(self.episode_buffer), self.config.batch_size):
-          yield self.episode_buffer[i:i + self.config.batch_size]
+      for i in range(0, self.config.observation_steps, self.config.batch_size):
+          yield (self.episode_buffer["observations"][i:i + self.config.batch_size],
+                 self.episode_buffer["fi"][i:i + self.config.batch_size],
+                 self.episode_buffer["next_observations"][i:i + self.config.batch_size],
+                 self.episode_buffer["actions"][i:i + self.config.batch_size],
+                 self.episode_buffer["done"][i:i + self.config.batch_size])
 
   def train(self, sess):
     minibatch = self.get_next_batch()
@@ -111,18 +115,18 @@ class DQNSFAgent(DQNSFBaseAgent):
         s1, r, d, info = self.env.step(a)
 
         print(self.total_steps)
-        self.total_steps += 1
-
-        self.episode_buffer["observations"][self.buf_counter] = s
-        self.episode_buffer["fi"][self.buf_counter] = fi
-        self.episode_buffer["next_observations"][self.buf_counter] = s1
-        self.episode_buffer["actions"][self.buf_counter] = a
-        self.episode_buffer["done"][self.buf_counter] = d
-        self.episode_buffer["counter"] += 1
-        self.buf_counter += 1
+        self.episode_buffer["observations"][self.total_steps] = s
+        self.episode_buffer["fi"][self.total_steps] = fi
+        self.episode_buffer["next_observations"][self.total_steps] = s1
+        self.episode_buffer["actions"][self.total_steps] = a
+        self.episode_buffer["done"][self.total_steps] = d
 
         if self.total_steps % self.config.checkpoint_interval == 0 and self.total_steps != 0:
           self.save_buffer()
+          self.save_model(sess, saver, self.total_steps)
+
+        self.total_steps += 1
+        sess.run(self.increment_global_step)
 
         s = s1
 
