@@ -140,6 +140,6 @@ if __name__ == '__main__':
     'Task nature')
   tf.app.flags.DEFINE_string(
     # 'load_from', None,
-    'load_from', "./logdir/14-dqn_sf_4rooms",
+    'load_from', "./logdir/11-dqn_sf_4rooms",
     'Load directory to load models from.')
   tf.app.run()

@@ -42,29 +42,37 @@ class DQNSFAgent(DQNSFBaseAgent):
     self.target_net = config.network('target', config, self.action_size, self.nb_states)
 
     self.targetOps = self.update_target_graph('orig', 'target')
+    self.batch_generator = self.get_next_batch()
 
 
   def get_next_batch(self):
     while True:
+      index_array = np.arange(self.config.observation_steps)
+      np.random.shuffle(index_array)
+      self.episode_buffer["observations"] = self.episode_buffer["observations"][index_array]
+      self.episode_buffer["fi"] = self.episode_buffer["fi"][index_array]
+      self.episode_buffer["next_observations"] = self.episode_buffer["next_observations"][index_array]
+      self.episode_buffer["actions"] = self.episode_buffer["actions"][index_array]
+      self.episode_buffer["done"] = self.episode_buffer["done"][index_array]
+
       for i in range(0, self.config.observation_steps, self.config.batch_size):
-          yield (self.episode_buffer["observations"][i:i + self.config.batch_size],
+          yield [self.episode_buffer["observations"][i:i + self.config.batch_size],
                  self.episode_buffer["fi"][i:i + self.config.batch_size],
                  self.episode_buffer["next_observations"][i:i + self.config.batch_size],
                  self.episode_buffer["actions"][i:i + self.config.batch_size],
-                 self.episode_buffer["done"][i:i + self.config.batch_size])
+                 self.episode_buffer["done"][i:i + self.config.batch_size]]
 
   def train(self, sess):
-    minibatch = self.get_next_batch()
-    rollout = np.array(minibatch)
-    observations = rollout[:, 0]
-    fi = rollout[:, 1]
-    next_observations = rollout[:, 2]
-    actions = rollout[:, 3]
-    done = rollout[:, 4]
+    minibatch = self.batch_generator.__next__()
+    observations = minibatch[0]
+    fi = minibatch[1]
+    next_observations = minibatch[2]
+    actions = minibatch[3]
+    done = minibatch[4]
 
     feed_dict = {self.target_net.observation: np.stack(next_observations, axis=0)}
     next_sf = sess.run(self.target_net.sf,
-                       feed_dict=feed_dict)[0]
+                       feed_dict=feed_dict)
     target_sf = []
 
     for i in range(len(done)):
@@ -72,14 +80,14 @@ class DQNSFAgent(DQNSFBaseAgent):
         target_sf.append(fi[i])
       else:
         target_sf.append(
-          fi[i] + self.config.gamma * next_sf[i])
+          fi[i] + self.config.discount * next_sf[i])
 
     feed_dict = {self.orig_net.target_sf: target_sf,
                  self.orig_net.observation: np.stack(observations, axis=0),
                  self.orig_net.target_next_obs: np.stack(next_observations, axis=0),
                  self.orig_net.actions_placeholder: actions}
 
-    _, ms, loss, sf_loss, aux_loss = sess.run(
+    loss, _, ms, sf_loss, aux_loss = sess.run(
       [self.orig_net.loss,
        self.orig_net.apply_grads,
        self.orig_net.merged_summary,
@@ -138,16 +146,17 @@ class DQNSFAgent(DQNSFBaseAgent):
         ms, loss, sf_loss, aux_loss = self.train(sess)
         print("Step {} >>> SF_loss {} >>> AUX_loss {} ".format(self.total_steps, sf_loss, aux_loss))
 
-        if self.total_steps % FLAGS.summary_interval == 0 and self.total_steps != 0 and ms is not None:
+        if self.total_steps % self.config.summary_interval == 0 and self.total_steps < self.config.observation_steps and ms is not None:
           self.summary_writer.add_summary(ms, self.total_steps)
 
           self.summary_writer.add_summary(self.summary, self.total_steps)
           self.summary_writer.flush()
 
-        if self.total_steps % FLAGS.checkpoint_interval == 0 and self.total_steps != 0:
+        if self.total_steps % self.config.checkpoint_interval == 0 and self.total_steps < self.config.observation_steps:
           self.save_model(sess, saver, self.total_steps)
+
         self.total_steps += 100
-        self.sess.run(self.increment_batch_global_step)
+        sess.run(self.increment_batch_global_step)
 
 
   def policy_evaluation(self, s):
