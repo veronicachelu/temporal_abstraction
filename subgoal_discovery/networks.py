@@ -4,7 +4,7 @@ from __future__ import print_function
 
 import tensorflow as tf
 import tensorflow.contrib.layers as layers
-from utility import gradient_summaries
+from utility import gradient_summaries, huber_loss
 import numpy as np
 
 
@@ -170,7 +170,7 @@ class DQNSFNetwork:
     self.nb_envs = config.num_agents
     self.config = config
 
-    self._network_optimizer = config.network_optimizer(
+    self.network_optimizer = config.network_optimizer(
       self.config.lr, name='network_optimizer')
 
     with tf.variable_scope(scope):
@@ -210,6 +210,13 @@ class DQNSFNetwork:
       self.fi = out
 
       out = tf.stop_gradient(layer_norm_fn(self.fi, relu=True))
+
+      # ------------------- Adding option Q ---------------------
+      self.q = layers.fully_connected(out, num_outputs=self.action_size + 1,
+                                                              activation_fn=None,
+                                                              variables_collections=tf.get_collection("variables"),
+                                                              outputs_collections="activations", scope="Q")
+
       with tf.variable_scope("sf"):
         for i, nb_filt in enumerate(self.sf_layers):
           out = layers.fully_connected(out, num_outputs=nb_filt,
@@ -266,23 +273,16 @@ class DQNSFNetwork:
       else:
         self.image_summaries.append(tf.summary.image('next_obs', self.next_obs[:, :, :, 0:1] * 255, max_outputs=30))
 
-      # self.buffer_observations = tf.Variable(
-      #   tf.zeros(shape=[self.config.observation_steps, config.input_size[0], config.input_size[1], config.history_size]),
-      #                                   dtype=tf.float32, name="buffer_observations")
-      # self.buffer_next_observations = tf.Variable(
-      #   tf.zeros(shape=[self.config.observation_steps, config.input_size[0], config.input_size[1], config.history_size]),
-      #   dtype=tf.float32, name="buffer_next_observations")
-      # self.buffer_fi = tf.Variable(
-      #   tf.zeros(shape=[self.config.observation_steps, config.sf_layers[-1]]),
-      #   dtype=tf.float32, name="buffer_fi")
-      # self.buffer_actions = tf.Variable(
-      #   tf.zeros(shape=[self.config.observation_steps,]),
-      #   dtype=tf.int8, name="buffer_actions")
-      # self.buffer_done = tf.Variable(
-      #   tf.zeros(shape=[self.config.observation_steps,]),
-      #   dtype=tf.bool, name="buffer_done")
-
       if scope != 'target':
+        self.target_q_a = tf.placeholder(shape=[None], dtype=tf.float32, name="target_Q_a")
+        self.actions_onehot = tf.one_hot(tf.cast(self.actions_placeholder, tf.int32), self.action_size + 1, dtype=tf.float32, name="actions_one_hot")
+        self.q_a = tf.reduce_sum(tf.multiply(self.q, self.actions_onehot),
+                                          reduction_indices=1, name="Q_a")
+
+        with tf.name_scope('q_loss'):
+          td_error = self.q_a - self.target_q_a
+          self.q_loss = tf.reduce_mean(huber_loss(td_error))
+
         self.target_sf = tf.placeholder(shape=[None, self.sf_layers[-1]], dtype=tf.float32, name="target_SF")
         self.target_next_obs = tf.placeholder(
           shape=[None, config.input_size[0], config.input_size[1], config.history_size], dtype=tf.float32,
@@ -310,6 +310,7 @@ class DQNSFNetwork:
                           tf.summary.scalar('total_loss', self.loss)]
 
         local_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope)
+        local_vars = [v for v in local_vars if 'Q' not in v.name]
         gradients = tf.gradients(self.loss, local_vars)
         self.var_norms = tf.global_norm(local_vars)
         grads, self.grad_norms = tf.clip_by_global_norm(gradients, self.config.gradient_clip_value)
@@ -318,7 +319,16 @@ class DQNSFNetwork:
           tf.summary.scalar('gradient_norm', tf.global_norm(gradients)),
           tf.summary.scalar('cliped_gradient_norm', tf.global_norm(grads)),
           gradient_summaries(zip(grads, local_vars))])
-        self.apply_grads = self._network_optimizer.apply_gradients(zip(grads, local_vars))
+        self.apply_grads = self.network_optimizer.apply_gradients(zip(grads, local_vars))
+
+        # --------------- Q_loss ----------------------
+        local_q_vars = [v for v in tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope) if "Q" in v.name]
+        q_loss_summary = [tf.summary.scalar('q_loss', self.q_loss)]
+        q_gradients = tf.gradients(self.q_loss, local_q_vars)
+        q_grads, self.grad_norms = tf.clip_by_global_norm(q_gradients, self.config.gradient_clip_value)
+        self.q_merged_summary = tf.summary.merge(q_loss_summary)
+        self.q_apply_grads = self.network_optimizer.apply_gradients(zip(q_grads, local_q_vars))
+
 
 def layer_norm_fn(x, relu=True):
   x = layers.layer_norm(x, scale=True, center=True)

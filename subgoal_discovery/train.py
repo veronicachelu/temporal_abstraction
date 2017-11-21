@@ -24,6 +24,8 @@ def initialize_agents(config):
     agent = config.agent(envs[0], 0, global_step, config)
   elif FLAGS.task == "option":
     agent = config.agent(envs[0], 0, global_step, config)
+  elif FLAGS.task == "play_option":
+    agent = config.agent(envs[0], 0, global_step, config)
   else:
     if config.agent_type == "a3c":
       agents = [config.agent(envs[i], i, global_step, config) for i in range(config.num_agents)]
@@ -43,6 +45,10 @@ def start_agents(agents, config, coord, sess, saver):
     thread = threading.Thread(target=(lambda: agents.plot_options(sess, coord, saver)))
     thread.start()
     agent_threads.append(thread)
+  elif FLAGS.task == "play_option":
+    thread = threading.Thread(target=(lambda: agents.play_option(sess, coord, saver, FLAGS.option, FLAGS.sign)))
+    thread.start()
+    agent_threads.append(thread)
   else:
     if config.agent_type == "a3c":
       for agent in agents:
@@ -56,7 +62,16 @@ def start_agents(agents, config, coord, sess, saver):
 
   return agent_threads
 
-
+# def get_list_vars_load():
+#   vars_list = []
+#   if FLAGS.resume_option:
+#     vars_list = tf.get_collection("variables")
+#   else:
+#     vars_list = tf.get_collection("variables")
+#     option_vars = tf.get_collection("Q")
+#     vars_list = [v for v in vars_list if v not in option_vars]
+#
+#   return vars_list
 
 def train(config, logdir):
   tf.reset_default_graph()
@@ -71,7 +86,12 @@ def train(config, logdir):
         config.network_optimizer = getattr(tf.train, config.network_optimizer)
         agents = initialize_agents(config)
 
-      saver = loader = utility.define_saver(exclude=(r'.*_temporary/.*',))
+      # variables_to_load = get_list_vars_load()
+      exclude = None
+      if not FLAGS.resume_option:
+        exclude = (r'.*/Q/.*',)
+      loader = utility.define_saver(exclude=exclude)
+      saver = utility.define_saver()
       if FLAGS.resume:
         sess.run(tf.global_variables_initializer())
         ckpt = tf.train.get_checkpoint_state(os.path.join(os.path.join(FLAGS.load_from, "dif"), "models"))
@@ -124,7 +144,7 @@ if __name__ == '__main__':
     'timestamp', datetime.datetime.now().strftime('%Y%m%dT%H%M%S'),
     'Sub directory to store logs.')
   tf.app.flags.DEFINE_string(
-    'config', "dqn_sf_4rooms",
+    'config', "dqn_sf_4rooms2",
     'Configuration to execute.')
   tf.app.flags.DEFINE_boolean(
     'train', True,
@@ -132,14 +152,23 @@ if __name__ == '__main__':
   tf.app.flags.DEFINE_boolean(
     'resume', True,
     'Resume.')
+  tf.app.flags.DEFINE_boolean(
+    'resume_option', True,
+    'Resume option.')
   # tf.app.flags.DEFINE_boolean(
   #   'show_training', False,
   #   'Show gym envs.')
   tf.app.flags.DEFINE_string(
-    'task', "sf",
+    'task', "option",
     'Task nature')
   tf.app.flags.DEFINE_string(
     # 'load_from', None,
     'load_from', "./logdir/11-dqn_sf_4rooms",
     'Load directory to load models from.')
+  tf.app.flags.DEFINE_integer(
+    'option', 0,
+    'Option - eigenvector to train dqn on')
+  tf.app.flags.DEFINE_string(
+    'sign', "poz",
+    'Sign of the option eigenvector')
   tf.app.run()

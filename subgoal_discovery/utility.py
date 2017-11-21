@@ -26,6 +26,13 @@ import ruamel.yaml as yaml
 import tensorflow as tf
 import collections
 
+def huber_loss(x, delta=1.0):
+  """Reference: https://en.wikipedia.org/wiki/Huber_loss"""
+  return tf.where(
+    tf.abs(x) < delta,
+    tf.square(x) * 0.5,
+    delta * (tf.abs(x) - 0.5 * delta)
+  )
 
 def define_saver(exclude=None):
   """Create a saver for the variables we want to checkpoint.

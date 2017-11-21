@@ -43,7 +43,7 @@ def define_saver(exclude=None):
     if any(regex.match(variable.name) for regex in exclude):
       continue
     variables.append(variable)
-  saver = tf.train.Saver(variables, keep_checkpoint_every_n_hours=5)
+  saver = tf.train.Saver(variables, max_to_keep=10000)
   return saver
 
 
@@ -242,3 +242,12 @@ def variable_summaries(vars_, groups=None, scope='weights'):
     vars_ = tf.concat(vars_, 0)
     summaries.append(tf.summary.histogram(scope + '/' + name, vars_))
   return tf.summary.merge(summaries)
+
+
+def huber_loss(x, delta=1.0):
+  """Reference: https://en.wikipedia.org/wiki/Huber_loss"""
+  return tf.where(
+    tf.abs(x) < delta,
+    tf.square(x) * 0.5,
+    delta * (tf.abs(x) - 0.5 * delta)
+  )
