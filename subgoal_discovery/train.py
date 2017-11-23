@@ -10,6 +10,7 @@ import utility
 from tools import wrappers
 import configs
 from env_wrappers import _create_environment
+from tensorflow.python.client import device_lib
 
 def initialize_agents(config):
   global_step = tf.Variable(0, dtype=tf.int32, name='global_step', trainable=False)
@@ -73,37 +74,42 @@ def start_agents(agents, config, coord, sess, saver):
 #
 #   return vars_list
 
+
+def get_available_gpus():
+    local_device_protos = device_lib.list_local_devices()
+    return [x.name for x in local_device_protos if x.device_type == 'GPU']
+
 def train(config, logdir):
   tf.reset_default_graph()
   sess = tf.Session()
   stage_logdir = os.path.join(logdir, "dif")
   tf.gfile.MakeDirs(stage_logdir)
   with sess:
-    with tf.device("/{}:0".format("gpu" if config.agent_type == "dqn" else "cpu")):
-      with config.unlocked:
-        config.logdir = logdir
-        config.stage_logdir = stage_logdir
-        config.network_optimizer = getattr(tf.train, config.network_optimizer)
-        agents = initialize_agents(config)
+    # with tf.device("/{}:0".format("gpu" if config.agent_type == "dqn" and len(get_available_gpus()) > 0 else "cpu")):
+    with config.unlocked:
+      config.logdir = logdir
+      config.stage_logdir = stage_logdir
+      config.network_optimizer = getattr(tf.train, config.network_optimizer)
+      agents = initialize_agents(config)
 
-      # variables_to_load = get_list_vars_load()
-      exclude = None
-      if not FLAGS.resume_option:
-        exclude = (r'.*/Q/.*',)
-      loader = utility.define_saver(exclude=exclude)
-      saver = utility.define_saver()
-      if FLAGS.resume:
-        sess.run(tf.global_variables_initializer())
-        ckpt = tf.train.get_checkpoint_state(os.path.join(os.path.join(FLAGS.load_from, "dif"), "models"))
-        print("Loading Model from {}".format(ckpt.model_checkpoint_path))
-        loader.restore(sess, ckpt.model_checkpoint_path)
-        sess.run(tf.local_variables_initializer())
-      else:
-        sess.run([tf.global_variables_initializer(), tf.local_variables_initializer()])
+    # variables_to_load = get_list_vars_load()
+    exclude = None
+    if not FLAGS.resume_option:
+      exclude = (r'.*/Q/.*',)
+    loader = utility.define_saver(exclude=exclude)
+    saver = utility.define_saver()
+    if FLAGS.resume:
+      sess.run(tf.global_variables_initializer())
+      ckpt = tf.train.get_checkpoint_state(os.path.join(os.path.join(FLAGS.load_from, "dif"), "models"))
+      print("Loading Model from {}".format(ckpt.model_checkpoint_path))
+      loader.restore(sess, ckpt.model_checkpoint_path)
+      sess.run(tf.local_variables_initializer())
+    else:
+      sess.run([tf.global_variables_initializer(), tf.local_variables_initializer()])
 
-      coord = tf.train.Coordinator()
-      agent_threads = start_agents(agents, config, coord, sess, saver)
-      coord.join(agent_threads)
+    coord = tf.train.Coordinator()
+    agent_threads = start_agents(agents, config, coord, sess, saver)
+    coord.join(agent_threads)
 
 def recreate_directory_structure(logdir):
   if not tf.gfile.Exists(logdir):
