@@ -26,8 +26,8 @@ import random
 
 
 class DQNSFAgent(DQNSFBaseAgent):
-  def __init__(self, game, _, global_step, config):
-    DQNSFBaseAgent.__init__(self, game, _, global_step, config)
+  def __init__(self, game, _, global_step, config, type_of_task):
+    DQNSFBaseAgent.__init__(self, game, _, global_step, config, type_of_task)
     self.name = "DQN_agent"
     self.episode_rewards = []
     self.episode_lengths = []

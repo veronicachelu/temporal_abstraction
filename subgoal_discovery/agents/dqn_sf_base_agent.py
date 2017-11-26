@@ -21,7 +21,7 @@ FLAGS = tf.app.flags.FLAGS
 
 
 class DQNSFBaseAgent(BaseVisAgent):
-  def __init__(self, game, _, global_step, config):
+  def __init__(self, game, _, global_step, config, type_of_task):
     self.config = config
     self.global_step = global_step
     self.optimizer = config.network_optimizer
@@ -31,23 +31,24 @@ class DQNSFBaseAgent(BaseVisAgent):
     self.summary_path = os.path.join(config.stage_logdir, "summaries")
     self.buffer_path = os.path.join(self.model_path, "buffer")
 
-    if os.path.exists(self.buffer_path):
-      self.load_buffer()
-      # self.buf_counter = self.episode_buffer['counter']
-    else:
-      tf.gfile.MakeDirs(self.buffer_path)
-      self.episode_buffer = {
-        'counter': 0,
-        'observations': np.zeros(
-          (self.config.observation_steps, config.input_size[0], config.input_size[1], config.history_size)),
-        'fi': np.zeros((self.config.observation_steps, self.config.sf_layers[-1])),
-        'next_observations': np.zeros(
-          (self.config.observation_steps, config.input_size[0], config.input_size[1], config.history_size)),
-        'actions': np.zeros(
-          (self.config.observation_steps,)),
-        'done': np.zeros(
-          (self.config.observation_steps,)),
-      }
+    if type_of_task == "sf":
+      if os.path.exists(self.buffer_path):
+        self.load_buffer()
+        # self.buf_counter = self.episode_buffer['counter']
+      else:
+        tf.gfile.MakeDirs(self.buffer_path)
+        self.episode_buffer = {
+          'counter': 0,
+          'observations': np.zeros(
+            (self.config.observation_steps, config.input_size[0], config.input_size[1], config.history_size)),
+          'fi': np.zeros((self.config.observation_steps, self.config.sf_layers[-1])),
+          'next_observations': np.zeros(
+            (self.config.observation_steps, config.input_size[0], config.input_size[1], config.history_size)),
+          'actions': np.zeros(
+            (self.config.observation_steps,)),
+          'done': np.zeros(
+            (self.config.observation_steps,)),
+        }
       # self.buf_counter = 0
 
     tf.gfile.MakeDirs(self.model_path)
@@ -120,10 +121,19 @@ class DQNSFBaseAgent(BaseVisAgent):
             # plt.savefig(os.path.join(self.summary_path, 'SR_matrix.png'))
         # self.reconstruct_sr(self.matrix_sf)
         np.save(matrix_path, self.matrix_sf)
+
         # self.plot_sr_vectors(self.matrix_sf)
         # self.plot_sr_matrix(self.matrix_sf)
         # self.eigen_decomp(self.matrix_sf)
+    plt.clf()
+    ax = sns.heatmap(self.matrix_sf, cmap="Blues")
+    folder_path = os.path.join(os.path.join(self.config.stage_logdir, "summaries"), "eigenoptions")
+    tf.gfile.MakeDirs(folder_path)
+    plt.savefig(os.path.join(folder_path, 'Matrix_SF.png'))
+    np.savetxt(os.path.join(folder_path, 'Matrix_SF_numeric.txt'), self.matrix_sf, fmt='%-7.2f')
+
     self.plot_eigenoptions("eigenoptions", sess)
+
 
   def build_matrix_approx(self, sess, coord, saver):
     matrix_path = os.path.join(os.path.join(self.config.stage_logdir, "models"), "matrix.npy")
@@ -413,6 +423,90 @@ class DQNSFBaseAgent(BaseVisAgent):
           plt.savefig(os.path.join(self.summary_path, "SuccessorFeatures_" + prefix + 'policy.png'))
           plt.close()
 
+
+  def plot_options_greedy(self, sess, coord, saver):
+    eigenvectors_path = os.path.join(os.path.join(self.config.stage_logdir, "models"), "eigenvectors.npy")
+    eigenvalues_path = os.path.join(os.path.join(self.config.stage_logdir, "models"), "eigenvalues.npy")
+    eigenvectors = np.load(eigenvectors_path)
+    eigenvalues = np.load(eigenvalues_path)
+    for k in ["poz", "neg"]:
+      for option in range(len(eigenvalues)):
+        # eigenvalue = eigenvalues[option]
+        eigenvector = eigenvectors[option] if k == "poz" else -eigenvectors[option]
+        prefix = str(option) + '_' + k + "_"
+
+        plt.clf()
+
+        with sess.as_default(), sess.graph.as_default():
+          for idx in range(self.nb_states):
+            dx = 0
+            dy = 0
+            d = False
+            s, i, j = self.env.get_state(idx)
+
+            if not self.env.not_wall(i, j):
+              plt.gca().add_patch(
+                patches.Rectangle(
+                  (j, self.config.input_size[0] - i - 1),  # (x,y)
+                  1.0,  # width
+                  1.0,  # height
+                  facecolor="gray"
+                )
+              )
+              continue
+            # Image.fromarray(np.asarray(scipy.misc.imresize(s, [512, 512], interp='nearest'), np.uint8)).show()
+            feed_dict = {self.orig_net.observation: np.stack([s])}
+            fi = sess.run(self.orig_net.fi,
+                          feed_dict=feed_dict)[0]
+
+            transitions = []
+            terminations = []
+            for a in range(self.action_size):
+              s1, r, d, _ = self.env.fake_step(a)
+              feed_dict = {self.orig_net.observation: np.stack([s1])}
+              fi1 = sess.run(self.orig_net.fi,
+                            feed_dict=feed_dict)[0]
+              transitions.append(self.cosine_similarity((fi1 - fi), eigenvector))
+              terminations.append(d)
+
+            transitions.append(self.cosine_similarity(np.zeros_like(fi), eigenvector))
+            terminations.append(True)
+
+            a = np.argmax(transitions)
+            # if a == 4:
+            #   d = True
+
+            if a == 0: # up
+              dy = 0.35
+            elif a == 1:  # right
+              dx = 0.35
+            elif a == 2:  # down
+              dy = -0.35
+            elif a == 3:  # left
+              dx = -0.35
+
+            if terminations[a] or np.all(transitions[a] == np.zeros_like(fi)) : # termination
+              circle = plt.Circle(
+                (j + 0.5, self.config.input_size[0] - i + 0.5 - 1), 0.025, color='k')
+              plt.gca().add_artist(circle)
+              continue
+
+            plt.arrow(j + 0.5, self.config.input_size[0] - i + 0.5 - 1, dx, dy,
+                      head_width=0.05, head_length=0.05, fc='k', ec='k')
+
+          plt.xlim([0, self.config.input_size[1]])
+          plt.ylim([0, self.config.input_size[0]])
+
+          for i in range(self.config.input_size[1]):
+            plt.axvline(i, color='k', linestyle=':')
+          plt.axvline(self.config.input_size[1], color='k', linestyle=':')
+
+          for j in range(self.config.input_size[0]):
+            plt.axhline(j, color='k', linestyle=':')
+          plt.axhline(self.config.input_size[0], color='k', linestyle=':')
+
+          plt.savefig(os.path.join(self.summary_path, "SuccessorFeatures_" + prefix + 'policy.png'))
+          plt.close()
 
 
 

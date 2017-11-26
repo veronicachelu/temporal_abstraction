@@ -33,8 +33,8 @@ class BaseVisAgent():
         for idx in range(self.nb_states):
           s, ii, jj = self.env.get_state(idx)
           if self.env.not_wall(ii, jj):
-            feed_dict = {self.local_network.observation: [s]}
-            self.matrix_sf[idx] = sess.run(self.local_network.sf, feed_dict=feed_dict)[0]
+            feed_dict = {self.orig_net.observation: [s]}
+            self.matrix_sf[idx] = sess.run(self.orig_net.sf, feed_dict=feed_dict)[0]
             # plt.pcolor(self.matrix_sf, cmap='hot', interpolation='nearest')
             # plt.savefig(os.path.join(self.summary_path, 'SR_matrix.png'))
         # self.reconstruct_sr(self.matrix_sf)
@@ -50,7 +50,7 @@ class BaseVisAgent():
       self.matrix_sf = np.load(matrix_path)
     else:
       with sess.as_default(), sess.graph.as_default():
-        self.matrix_sf = np.zeros((self.config.sf_transition_matrix_size, self.config.sf_layers[-1]))
+        self.matrix_sf = np.zeros((self.config.sf_matrix_size, self.config.sf_layers[-1]))
         mat_counter = 0
         t = 0
         while t < self.config.sf_transition_matrix_size:
@@ -79,8 +79,8 @@ class BaseVisAgent():
       # self.eigen_decomp(self.matrix_sf)
 
   def plot_eigenoptions(self, folder, sess):
-    feed_dict = {self.local_network.matrix_sf: self.matrix_sf}
-    s, v = sess.run([self.local_network.s, self.local_network.v], feed_dict=feed_dict)
+    feed_dict = {self.orig_net.matrix_sf: self.matrix_sf}
+    s, v = sess.run([self.orig_net.s, self.orig_net.v], feed_dict=feed_dict)
     # u, s, v = np.linalg.svd(self.matrix_sf)
     eigenvalues = s
     eigenvectors = v
@@ -296,16 +296,16 @@ class BaseVisAgent():
               )
               continue
             # Image.fromarray(np.asarray(scipy.misc.imresize(s, [512, 512], interp='nearest'), np.uint8)).show()
-            feed_dict = {self.local_network.observation: np.stack([s])}
-            fi = sess.run(self.local_network.fi,
+            feed_dict = {self.orig_net.observation: np.stack([s])}
+            fi = sess.run(self.orig_net.fi,
                           feed_dict=feed_dict)[0]
 
             transitions = []
             terminations = []
             for a in range(self.action_size):
               s1, r, d, _ = self.env.fake_step(a)
-              feed_dict = {self.local_network.observation: np.stack([s1])}
-              fi1 = sess.run(self.local_network.fi,
+              feed_dict = {self.orig_net.observation: np.stack([s1])}
+              fi1 = sess.run(self.orig_net.fi,
                             feed_dict=feed_dict)[0]
               transitions.append(self.cosine_similarity((fi1 - fi), eigenvector))
               terminations.append(d)
