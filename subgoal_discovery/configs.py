@@ -240,7 +240,7 @@ def dqn_sf_4rooms_fc():
     GridWorld, "../mdps/4rooms.mdp")
 
   observation_steps = 500000
-  training_steps = 4900000
+  training_steps = 10000000
   steps = observation_steps + training_steps
   sf_matrix_size = 50000
   target_update_freq = 1000

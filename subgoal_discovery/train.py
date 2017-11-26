@@ -22,17 +22,17 @@ def initialize_agents(config):
     global_network = config.network("global", config, action_size, nb_states)
 
   if FLAGS.task == "matrix":
-    agent = config.agent(envs[0], 0, global_step, config)
+    agent = config.agent(envs[0], 0, global_step, config, FLAGS.task)
   elif FLAGS.task == "option":
-    agent = config.agent(envs[0], 0, global_step, config)
+    agent = config.agent(envs[0], 0, global_step, config, FLAGS.task)
   elif FLAGS.task == "play_option":
-    agent = config.agent(envs[0], 0, global_step, config)
+    agent = config.agent(envs[0], 0, global_step, config, FLAGS.task)
   else:
     if config.agent_type == "a3c":
-      agents = [config.agent(envs[i], i, global_step, config) for i in range(config.num_agents)]
+      agents = [config.agent(envs[i], i, global_step, config, FLAGS.task) for i in range(config.num_agents)]
       return agents
     else:
-      agent = config.agent(envs[0], 0, global_step, config)
+      agent = config.agent(envs[0], 0, global_step, config, FLAGS.task)
 
   return agent
 
@@ -40,6 +40,10 @@ def start_agents(agents, config, coord, sess, saver):
   agent_threads = []
   if FLAGS.task == "matrix":
     thread = threading.Thread(target=(lambda: agents.build_matrix(sess, coord, saver)))
+    thread.start()
+    agent_threads.append(thread)
+  elif FLAGS.task == "option_greedy":
+    thread = threading.Thread(target=(lambda: agents.plot_options_greedy(sess, coord, saver)))
     thread.start()
     agent_threads.append(thread)
   elif FLAGS.task == "option":
@@ -156,10 +160,10 @@ if __name__ == '__main__':
     'train', True,
     'Training.')
   tf.app.flags.DEFINE_boolean(
-    'resume', False,
+    'resume', True,
     'Resume.')
   tf.app.flags.DEFINE_boolean(
-    'resume_option', False,
+    'resume_option', True,
     'Resume option.')
   # tf.app.flags.DEFINE_boolean(
   #   'show_training', False,
@@ -168,8 +172,8 @@ if __name__ == '__main__':
     'task', "sf",
     'Task nature')
   tf.app.flags.DEFINE_string(
-    'load_from', None,
-    # 'load_from', "./logdir/11-dqn_sf_4rooms",
+    #'load_from', None,
+    'load_from', "./logdir/2-dqn_sf_4rooms_fc",
     'Load directory to load models from.')
   tf.app.flags.DEFINE_integer(
     'option', 0,
