@@ -107,20 +107,26 @@ class DQNSFBaseAgent(BaseVisAgent):
 
   def build_matrix(self, sess, coord, saver):
     matrix_path = os.path.join(os.path.join(self.config.stage_logdir, "models"), "matrix.npy")
-    if os.path.exists(matrix_path):
+    matrix_fi_path = os.path.join(os.path.join(self.config.stage_logdir, "models"), "matrix_fi.npy")
+    if os.path.exists(matrix_path) and os.path.exists(matrix_fi_path):
       self.matrix_sf = np.load(matrix_path)
+      self.matrix_sf = np.load(matrix_fi_path)
     else:
       with sess.as_default(), sess.graph.as_default():
         self.matrix_sf = np.zeros((self.nb_states, self.config.sf_layers[-1]))
+        self.matrix_fi = np.zeros((self.nb_states, self.config.sf_layers[-1]))
         for idx in range(self.nb_states):
           s, ii, jj = self.env.get_state(idx)
           if self.env.not_wall(ii, jj):
             feed_dict = {self.orig_net.observation: [s]}
-            self.matrix_sf[idx] = sess.run(self.orig_net.sf, feed_dict=feed_dict)[0]
+            self.matrix_fi[idx], self.matrix_sf[idx] = sess.run([self.orig_net.fi, self.orig_net.sf], feed_dict=feed_dict)
+            self.matrix_fi[idx], self.matrix_sf[idx] = self.matrix_fi[idx][0], self.matrix_sf[idx][0]
+
             # plt.pcolor(self.matrix_sf, cmap='hot', interpolation='nearest')
             # plt.savefig(os.path.join(self.summary_path, 'SR_matrix.png'))
         # self.reconstruct_sr(self.matrix_sf)
         np.save(matrix_path, self.matrix_sf)
+        np.save(matrix_fi_path, self.matrix_sf)
 
         # self.plot_sr_vectors(self.matrix_sf)
         # self.plot_sr_matrix(self.matrix_sf)
@@ -131,6 +137,13 @@ class DQNSFBaseAgent(BaseVisAgent):
     tf.gfile.MakeDirs(folder_path)
     plt.savefig(os.path.join(folder_path, 'Matrix_SF.png'))
     np.savetxt(os.path.join(folder_path, 'Matrix_SF_numeric.txt'), self.matrix_sf, fmt='%-7.2f')
+
+    plt.clf()
+    ax = sns.heatmap(self.matrix_fi, cmap="Blues")
+    folder_path = os.path.join(os.path.join(self.config.stage_logdir, "summaries"), "eigenoptions")
+    tf.gfile.MakeDirs(folder_path)
+    plt.savefig(os.path.join(folder_path, 'Matrix_FI.png'))
+    np.savetxt(os.path.join(folder_path, 'Matrix_FI_numeric.txt'), self.matrix_fi, fmt='%-7.2f')
 
     self.plot_eigenoptions("eigenoptions", sess)
 
