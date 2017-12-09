@@ -757,10 +757,23 @@ class DIFNetwork():
             out= tf.nn.relu(out)
           self.summaries.append(tf.contrib.layers.summarize_activation(out))
 
+      # with tf.variable_scope("aux_deconv"):
+      #   decoder_out = tf.expand_dims(tf.expand_dims(out, 1), 1)
+      #   for i, (kernel_size, stride, padding, nb_kernels) in enumerate(self._aux_deconv_layers):
+      #     decoder_out = layers.conv2d_transpose(decoder_out, num_outputs=nb_kernels, kernel_size=kernel_size,
+      #                                           stride=stride, activation_fn=None,
+      #                                           padding="same" if padding > 0 else "valid",
+      #                                           variables_collections=tf.get_collection("variables"),
+      #                                           outputs_collections="activations", scope="aux_deconv_{}".format(i))
+      #     if i < len(self._aux_deconv_layers) - 1:
+      #       # decoder_out = layer_norm_fn(decoder_out, relu=False)
+      #       decoder_out = tf.nn.relu(decoder_out)
+      #     self.summaries.append(tf.contrib.layers.summarize_activation(decoder_out))
+
       with tf.variable_scope("aux_deconv"):
         decoder_out = tf.expand_dims(tf.expand_dims(out, 1), 1)
         for i, (kernel_size, stride, padding, nb_kernels) in enumerate(self._aux_deconv_layers):
-          decoder_out = layers.conv2d_transpose(decoder_out, num_outputs=nb_kernels, kernel_size=kernel_size,
+          decoder_out = layers.conv2d(decoder_out, num_outputs=nb_kernels, kernel_size=kernel_size,
                                                 stride=stride, activation_fn=None,
                                                 padding="same" if padding > 0 else "valid",
                                                 variables_collections=tf.get_collection("variables"),
@@ -770,6 +783,7 @@ class DIFNetwork():
             decoder_out = tf.nn.relu(decoder_out)
           self.summaries.append(tf.contrib.layers.summarize_activation(decoder_out))
 
+      decoder_out = tf.depth_to_space(decoder_out, 13, "depth_to_space")
       self.next_obs = decoder_out
 
       if self._config.history_size == 3:
