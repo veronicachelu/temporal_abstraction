@@ -91,13 +91,13 @@ def main(_):
 if __name__ == '__main__':
   FLAGS = tf.app.flags.FLAGS
   tf.app.flags.DEFINE_string(
-    'logdir', None,
+    'logdir', "./logdir",
     'Base directory to store logs.')
   tf.app.flags.DEFINE_string(
     'timestamp', datetime.datetime.now().strftime('%Y%m%dT%H%M%S'),
     'Sub directory to store logs.')
   tf.app.flags.DEFINE_string(
-    'config', None,
+    'config', "linear_4rooms",
     'Configuration to execute.')
   tf.app.flags.DEFINE_boolean(
     'env_processes', True,
@@ -106,16 +106,16 @@ if __name__ == '__main__':
     'train', True,
     'Training.')
   tf.app.flags.DEFINE_boolean(
-    'resume', True,
+    'resume', False,
     'Resume.')
   tf.app.flags.DEFINE_boolean(
     'show_training', False,
     'Show gym envs.')
   tf.app.flags.DEFINE_string(
-    'task', "matrix",
+    'task', "sf",
     'Task nature')
   tf.app.flags.DEFINE_string(
-    # 'load_from', None,
-    'load_from', "./logdir/1-linear_4rooms",
+    'load_from', None,
+    # 'load_from', "./logdir/1-linear_4rooms",
     'Load directory to load models from.')
   tf.app.run()

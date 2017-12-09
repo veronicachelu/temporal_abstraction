@@ -482,6 +482,72 @@ class DQNSF_FCNetwork:
         self.q_merged_summary = tf.summary.merge(q_loss_summary)
         self.q_apply_grads = self.network_optimizer.apply_gradients(zip(q_grads, local_q_vars))
 
+class DQNSF_ONEHOT_Network:
+  def __init__(self, scope, config, action_size, nb_states):
+    self._scope = scope
+    self.nb_states = nb_states
+    # self.conv_layers = config.conv_layers
+    self.fc_layers = config.fc_layers
+    self.sf_layers = config.sf_layers
+    self.aux_fc_layers = config.aux_fc_layers
+    # self.aux_deconv_layers = config.aux_deconv_layers
+    self.action_size = action_size
+    self.nb_options = config.nb_options
+    self.nb_envs = config.num_agents
+    self.config = config
+
+    self.network_optimizer = config.network_optimizer(
+      self.config.lr, name='network_optimizer')
+
+    with tf.variable_scope(scope):
+      self.observation = tf.placeholder(shape=[None, self.nb_states],
+                                        dtype=tf.float32, name="Inputs")
+
+      self.summaries = []
+
+      out = self.observation
+
+      with tf.variable_scope("sf"):
+        for i, nb_filt in enumerate(self.sf_layers):
+          out = layers.fully_connected(out, num_outputs=nb_filt,
+                                       activation_fn=None,
+                                       variables_collections=tf.get_collection("variables"),
+                                       outputs_collections="activations", scope="sf_{}".format(i))
+          # if i < len(self.sf_layers) - 1:
+          #   # out = layer_norm_fn(out, relu=True)
+          #   out = tf.nn.relu(out)
+          # self.summaries.append(tf.contrib.layers.summarize_activation(out))
+
+      self.sf = out
+
+      if scope != 'target':
+        self.target_sf = tf.placeholder(shape=[None, self.sf_layers[-1]], dtype=tf.float32, name="target_SF")
+
+        self.matrix_sf = tf.placeholder(shape=[self.nb_states, self.sf_layers[-1]],
+                                        dtype=tf.float32, name="matrix_sf")
+        self.s, self.u, self.v = tf.svd(self.matrix_sf)
+
+
+        with tf.name_scope('sf_loss'):
+          sf_td_error = self.target_sf - self.sf
+          self.sf_loss = tf.reduce_mean(tf.square(sf_td_error))
+
+        self.loss = self.sf_loss
+        loss_summaries = [tf.summary.scalar('avg_sf_loss', self.sf_loss)]
+
+        local_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope)
+        gradients = tf.gradients(self.loss, local_vars)
+        self.var_norms = tf.global_norm(local_vars)
+        grads, self.grad_norms = tf.clip_by_global_norm(gradients, self.config.gradient_clip_value)
+
+        self.merged_summary = tf.summary.merge(self.summaries + loss_summaries + [
+          tf.summary.scalar('gradient_norm', tf.global_norm(gradients)),
+          tf.summary.scalar('cliped_gradient_norm', tf.global_norm(grads)),
+          gradient_summaries(zip(grads, local_vars))])
+        self.apply_grads = self.network_optimizer.apply_gradients(zip(grads, local_vars))
+
+
+
 def layer_norm_fn(x, relu=True):
   x = layers.layer_norm(x, scale=True, center=True)
   if relu:

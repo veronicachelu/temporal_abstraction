@@ -97,7 +97,7 @@ def main(_):
 if __name__ == '__main__':
   FLAGS = tf.app.flags.FLAGS
   tf.app.flags.DEFINE_string(
-    'logdir', None,
+    'logdir', './logdir',
     'Base directory to store logs.')
   tf.app.flags.DEFINE_string(
     'timestamp', datetime.datetime.now().strftime('%Y%m%dT%H%M%S'),

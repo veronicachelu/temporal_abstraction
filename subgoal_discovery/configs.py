@@ -21,7 +21,7 @@ from __future__ import print_function
 # pylint: disable=unused-variable
 
 from agents import A3CSFAgent
-from agents import DQNSFAgent
+from agents import DQNSFAgent, DQNSF_ONEHOT_Agent
 from env_wrappers import GridWorld
 import functools
 import networks
@@ -314,6 +314,62 @@ def dqn_sf_4rooms_fc2():
   gradient_clip_value = 40
   summary_interval = 100000
   checkpoint_interval = 100000
+  eval_interval = 1
+  option_update_freq = 100
+  option_batch_size = 100
+  option_memory_size = 50000
+  option_summary_interval = 1000
+  option_checkpoint_interval = 1000
+  return locals()
+
+def dqn_sf_4rooms_onehot():
+  locals().update(default())
+  agent = DQNSF_ONEHOT_Agent
+  agent_type = "dqn"
+  num_agents = 1
+  use_gpu = True
+  # Network
+  network = networks.DQNSF_ONEHOT_Network
+  weight_summaries = dict(
+      all=r'.*',
+      conv=r'.*/conv/.*',
+      fc=r'.*/fc/.*',
+      term=r'.*/option_term/.*',
+      q_val=r'.*/q_val/.*',
+      policy=r'.*/i_o_policies/.*')
+
+  input_size = (13, 13)
+  history_size = 3
+  sf_layers = 169,
+  # Optimization
+  network_optimizer = 'RMSPropOptimizer'
+  # lr = 0.0007
+  lr = 1e-4
+  discount = 0.985
+  entropy_coef = 1e-4
+  sf_coef = 1
+  aux_coef = 1
+
+  env = functools.partial(
+    GridWorld, "../mdps/4rooms.mdp")
+
+  observation_steps = 50000
+  training_steps = 500000
+  steps = observation_steps + training_steps
+  sf_matrix_size = 50000
+  target_update_freq = 100
+  batch_size = 16
+  option_steps = 10000
+  option_observation_steps = 1000
+  option_explore_steps = 100
+  final_random_action_prob = 0.1
+  initial_random_action_prob = 1.0
+
+  # final_random_action_prob = 0.1
+  # initial_random_action_prob = 1.0
+  gradient_clip_value = 40
+  summary_interval = 10000
+  checkpoint_interval = 10000
   eval_interval = 1
   option_update_freq = 100
   option_batch_size = 100

@@ -20,7 +20,7 @@ from auxilary.policy_iteration import PolicyIteration
 FLAGS = tf.app.flags.FLAGS
 
 
-class DQNSFBaseAgent(BaseVisAgent):
+class DQNSF_ONEHOT_BaseAgent(BaseVisAgent):
   def __init__(self, game, _, global_step, config, type_of_task):
     self.config = config
     self.global_step = global_step
@@ -40,14 +40,13 @@ class DQNSFBaseAgent(BaseVisAgent):
         self.episode_buffer = {
           'counter': 0,
           'observations': np.zeros(
-            (self.config.observation_steps, config.input_size[0], config.input_size[1], config.history_size)),
-          'fi': np.zeros((self.config.observation_steps, self.config.sf_layers[-1])),
+            (self.config.observation_steps,), dtype=np.int32),
           'next_observations': np.zeros(
-            (self.config.observation_steps, config.input_size[0], config.input_size[1], config.history_size)),
+            (self.config.observation_steps,), dtype=np.int32),
           'actions': np.zeros(
-            (self.config.observation_steps,)),
+            (self.config.observation_steps,), dtype=np.int32),
           'done': np.zeros(
-            (self.config.observation_steps,)),
+            (self.config.observation_steps,), dtype=np.int32),
         }
       # self.buf_counter = 0
 
@@ -87,7 +86,6 @@ class DQNSFBaseAgent(BaseVisAgent):
 
   def save_buffer(self):
     np.save(os.path.join(self.buffer_path, "observations.npy"), self.episode_buffer["observations"])
-    np.save(os.path.join(self.buffer_path, "fi.npy"), self.episode_buffer["fi"])
     np.save(os.path.join(self.buffer_path, "next_observations.npy"), self.episode_buffer["next_observations"])
     np.save(os.path.join(self.buffer_path, "actions.npy"), self.episode_buffer["actions"])
     np.save(os.path.join(self.buffer_path, "done.npy"), self.episode_buffer["done"])
@@ -97,7 +95,6 @@ class DQNSFBaseAgent(BaseVisAgent):
     self.episode_buffer = {
       'counter': np.load(os.path.join(self.buffer_path, "buff_counter.npy")),
       'observations': np.load(os.path.join(self.buffer_path, "observations.npy")),
-      'fi': np.load(os.path.join(self.buffer_path, "fi.npy")),
       'next_observations': np.load(os.path.join(self.buffer_path, "next_observations.npy")),
       'actions': np.load(os.path.join(self.buffer_path, "actions.npy")),
       'done': np.load(os.path.join(self.buffer_path, "done.npy")),
@@ -107,27 +104,22 @@ class DQNSFBaseAgent(BaseVisAgent):
 
   def build_matrix(self, sess, coord, saver):
     matrix_path = os.path.join(os.path.join(self.config.stage_logdir, "models"), "matrix.npy")
-    matrix_fi_path = os.path.join(os.path.join(self.config.stage_logdir, "models"), "matrix_fi.npy")
-    if os.path.exists(matrix_path) and os.path.exists(matrix_fi_path):
+    if os.path.exists(matrix_path):
       self.matrix_sf = np.load(matrix_path)
-      self.matrix_fi = np.load(matrix_fi_path)
     else:
       with sess.as_default(), sess.graph.as_default():
         self.matrix_sf = np.zeros((self.nb_states, self.config.sf_layers[-1]))
-        self.matrix_fi = np.zeros((self.nb_states, self.config.sf_layers[-1]))
         for idx in range(self.nb_states):
           s, ii, jj = self.env.get_state(idx)
           if self.env.not_wall(ii, jj):
-            feed_dict = {self.orig_net.observation: [s]}
-            self.matrix_fi[idx], self.matrix_sf[idx] = sess.run([self.orig_net.fi, self.orig_net.sf], feed_dict=feed_dict)
-            self.matrix_fi[idx], self.matrix_sf[idx] = self.matrix_fi[idx][0], self.matrix_sf[idx][0]
+            feed_dict = {self.orig_net.observation: np.identity(self.nb_states)[idx:idx + 1]}
+            sf = sess.run(self.orig_net.sf, feed_dict=feed_dict)[0]
+            self.matrix_sf[idx] = sf
 
             # plt.pcolor(self.matrix_sf, cmap='hot', interpolation='nearest')
             # plt.savefig(os.path.join(self.summary_path, 'SR_matrix.png'))
         # self.reconstruct_sr(self.matrix_sf)
         np.save(matrix_path, self.matrix_sf)
-        np.save(matrix_fi_path, self.matrix_sf)
-
         # self.plot_sr_vectors(self.matrix_sf)
         # self.plot_sr_matrix(self.matrix_sf)
         # self.eigen_decomp(self.matrix_sf)
@@ -138,15 +130,12 @@ class DQNSFBaseAgent(BaseVisAgent):
     tf.gfile.MakeDirs(folder_path)
     sns.plt.savefig(os.path.join(folder_path, 'SR_matrix.png'))
     sns.plt.close()
+    #
+    # ax = sns.heatmap(self.matrix_sf, cmap="Blues")
+    # folder_path = os.path.join(os.path.join(self.config.stage_logdir, "summaries"), "eigenoptions")
+    # tf.gfile.MakeDirs(folder_path)
+    # plt.savefig(os.path.join(folder_path, 'Matrix_SF.png'))
     np.savetxt(os.path.join(folder_path, 'Matrix_SF_numeric.txt'), self.matrix_sf, fmt='%-7.2f')
-
-    sns.plt.clf()
-    ax = sns.heatmap(self.matrix_fi, cmap="Blues")
-    folder_path = os.path.join(os.path.join(self.config.stage_logdir, "summaries"), "eigenoptions")
-    tf.gfile.MakeDirs(folder_path)
-    sns.plt.savefig(os.path.join(folder_path, 'SR_matrix.png'))
-    sns.plt.close()
-    np.savetxt(os.path.join(folder_path, 'Matrix_FI_numeric.txt'), self.matrix_fi, fmt='%-7.2f')
 
     self.plot_eigenoptions("eigenoptions", sess)
 
