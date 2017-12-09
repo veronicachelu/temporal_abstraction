@@ -161,7 +161,7 @@ if __name__ == '__main__':
     # 'train', False,
     'Training.')
   tf.app.flags.DEFINE_boolean(
-    'resume', True,
+    'resume', False,
     # 'resume', False,
     'Resume.')
   tf.app.flags.DEFINE_boolean(
@@ -174,8 +174,8 @@ if __name__ == '__main__':
     'task', "matrix",
     'Task nature')
   tf.app.flags.DEFINE_string(
-    # 'load_from', None,
-    'load_from', "./logdir/2-dqn_sf_4rooms_fc2",
+    'load_from', None,
+    #'load_from', "./logdir/2-dqn_sf_4rooms_fc2",
     'Load directory to load models from.')
   tf.app.flags.DEFINE_integer(
     'option', 0,
