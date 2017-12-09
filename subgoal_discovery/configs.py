@@ -282,14 +282,14 @@ def dqn_sf_4rooms_fc2():
 
   input_size = (13, 13)
   history_size = 3
-  fc_layers = 32,
-  sf_layers = 32, 32
-  aux_fc_layers = 32,
+  fc_layers = 128,
+  sf_layers = 128, 256, 128
+  aux_fc_layers = 128,
   # Optimization
   network_optimizer = 'RMSPropOptimizer'
   # lr = 0.0007
   lr = 1e-4
-  discount = 0.9
+  discount = 0.985
   entropy_coef = 1e-4
   sf_coef = 1
   aux_coef = 1
@@ -301,7 +301,7 @@ def dqn_sf_4rooms_fc2():
   training_steps = 5000000
   steps = observation_steps + training_steps
   sf_matrix_size = 50000
-  target_update_freq = 100
+  target_update_freq = 16
   batch_size = 128
   option_steps = 100000
   option_observation_steps = 10000
