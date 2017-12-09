@@ -25,20 +25,57 @@ FLAGS = tf.app.flags.FLAGS
 class Visualizer():
 
   def build_matrix(self, sess, coord, saver):
-    with sess.as_default(), sess.graph.as_default():
-      self.matrix_sf = np.zeros((self.nb_states, self.nb_states))
-      for idx in range(self.nb_states):
-        ii, jj = self.env.get_state_xy(idx)
-        if self.env.not_wall(ii, jj):
-          feed_dict = {self.local_network.observation: np.identity(self.nb_states)[idx:idx + 1]}
-          sf = sess.run(self.local_network.sf, feed_dict=feed_dict)[0]
-          self.matrix_sf[idx] = sf
-          # plt.pcolor(self.matrix_sf, cmap='hot', interpolation='nearest')
-          # plt.savefig(os.path.join(self.summary_path, 'SR_matrix.png'))
-      self.reconstruct_sr(self.matrix_sf)
-      # self.plot_sr_vectors(self.matrix_sf)
-      # self.plot_sr_matrix(self.matrix_sf)
-      # self.eigen_decomp(self.matrix_sf)
+    matrix_path = os.path.join(os.path.join(self.config.stage_logdir, "models"), "matrix.npy")
+    if os.path.exists(matrix_path):
+      self.matrix_sf = np.load(matrix_path)
+    else:
+      with sess.as_default(), sess.graph.as_default():
+        self.matrix_sf = np.zeros((self.nb_states, self.config.sf_layers[-1]))
+        for idx in range(self.nb_states):
+          s, ii, jj = self.env.get_state(idx)
+          if self.env.not_wall(ii, jj):
+            feed_dict = {self.local_network.observation: np.identity(self.nb_states)[idx:idx + 1]}
+            sf = sess.run(self.local_network.sf, feed_dict=feed_dict)[0]
+            self.matrix_sf[idx] = sf
+
+            # plt.pcolor(self.matrix_sf, cmap='hot', interpolation='nearest')
+            # plt.savefig(os.path.join(self.summary_path, 'SR_matrix.png'))
+        # self.reconstruct_sr(self.matrix_sf)
+        np.save(matrix_path, self.matrix_sf)
+        # self.plot_sr_vectors(self.matrix_sf)
+        # self.plot_sr_matrix(self.matrix_sf)
+        # self.eigen_decomp(self.matrix_sf)
+    import seaborn as sns
+    sns.plt.clf()
+    ax = sns.heatmap(self.matrix_sf, cmap="Blues")
+    folder_path = os.path.join(os.path.join(self.config.stage_logdir, "summaries"), "eigenoptions")
+    tf.gfile.MakeDirs(folder_path)
+    sns.plt.savefig(os.path.join(folder_path, 'SR_matrix.png'))
+    sns.plt.close()
+    #
+    # ax = sns.heatmap(self.matrix_sf, cmap="Blues")
+    # folder_path = os.path.join(os.path.join(self.config.stage_logdir, "summaries"), "eigenoptions")
+    # tf.gfile.MakeDirs(folder_path)
+    # plt.savefig(os.path.join(folder_path, 'Matrix_SF.png'))
+    np.savetxt(os.path.join(folder_path, 'Matrix_SF_numeric.txt'), self.matrix_sf, fmt='%-7.2f')
+
+    # self.plot_eigenoptions("eigenoptions", sess)
+
+  # def build_matrix(self, sess, coord, saver):
+  #   with sess.as_default(), sess.graph.as_default():
+  #     self.matrix_sf = np.zeros((self.nb_states, self.nb_states))
+  #     for idx in range(self.nb_states):
+  #       ii, jj = self.env.get_state_xy(idx)
+  #       if self.env.not_wall(ii, jj):
+  #         feed_dict = {self.local_network.observation: np.identity(self.nb_states)[idx:idx + 1]}
+  #         sf = sess.run(self.local_network.sf, feed_dict=feed_dict)[0]
+  #         self.matrix_sf[idx] = sf
+  #         # plt.pcolor(self.matrix_sf, cmap='hot', interpolation='nearest')
+  #         # plt.savefig(os.path.join(self.summary_path, 'SR_matrix.png'))
+  #     self.reconstruct_sr(self.matrix_sf)
+  #     # self.plot_sr_vectors(self.matrix_sf)
+  #     # self.plot_sr_matrix(self.matrix_sf)
+  #     # self.eigen_decomp(self.matrix_sf)
 
   def build_matrix_approx(self, sess, coord, saver):
     matrix_path = os.path.join(os.path.join(self.config.stage_logdir, "models"), "matrix.npy")
