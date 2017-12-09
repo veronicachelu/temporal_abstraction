@@ -59,7 +59,32 @@ class Visualizer():
     # plt.savefig(os.path.join(folder_path, 'Matrix_SF.png'))
     np.savetxt(os.path.join(folder_path, 'Matrix_SF_numeric.txt'), self.matrix_sf, fmt='%-7.2f')
 
-    # self.plot_eigenoptions("eigenoptions", sess)
+    self.plot_eigenoptions("eigenoptions", sess)
+
+  def plot_eigenoptions(self, folder, sess):
+    # feed_dict = {self.orig_net.matrix_sf: self.matrix_sf}
+    # s, v = sess.run([self.orig_net.s, self.orig_net.v], feed_dict=feed_dict)
+    u, s, v = np.linalg.svd(self.matrix_sf)
+    eigenvalues = s
+    eigenvectors = v
+
+    sns.plt.clf()
+    ax = sns.heatmap(eigenvectors, cmap="Blues")
+
+    folder_path = os.path.join(os.path.join(self.config.stage_logdir, "summaries"), folder)
+    tf.gfile.MakeDirs(folder_path)
+    sns.plt.savefig(os.path.join(folder_path, 'Eigenvectors.png'))
+    sns.plt.close()
+
+    sns.plt.clf()
+    sns.plt.plot(eigenvalues, 'o')
+    sns.plt.savefig(os.path.join(folder_path, 'Eignevalues.png'))
+    sns.plt.close()
+
+    eigenvectors_path = os.path.join(os.path.join(self.config.stage_logdir, "models"), "eigenvectors.npy")
+    eigenvalues_path = os.path.join(os.path.join(self.config.stage_logdir, "models"), "eigenvalues.npy")
+    np.save(eigenvectors_path, eigenvectors)
+    np.save(eigenvalues_path, eigenvalues)
 
   # def build_matrix(self, sess, coord, saver):
   #   with sess.as_default(), sess.graph.as_default():
