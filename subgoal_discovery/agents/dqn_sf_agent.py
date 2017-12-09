@@ -76,16 +76,10 @@ class DQNSFAgent(DQNSFBaseAgent):
     feed_dict = {self.target_net.observation: np.stack(next_observations, axis=0)}
     next_sf = sess.run(self.target_net.sf,
                        feed_dict=feed_dict)
-    target_sf = []
+    bootstrap_sf = [np.zeros_like(next_sf[0]) if d else n_sf for d, n_sf in list(zip(done, next_sf))]
+    target_sf = fi + self.config.discount * np.asarray(bootstrap_sf)
 
-    for i in range(len(done)):
-      if done[i]:
-        target_sf.append(fi[i])
-      else:
-        target_sf.append(
-          fi[i] + self.config.discount * next_sf[i])
-
-    feed_dict = {self.orig_net.target_sf: target_sf,
+    feed_dict = {self.orig_net.target_sf: np.stack(target_sf, axis=0),
                  self.orig_net.observation: np.stack(observations, axis=0),
                  self.orig_net.target_next_obs: np.stack(next_observations, axis=0),
                  self.orig_net.actions_placeholder: actions}
