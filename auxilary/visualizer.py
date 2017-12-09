@@ -34,7 +34,7 @@ class Visualizer():
         for idx in range(self.nb_states):
           s, ii, jj = self.env.get_state(idx)
           if self.env.not_wall(ii, jj):
-            feed_dict = {self.local_network.observation: np.identity(self.nb_states)[idx:idx + 1]}
+            feed_dict = {self.local_network.observation: [s]}
             sf = sess.run(self.local_network.sf, feed_dict=feed_dict)[0]
             self.matrix_sf[idx] = sf
 
