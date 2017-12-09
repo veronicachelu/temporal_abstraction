@@ -699,7 +699,8 @@ class DIFNetwork():
                               stride=stride, activation_fn=None,
                               variables_collections=tf.get_collection("variables"),
                               outputs_collections="activations", scope="conv_{}".format(i))
-          out = layer_norm_fn(out, relu=True)
+          # out = layer_norm_fn(out, relu=True)
+          out = tf.nn.relu(out)
           self.summaries.append(tf.contrib.layers.summarize_activation(out))
         out = layers.flatten(out, scope="flatten")
 
@@ -711,13 +712,14 @@ class DIFNetwork():
                                        outputs_collections="activations", scope="fc_{}".format(i))
 
           if i < len(self._fc_layers) - 1:
-            out = layer_norm_fn(out, relu=False)
+            # out = layer_norm_fn(out, relu=False)
             # out = layer_norm_fn(out, relu=True)
             out = tf.nn.relu(out)
           self.summaries.append(tf.contrib.layers.summarize_activation(out))
       self.fi = out
 
-      out = tf.stop_gradient(layer_norm_fn(self.fi, relu=True))
+      # out = tf.stop_gradient(layer_norm_fn(self.fi, relu=True))
+      out = tf.stop_gradient(tf.nn.relu(self.fi))
       with tf.variable_scope("sf"):
         for i, nb_filt in enumerate(self._sf_layers):
           out = layers.fully_connected(out, num_outputs=nb_filt,
@@ -725,7 +727,7 @@ class DIFNetwork():
                                        variables_collections=tf.get_collection("variables"),
                                        outputs_collections="activations", scope="sf_{}".format(i))
           if i < len(self._sf_layers) - 1:
-            out = layer_norm_fn(out, relu=False)
+            # out = layer_norm_fn(out, relu=False)
             out = tf.nn.relu(out)
           self.summaries.append(tf.contrib.layers.summarize_activation(out))
 
@@ -738,9 +740,10 @@ class DIFNetwork():
                                      activation_fn=None,
                                      variables_collections=tf.get_collection("variables"),
                                      outputs_collections="activations", scope="action_fc{}".format(i))
-        out = layer_norm_fn(out, relu=False)
+        # out = layer_norm_fn(out, relu=False)
       out = tf.add(out, actions)
-      out = layer_norm_fn(out, relu=True)
+      # out = layer_norm_fn(out, relu=True)
+      out = tf.nn.relu(out)
 
       with tf.variable_scope("aux_fc"):
         for i, nb_filt in enumerate(self._aux_fc_layers):
@@ -748,8 +751,8 @@ class DIFNetwork():
                                        activation_fn=None,
                                        variables_collections=tf.get_collection("variables"),
                                        outputs_collections="activations", scope="aux_fc_{}".format(i))
-          out = layer_norm_fn(out, relu=False)
-          if i > 0:
+          # out = layer_norm_fn(out, relu=False)
+          if i < len(self._aux_fc_layers) - 1:
             # out = layer_norm_fn(out, relu=True)
             out= tf.nn.relu(out)
           self.summaries.append(tf.contrib.layers.summarize_activation(out))
@@ -763,7 +766,7 @@ class DIFNetwork():
                                                 variables_collections=tf.get_collection("variables"),
                                                 outputs_collections="activations", scope="aux_deconv_{}".format(i))
           if i < len(self._aux_deconv_layers) - 1:
-            decoder_out = layer_norm_fn(decoder_out, relu=False)
+            # decoder_out = layer_norm_fn(decoder_out, relu=False)
             decoder_out = tf.nn.relu(decoder_out)
           self.summaries.append(tf.contrib.layers.summarize_activation(decoder_out))
 

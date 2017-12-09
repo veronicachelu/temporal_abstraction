@@ -352,11 +352,11 @@ def dif_4rooms():
   fc_layers = 128,
   sf_layers = 128, 256, 128
   aux_fc_layers = 128,
-  aux_deconv_layers = (5, 2, 0, 64), (5, 2, 0, 3),
+  aux_deconv_layers = (4, 2, 1, 64), (4, 2, 1, 64), (4, 2, 1, 64), (6, 1, 0, 3)
   # Optimization
-  network_optimizer = 'AdamOptimizer'
+  network_optimizer = 'RMSPropOptimizer'
   # lr = 0.0007
-  lr = 1e-5
+  lr = 1e-4
   discount = 0.985
   entropy_coef = 1e-4
   critic_coef = 0.5
@@ -378,7 +378,7 @@ def dif_4rooms():
   margin_cost = 0
   gradient_clip_value = 40
   summary_interval = 10
-  checkpoint_interval = 1
+  checkpoint_interval = 10
   eval_interval = 1
   policy_steps = 1e3
   # sf_transition_matrix_steps = 50000#e3
