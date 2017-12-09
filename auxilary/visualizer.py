@@ -136,28 +136,28 @@ class Visualizer():
       # self.plot_sr_matrix(self.matrix_sf, "sr_matrix")
       # self.eigen_decomp(self.matrix_sf)
 
-  def plot_eigenoptions(self, folder, sess):
-    feed_dict = {self.local_network.matrix_sf: self.matrix_sf}
-    s, v = sess.run([self.local_network.s, self.local_network.v], feed_dict=feed_dict)
-    # u, s, v = np.linalg.svd(self.matrix_sf)
-    eigenvalues = s
-    eigenvectors = v
-
-    sns.plt.clf()
-    ax = sns.heatmap(eigenvectors, cmap="Blues")
-
-    folder_path = os.path.join(os.path.join(self.config.stage_logdir, "summaries"), folder)
-    tf.gfile.MakeDirs(folder_path)
-    sns.plt.savefig(os.path.join(folder_path, 'Eigenvectors.png'))
-
-    sns.plt.clf()
-    sns.plt.plot(eigenvalues, 'o')
-    sns.plt.savefig(os.path.join(folder_path, 'Eignevalues.png'))
-    sns.plt.close()
-    eigenvectors_path = os.path.join(os.path.join(self.config.stage_logdir, "models"), "eigenvectors.npy")
-    eigenvalues_path = os.path.join(os.path.join(self.config.stage_logdir, "models"), "eigenvalues.npy")
-    np.save(eigenvectors_path, eigenvectors)
-    np.save(eigenvalues_path, eigenvalues)
+  # def plot_eigenoptions(self, folder, sess):
+  #   feed_dict = {self.local_network.matrix_sf: self.matrix_sf}
+  #   s, v = sess.run([self.local_network.s, self.local_network.v], feed_dict=feed_dict)
+  #   # u, s, v = np.linalg.svd(self.matrix_sf)
+  #   eigenvalues = s
+  #   eigenvectors = v
+  #
+  #   sns.plt.clf()
+  #   ax = sns.heatmap(eigenvectors, cmap="Blues")
+  #
+  #   folder_path = os.path.join(os.path.join(self.config.stage_logdir, "summaries"), folder)
+  #   tf.gfile.MakeDirs(folder_path)
+  #   sns.plt.savefig(os.path.join(folder_path, 'Eigenvectors.png'))
+  #
+  #   sns.plt.clf()
+  #   sns.plt.plot(eigenvalues, 'o')
+  #   sns.plt.savefig(os.path.join(folder_path, 'Eignevalues.png'))
+  #   sns.plt.close()
+  #   eigenvectors_path = os.path.join(os.path.join(self.config.stage_logdir, "models"), "eigenvectors.npy")
+  #   eigenvalues_path = os.path.join(os.path.join(self.config.stage_logdir, "models"), "eigenvalues.npy")
+  #   np.save(eigenvectors_path, eigenvectors)
+  #   np.save(eigenvalues_path, eigenvalues)
 
   def reconstruct_sr(self, matrix):
     U, s, V = np.linalg.svd(matrix)
