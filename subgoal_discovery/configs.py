@@ -284,7 +284,7 @@ def dqn_sf_4rooms_fc2():
   history_size = 3
   fc_layers = 128,
   sf_layers = 128, 256, 128
-  aux_fc_layers = 128,
+  aux_fc_layers = 128, 507
   # Optimization
   network_optimizer = 'RMSPropOptimizer'
   # lr = 0.0007
