@@ -49,7 +49,7 @@ def train(config, env_processes, logdir):
 
       agent_threads = []
       if FLAGS.task == "matrix":
-        thread = threading.Thread(target=(lambda: agent.build_matrix_approx(sess, coord, saver)))
+        thread = threading.Thread(target=(lambda: agent.build_matrix(sess, coord, saver)))
         thread.start()
         agent_threads.append(thread)
       elif FLAGS.task == "option":
