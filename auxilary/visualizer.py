@@ -31,7 +31,8 @@ class Visualizer():
         ii, jj = self.env.get_state_xy(idx)
         if self.env.not_wall(ii, jj):
           feed_dict = {self.local_network.observation: np.identity(self.nb_states)[idx:idx + 1]}
-          self.matrix_sf[idx] = sess.run(self.local_network.sf, feed_dict=feed_dict)[0]
+          sf = sess.run(self.local_network.sf, feed_dict=feed_dict)[0]
+          self.matrix_sf[idx] = sf
           # plt.pcolor(self.matrix_sf, cmap='hot', interpolation='nearest')
           # plt.savefig(os.path.join(self.summary_path, 'SR_matrix.png'))
       self.reconstruct_sr(self.matrix_sf)

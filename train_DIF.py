@@ -112,16 +112,16 @@ if __name__ == '__main__':
     'train', True,
     'Training.')
   tf.app.flags.DEFINE_boolean(
-    'resume', False,
+    'resume', True,
     'Resume.')
   tf.app.flags.DEFINE_boolean(
     'show_training', False,
     'Show gym envs.')
   tf.app.flags.DEFINE_string(
-    'task', "sf",
+    'task', "matrix",
     'Task nature')
   tf.app.flags.DEFINE_string(
-    'load_from', None,
-    # 'load_from', "./logdir/13-dif_4rooms",
+    #'load_from', None,
+    'load_from', "./logdir/0-dif_4rooms_fc",
     'Load directory to load models from.')
   tf.app.run()
