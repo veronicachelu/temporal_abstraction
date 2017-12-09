@@ -352,7 +352,7 @@ def dif_4rooms():
   fc_layers = 128,
   sf_layers = 128, 256, 128
   aux_fc_layers = 128,
-  aux_deconv_layers = (5, 1, 0, 13*13*3), #(4, 2, 1, 64), (4, 2, 1, 64), (4, 2, 1, 64), (6, 1, 0, 3)
+  aux_deconv_layers = (4, 2, 1, 64), (4, 2, 0, 64), (3, 2, 0, 3)
   # Optimization
   network_optimizer = 'RMSPropOptimizer'
   # lr = 0.0007
