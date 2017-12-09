@@ -386,3 +386,60 @@ def dif_4rooms():
   sf_transition_matrix_size = 50000
 
   return locals()
+
+def dif_4rooms_fc():
+  locals().update(default())
+  dif_agent = DIFAgent
+  num_agents = 8
+  use_gpu = False
+  nb_options = 4
+  # Network
+  network = networks.DIFNetwork_FC
+  weight_summaries = dict(
+      all=r'.*',
+      conv=r'.*/conv/.*',
+      fc=r'.*/fc/.*',
+      term=r'.*/option_term/.*',
+      q_val=r'.*/q_val/.*',
+      policy=r'.*/i_o_policies/.*')
+
+  # conv_layers = (5, 2, 64),
+  input_size = (13, 13)
+  history_size = 3
+  fc_layers = 128,
+  sf_layers = 128, 128
+  aux_fc_layers = 507,
+  # aux_deconv_layers = (4, 2, 1, 64), (4, 2, 0, 64), (3, 2, 0, 3)
+  # Optimization
+  network_optimizer = 'RMSPropOptimizer'
+  # lr = 0.0007
+  lr = 1e-4
+  discount = 0.985
+  entropy_coef = 1e-4
+  critic_coef = 0.5
+  sf_coef = 1
+  instant_r_coef = 1
+  option_entropy_coef = 0.01
+  aux_coef = 1
+
+  env = functools.partial(
+    GridWorld, "./mdps/4rooms.mdp")
+  max_update_freq = 30
+  min_update_freq = 5
+  steps = 1e6   # 1M
+  training_steps = 5e5
+  explore_steps = 1e5
+  final_random_action_prob = 0.1
+  initial_random_action_prob = 1.0
+  delib_cost = 0
+  margin_cost = 0
+  gradient_clip_value = 40
+  summary_interval = 10
+  checkpoint_interval = 10
+  eval_interval = 1
+  policy_steps = 1e3
+  # sf_transition_matrix_steps = 50000#e3
+  # sf_transition_options_steps = 50000#e3
+  sf_transition_matrix_size = 50000
+
+  return locals()
