@@ -342,9 +342,9 @@ def dqn_sf_4rooms_onehot():
   history_size = 3
   sf_layers = 169,
   # Optimization
-  network_optimizer = 'RMSPropOptimizer'
+  network_optimizer = 'AdamOptimizer'
   # lr = 0.0007
-  lr = 1e-4
+  lr = 1e-3
   discount = 0.985
   entropy_coef = 1e-4
   sf_coef = 1
@@ -353,12 +353,12 @@ def dqn_sf_4rooms_onehot():
   env = functools.partial(
     GridWorld, "../mdps/4rooms.mdp")
 
-  observation_steps = 50000
-  training_steps = 500000
+  observation_steps = 500000
+  training_steps = 5000000
   steps = observation_steps + training_steps
   sf_matrix_size = 50000
-  target_update_freq = 100
-  batch_size = 16
+  target_update_freq = 32
+  batch_size = 32
   option_steps = 10000
   option_observation_steps = 1000
   option_explore_steps = 100

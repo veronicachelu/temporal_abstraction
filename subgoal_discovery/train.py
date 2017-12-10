@@ -154,14 +154,14 @@ if __name__ == '__main__':
     'timestamp', datetime.datetime.now().strftime('%Y%m%dT%H%M%S'),
     'Sub directory to store logs.')
   tf.app.flags.DEFINE_string(
-    'config', "dqn_sf_4rooms_fc2",
+    'config', "dqn_sf_4rooms_onehot",
     'Configuration to execute.')
   tf.app.flags.DEFINE_boolean(
     'train', True,
     # 'train', False,
     'Training.')
   tf.app.flags.DEFINE_boolean(
-    'resume', False,
+    'resume', True,
     # 'resume', False,
     'Resume.')
   tf.app.flags.DEFINE_boolean(
@@ -174,8 +174,8 @@ if __name__ == '__main__':
     'task', "matrix",
     'Task nature')
   tf.app.flags.DEFINE_string(
-    'load_from', None,
-    #'load_from', "./logdir/2-dqn_sf_4rooms_fc2",
+    # 'load_from', None,
+    'load_from', "./logdir/2-dqn_sf_4rooms_onehot",
     'Load directory to load models from.')
   tf.app.flags.DEFINE_integer(
     'option', 0,
