@@ -170,9 +170,9 @@ class DQNSF_ONEHOT_BaseAgent(BaseVisAgent):
       np.save(matrix_path, self.matrix_sf)
 
     self.plot_eigenoptions("eigenoptions", sess)
-      # self.plot_sr_vectors(self.matrix_sf, "sr_vectors")
-      # self.plot_sr_matrix(self.matrix_sf, "sr_matrix")
-      # self.eigen_decomp(self.matrix_sf)
+    self.plot_sr_vectors(self.matrix_sf, "sr_vectors")
+    self.plot_sr_matrix(self.matrix_sf, "sr_matrix")
+    self.eigen_decomp(self.matrix_sf)
 
   def plot_eigenoptions(self, folder, sess):
     # feed_dict = {self.orig_net.matrix_sf: self.matrix_sf}
@@ -181,11 +181,23 @@ class DQNSF_ONEHOT_BaseAgent(BaseVisAgent):
     eigenvalues = s
     eigenvectors = v
 
+    folder_path = os.path.join(os.path.join(self.config.stage_logdir, "summaries"), folder)
+    tf.gfile.MakeDirs(folder_path)
+
+    variance_eigenvectors = []
+    for i in range(self.nb_states):
+      variance_eigenvectors.append([])
+    for i in range(self.nb_states):
+      variance_eigenvectors[i].append(np.var(eigenvectors[:, i]))
+      sns.plt.clf()
+      sns.plt.plot(variance_eigenvectors[i])
+      sns.plt.savefig(os.path.join(folder_path, 'var_eig_' + str(i) + '.png'))
+      sns.plt.close()
+
     sns.plt.clf()
     ax = sns.heatmap(eigenvectors, cmap="Blues")
 
-    folder_path = os.path.join(os.path.join(self.config.stage_logdir, "summaries"), folder)
-    tf.gfile.MakeDirs(folder_path)
+
     sns.plt.savefig(os.path.join(folder_path, 'Eigenvectors.png'))
     sns.plt.close()
 

@@ -41,7 +41,7 @@ class DQNSFBaseAgent(BaseVisAgent):
           'counter': 0,
           'observations': np.zeros(
             (self.config.observation_steps, config.input_size[0], config.input_size[1], config.history_size)),
-          'fi': np.zeros((self.config.observation_steps, self.config.sf_layers[-1])),
+          # 'fi': np.zeros((self.config.observation_steps, self.config.sf_layers[-1])),
           'next_observations': np.zeros(
             (self.config.observation_steps, config.input_size[0], config.input_size[1], config.history_size)),
           'actions': np.zeros(
@@ -87,7 +87,7 @@ class DQNSFBaseAgent(BaseVisAgent):
 
   def save_buffer(self):
     np.save(os.path.join(self.buffer_path, "observations.npy"), self.episode_buffer["observations"])
-    np.save(os.path.join(self.buffer_path, "fi.npy"), self.episode_buffer["fi"])
+    # np.save(os.path.join(self.buffer_path, "fi.npy"), self.episode_buffer["fi"])
     np.save(os.path.join(self.buffer_path, "next_observations.npy"), self.episode_buffer["next_observations"])
     np.save(os.path.join(self.buffer_path, "actions.npy"), self.episode_buffer["actions"])
     np.save(os.path.join(self.buffer_path, "done.npy"), self.episode_buffer["done"])
@@ -97,7 +97,7 @@ class DQNSFBaseAgent(BaseVisAgent):
     self.episode_buffer = {
       'counter': np.load(os.path.join(self.buffer_path, "buff_counter.npy")),
       'observations': np.load(os.path.join(self.buffer_path, "observations.npy")),
-      'fi': np.load(os.path.join(self.buffer_path, "fi.npy")),
+      # 'fi': np.load(os.path.join(self.buffer_path, "fi.npy")),
       'next_observations': np.load(os.path.join(self.buffer_path, "next_observations.npy")),
       'actions': np.load(os.path.join(self.buffer_path, "actions.npy")),
       'done': np.load(os.path.join(self.buffer_path, "done.npy")),
@@ -119,14 +119,14 @@ class DQNSFBaseAgent(BaseVisAgent):
           s, ii, jj = self.env.get_state(idx)
           if self.env.not_wall(ii, jj):
             feed_dict = {self.orig_net.observation: [s]}
-            self.matrix_fi[idx], self.matrix_sf[idx] = sess.run([self.orig_net.fi, self.orig_net.sf], feed_dict=feed_dict)
-            self.matrix_fi[idx], self.matrix_sf[idx] = self.matrix_fi[idx][0], self.matrix_sf[idx][0]
+            fi, sf = sess.run([self.orig_net.fi, self.orig_net.sf], feed_dict=feed_dict)
+            self.matrix_fi[idx], self.matrix_sf[idx] = fi[0], sf[0]
 
             # plt.pcolor(self.matrix_sf, cmap='hot', interpolation='nearest')
             # plt.savefig(os.path.join(self.summary_path, 'SR_matrix.png'))
         # self.reconstruct_sr(self.matrix_sf)
         np.save(matrix_path, self.matrix_sf)
-        np.save(matrix_fi_path, self.matrix_sf)
+        np.save(matrix_fi_path, self.matrix_fi)
 
         # self.plot_sr_vectors(self.matrix_sf)
         # self.plot_sr_matrix(self.matrix_sf)
@@ -134,6 +134,7 @@ class DQNSFBaseAgent(BaseVisAgent):
     import seaborn as sns
     sns.plt.clf()
     ax = sns.heatmap(self.matrix_sf, cmap="Blues")
+    ax.set(xlabel='SR_vect_size=128', ylabel='Grid states/positions')
     folder_path = os.path.join(os.path.join(self.config.stage_logdir, "summaries"), "eigenoptions")
     tf.gfile.MakeDirs(folder_path)
     sns.plt.savefig(os.path.join(folder_path, 'SR_matrix.png'))
@@ -142,13 +143,17 @@ class DQNSFBaseAgent(BaseVisAgent):
 
     sns.plt.clf()
     ax = sns.heatmap(self.matrix_fi, cmap="Blues")
+    ax.set(xlabel='FI_vect_size=128', ylabel='Grid states/positions')
     folder_path = os.path.join(os.path.join(self.config.stage_logdir, "summaries"), "eigenoptions")
     tf.gfile.MakeDirs(folder_path)
-    sns.plt.savefig(os.path.join(folder_path, 'SR_matrix.png'))
+    sns.plt.savefig(os.path.join(folder_path, 'FI_matrix.png'))
     sns.plt.close()
     np.savetxt(os.path.join(folder_path, 'Matrix_FI_numeric.txt'), self.matrix_fi, fmt='%-7.2f')
 
     self.plot_eigenoptions("eigenoptions", sess)
+    folder_path = os.path.join(os.path.join(self.config.stage_logdir, "summaries"), "policies")
+    tf.gfile.MakeDirs(folder_path)
+    self.plot_policy_and_value_function_approx(folder_path, sess)
 
 
   def build_matrix_approx(self, sess, coord, saver):
@@ -191,9 +196,35 @@ class DQNSFBaseAgent(BaseVisAgent):
     u, s, v = np.linalg.svd(self.matrix_sf)
     eigenvalues = s
     eigenvectors = v
+    # U, s, V = np.linalg.svd(matrix)
+    S = np.diag(s[2:40])
+    sr_r_m = np.dot(u[:, 2:40], np.dot(S, v[2:40]))
+    import seaborn as sns
+    sns.plt.clf()
+    ax = sns.heatmap(sr_r_m, cmap="Blues")
+    ax.set(xlabel='SR_vect_size=128', ylabel='Grid states/positions')
+    folder_path = os.path.join(os.path.join(self.config.stage_logdir, "summaries"), "eigenoptions")
+    tf.gfile.MakeDirs(folder_path)
+    sns.plt.savefig(os.path.join(folder_path, 'reconstructed_sr.png'))
+    sns.plt.close()
+
+    folder_path = os.path.join(os.path.join(self.config.stage_logdir, "summaries"), folder)
+    tf.gfile.MakeDirs(folder_path)
+
+    # variance_eigenvectors = []
+    # for i in range(self.nb_states):
+    #   variance_eigenvectors.append([])
+    # for i in range(self.nb_states):
+    #   variance_eigenvectors[i].append(np.var(eigenvectors[:, i]))
+    #   sns.plt.clf()
+    #   sns.plt.plot(variance_eigenvectors[i])
+    #   sns.plt.savefig(os.path.join(folder_path, 'var_eig_' + str(i) + '.png'))
+    #   sns.plt.close()
+
 
     sns.plt.clf()
     ax = sns.heatmap(eigenvectors, cmap="Blues")
+    ax.set(xlabel='Eigenvector_dim=128', ylabel='Eigenvectors')
 
     folder_path = os.path.join(os.path.join(self.config.stage_logdir, "summaries"), folder)
     tf.gfile.MakeDirs(folder_path)
@@ -353,8 +384,44 @@ class DQNSFBaseAgent(BaseVisAgent):
         # np.append(optionsActionSet, ['terminate'])
         # actionSetPerOption.append(optionsActionSet)
 
+  def plot_policy_and_value_function_approx(self, folder, sess):
+    # feed_dict = {self.orig_net.matrix_sf: self.matrix_sf}
+    # s, v = sess.run([self.orig_net.s, self.orig_net.v], feed_dict=feed_dict)
+    u, s, v = np.linalg.svd(self.matrix_sf)
+    eigenvalues = s
+    eigenvectors = v
 
-  def plot_value_function(self, value_function, prefix):
+    epsilon = 0.0001
+    options = []
+    with sess.as_default(), sess.graph.as_default():
+      self.env.define_network(self.orig_net)
+      self.env.define_session(sess)
+      for k in ["poz", "neg"]:
+        for i in range(len(eigenvalues)):
+          polIter = PolicyIteration(0.9, self.env, augmentActionSet=True)
+          self.env.define_reward_function(eigenvectors[i] if k == "poz" else -eigenvectors[i])
+          V, pi = polIter.solvePolicyIteration()
+
+          # Now I will eliminate any actions that may give us a small improvement.
+          # This is where the epsilon parameter is important. If it is not set all
+          # it will never be considered, since I set it to a very small value
+          for j in range(len(V)):
+            if V[j] < epsilon:
+              pi[j] = len(self.env.get_action_set())
+
+          # if plotGraphs:
+          self.plot_value_function(V[0:self.nb_states], str(i) + '_' + k + "_", folder)
+          self.plot_policy(pi[0:self.nb_states], str(i) + '_' + k + "_", folder)
+
+          options.append(pi[0:self.nb_states])
+          # optionsActionSet = self.env.get_action_set()
+          # np.append(optionsActionSet, ['terminate'])
+          # actionSetPerOption.append(optionsActionSet)
+
+
+  def plot_value_function(self, value_function, prefix, folder=None):
+    if folder is None:
+      folder = self.summary_path
     '''3d plot of a value function.'''
     fig, ax = plt.subplots(subplot_kw=dict(projection='3d'))
     X, Y = np.meshgrid(np.arange(self.config.input_size[1]), np.arange(self.config.input_size[0]))
@@ -371,7 +438,7 @@ class DQNSFBaseAgent(BaseVisAgent):
     ax.plot_surface(X, Y, Z, rstride=1, cstride=1,
                     cmap=plt.get_cmap('jet'))
     plt.gca().view_init(elev=30, azim=30)
-    plt.savefig(os.path.join(self.summary_path, "SuccessorFeatures" + prefix + 'value_function.png'))
+    plt.savefig(os.path.join(folder, "SuccessorFeatures" + prefix + 'value_function.png'))
     plt.close()
 
   def plot_options(self, sess, coord, saver):
@@ -441,7 +508,23 @@ class DQNSFBaseAgent(BaseVisAgent):
           plt.savefig(os.path.join(self.summary_path, "SuccessorFeatures_" + prefix + 'policy.png'))
           plt.close()
 
-
+  # def plot_greedy_option_policy(self, sess, coord, saver):
+  #   plot_options_greedy(self, sess, coord, saver):
+  #   eigenvectors_path = os.path.join(os.path.join(self.config.stage_logdir, "models"), "eigenvectors.npy")
+  #   eigenvalues_path = os.path.join(os.path.join(self.config.stage_logdir, "models"), "eigenvalues.npy")
+  #   eigenvectors = np.load(eigenvectors_path)
+  #   eigenvalues = np.load(eigenvalues_path)
+  #   for k in ["poz", "neg"]:
+  #     for option in range(len(eigenvalues)):
+  #       # eigenvalue = eigenvalues[option]
+  #       eigenvector = eigenvectors[option] if k == "poz" else -eigenvectors[option]
+  #       prefix = str(option) + '_' + k + "_"
+  #
+  #       sns.plt.clf()
+  #
+  #       with sess.as_default(), sess.graph.as_default():
+  #         s = self.env.reset()
+  #
   def plot_options_greedy(self, sess, coord, saver):
     eigenvectors_path = os.path.join(os.path.join(self.config.stage_logdir, "models"), "eigenvectors.npy")
     eigenvalues_path = os.path.join(os.path.join(self.config.stage_logdir, "models"), "eigenvalues.npy")
@@ -487,8 +570,8 @@ class DQNSFBaseAgent(BaseVisAgent):
               transitions.append(self.cosine_similarity((fi1 - fi), eigenvector))
               terminations.append(d)
 
-            transitions.append(self.cosine_similarity(np.zeros_like(fi), eigenvector))
-            terminations.append(True)
+            # transitions.append(self.cosine_similarity(np.zeros_like(fi), eigenvector))
+            # terminations.append(True)
 
             a = np.argmax(transitions)
             # if a == 4:
@@ -503,7 +586,7 @@ class DQNSFBaseAgent(BaseVisAgent):
             elif a == 3:  # left
               dx = -0.35
 
-            if terminations[a] or np.all(transitions[a] == np.zeros_like(fi)) : # termination
+            if terminations[a] or transitions[a] == 0: # termination
               circle = sns.plt.Circle(
                 (j + 0.5, self.config.input_size[0] - i + 0.5 - 1), 0.025, color='k')
               sns.plt.gca().add_artist(circle)
@@ -526,17 +609,17 @@ class DQNSFBaseAgent(BaseVisAgent):
           sns.plt.savefig(os.path.join(self.summary_path, "SuccessorFeatures_" + prefix + 'policy.png'))
           sns.plt.close()
 
-
-
   def cosine_similarity(self, next_sf, evect):
       state_dif_norm = np.linalg.norm(next_sf)
       state_dif_normalized = next_sf / (state_dif_norm + 1e-8)
-      evect_norm = np.linalg.norm(evect)
-      evect_normalized = evect / (evect_norm + 1e-8)
+      # evect_norm = np.linalg.norm(evect)
+      # evect_normalized = evect / (evect_norm + 1e-8)
 
-      return np.dot(state_dif_normalized, evect_normalized)
+      return np.dot(state_dif_normalized, evect)
 
-  def plot_policy(self, policy, prefix):
+  def plot_policy(self, policy, prefix, folder=None):
+    if folder is None:
+      folder = self.summary_path
     plt.clf()
     for idx in range(len(policy)):
       i, j = self.env.get_state_xy(idx)
@@ -580,7 +663,7 @@ class DQNSFBaseAgent(BaseVisAgent):
       plt.axhline(j, color='k', linestyle=':')
     plt.axhline(self.config.input_size[0], color='k', linestyle=':')
 
-    plt.savefig(os.path.join(self.summary_path, "SuccessorFeatures_" + prefix + 'policy.png'))
+    plt.savefig(os.path.join(folder, "SuccessorFeatures_" + prefix + 'policy.png'))
     plt.close()
 
 

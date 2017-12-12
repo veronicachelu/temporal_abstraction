@@ -8,6 +8,7 @@ import mpl_toolkits.mplot3d.axes3d as axes3d
 # import plotly.plotly as py
 # import plotly.tools as tls
 # from matplotlib.ticker import LinearLocator, FormatStrFormatter
+import io
 import numpy as np
 from collections import deque
 from PIL import Image
@@ -22,7 +23,6 @@ from auxilary.policy_iteration import PolicyIteration
 from tools.schedules import LinearSchedule
 FLAGS = tf.app.flags.FLAGS
 import random
-
 
 
 class DQNSFAgent(DQNSFBaseAgent):
@@ -53,29 +53,62 @@ class DQNSFAgent(DQNSFBaseAgent):
       index_array = np.arange(self.config.observation_steps)
       np.random.shuffle(index_array)
       self.episode_buffer["observations"] = self.episode_buffer["observations"][index_array]
-      self.episode_buffer["fi"] = self.episode_buffer["fi"][index_array]
+      # self.episode_buffer["fi"] = self.episode_buffer["fi"][index_array]
       self.episode_buffer["next_observations"] = self.episode_buffer["next_observations"][index_array]
       self.episode_buffer["actions"] = self.episode_buffer["actions"][index_array]
       self.episode_buffer["done"] = self.episode_buffer["done"][index_array]
 
       for i in range(0, self.config.observation_steps, self.config.batch_size):
           yield [self.episode_buffer["observations"][i:i + self.config.batch_size],
-                 self.episode_buffer["fi"][i:i + self.config.batch_size],
+                 # self.episode_buffer["fi"][i:i + self.config.batch_size],
                  self.episode_buffer["next_observations"][i:i + self.config.batch_size],
                  self.episode_buffer["actions"][i:i + self.config.batch_size],
                  self.episode_buffer["done"][i:i + self.config.batch_size]]
 
+  # def show_statistics(self, sess):
+  #   matrix_sf = np.zeros((self.nb_states, self.config.sf_layers[-1]))
+  #   matrix_fi = np.zeros((self.nb_states, self.config.sf_layers[-1]))
+  #   real_states = []
+  #   states = []
+  #   for idx in range(self.nb_states):
+  #     s, ii, jj = self.env.get_state(idx)
+  #     if self.env.not_wall(ii, jj):
+  #       states.append(s)
+  #       real_states.append(True)
+  #     else:
+  #       real_states.append(False)
+  #   feed_dict = {self.orig_net.observation:  np.stack(states, axis=0)}
+  #   fi, sf = sess.run([self.orig_net.fi, self.orig_net.sf], feed_dict=feed_dict)
+  #   i = 0
+  #   for idx in range(self.nb_states):
+  #     if real_states[idx]:
+  #       matrix_fi[idx], matrix_sf[idx] = fi[i], sf[i]
+  #       i += 1
+  #
+  #   sns.plt.clf()
+  #   buf = io.BytesIO()
+  #   ax = sns.heatmap(self.matrix_sf, cmap="Blues")
+  #   ax.set(xlabel='SR_vect_size=128', ylabel='Grid states/positions')
+  #   sns.plt.savefig(buf, format='png')
+  #   buf.seek(0)
+  #   sns.plt.close()
+  #
+  #   image = tf.image.decode_png(buf.getvalue(), channels=4)
+  #
+  #   return matrix_fi, matrix_sf
+
   def train(self, sess):
     minibatch = self.batch_generator.__next__()
     observations = minibatch[0]
-    fi = minibatch[1]
-    next_observations = minibatch[2]
-    actions = minibatch[3]
-    done = minibatch[4]
+    # fi = minibatch[1]
+    next_observations = minibatch[1]
+    actions = minibatch[2]
+    done = minibatch[3]
 
-    feed_dict = {self.target_net.observation: np.stack(next_observations, axis=0)}
-    next_sf = sess.run(self.target_net.sf,
-                       feed_dict=feed_dict)
+    feed_dict = {self.target_net.observation: np.stack(observations, axis=0)}
+    feed_dict2 = {self.target_net.observation: np.stack(next_observations, axis=0)}
+    fi = sess.run(self.target_net.fi, feed_dict=feed_dict)
+    next_sf = sess.run(self.target_net.sf, feed_dict=feed_dict2)
     bootstrap_sf = [np.zeros_like(next_sf[0]) if d else n_sf for d, n_sf in list(zip(done, next_sf))]
     target_sf = fi + self.config.discount * np.asarray(bootstrap_sf)
 
@@ -147,7 +180,7 @@ class DQNSFAgent(DQNSFBaseAgent):
 
   def play(self, sess, coord, saver):
     with sess.as_default(), sess.graph.as_default():
-
+      # sess.run(self.global_step.assign(self.config.observation_steps))
       self.total_steps = sess.run(self.global_step)
       if self.total_steps == 0:
         self.updateTarget(sess)
@@ -158,17 +191,22 @@ class DQNSFAgent(DQNSFBaseAgent):
       while self.total_steps < self.config.observation_steps:
         a = self.policy_evaluation(s)
 
-        feed_dict = {self.orig_net.observation: np.stack([s])}
-        sf, fi = sess.run([self.orig_net.sf, self.orig_net.fi],
-                          feed_dict=feed_dict)
-        sf, fi = sf[0], fi[0]
+        # feed_dict = {self.orig_net.observation: np.stack([s])}
+        # sf, fi = sess.run([self.orig_net.sf, self.orig_net.fi],
+        #                   feed_dict=feed_dict)
+        # sf, fi = sf[0], fi[0]
 
         s1, r, d, info = self.env.step(a)
 
         print(self.total_steps)
         self.episode_buffer["observations"][self.total_steps] = s
-        self.episode_buffer["fi"][self.total_steps] = fi
-        self.episode_buffer["next_observations"][self.total_steps] = s1
+
+        if d:
+          s = self.env.reset()
+        else:
+          s = s1
+
+        self.episode_buffer["next_observations"][self.total_steps] = s
         self.episode_buffer["actions"][self.total_steps] = a
         self.episode_buffer["done"][self.total_steps] = d
 
@@ -179,11 +217,6 @@ class DQNSFAgent(DQNSFBaseAgent):
         self.total_steps += 1
         sess.run(self.increment_global_step)
 
-        if d:
-          s = self.env.reset()
-        else:
-          s = s1
-
       while self.total_steps <= self.config.observation_steps + self.config.training_steps:
 
         if self.total_steps % self.config.target_update_freq == 0:
@@ -193,6 +226,7 @@ class DQNSFAgent(DQNSFBaseAgent):
         print("Step {} >>> SF_loss {} >>> AUX_loss {} ".format(self.total_steps, sf_loss, aux_loss))
 
         if self.total_steps % self.config.summary_interval == 0 and self.total_steps > self.config.observation_steps and ms is not None:
+          # matrix_fi, matrix_sf = self.show_statistics(sess)
           self.summary_writer.add_summary(ms, self.total_steps)
 
           self.summary_writer.add_summary(self.summary, self.total_steps)
