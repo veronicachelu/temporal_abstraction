@@ -45,7 +45,7 @@ class DQNSFAgent(DQNSFBaseAgent):
     self.batch_generator = self.get_next_batch()
     self.exploration = LinearSchedule(self.config.option_explore_steps, self.config.final_random_action_prob,
                                           self.config.initial_random_action_prob)
-    self.probability_of_random_action = self.exploration.value(0)
+    # self.probability_of_random_action = self.exploration.value(0)
 
 
   def get_next_batch(self):

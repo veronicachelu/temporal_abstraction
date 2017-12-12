@@ -833,139 +833,112 @@ class DIFNetwork_FC():
   def __init__(self, scope, config, action_size, nb_states):
     self._scope = scope
     # self.option = 0
-    self._conv_layers = config.conv_layers
-    self._fc_layers = config.fc_layers
-    self._sf_layers = config.sf_layers
-    self._aux_fc_layers = config.aux_fc_layers
-    self._aux_deconv_layers = config.aux_deconv_layers
-    self._action_size = action_size
-    self._nb_options = config.nb_options
-    self._nb_envs = config.num_agents
-    self._config = config
+    self.nb_states = nb_states
+    self.conv_layers = config.conv_layers
+    self.fc_layers = config.fc_layers
+    self.sf_layers = config.sf_layers
+    self.aux_fc_layers = config.aux_fc_layers
+    self.aux_deconv_layers = config.aux_deconv_layers
+    self.action_size = action_size
+    self.nb_options = config.nb_options
+    self.nb_envs = config.num_agents
+    self.config = config
 
-    self._network_optimizer = config.network_optimizer(
-      self._config.lr, name='network_optimizer')
+    self.network_optimizer = config.network_optimizer(
+      self.config.lr, name='network_optimizer')
 
     with tf.variable_scope(scope):
       self.observation = tf.placeholder(shape=[None, config.input_size[0], config.input_size[1], config.history_size],
                                         dtype=tf.float32, name="Inputs")
+
       self.image_summaries = []
-      if self._config.history_size == 3:
+      if self.config.history_size == 3:
         self.image_summaries.append(tf.summary.image('input', self.observation * 255, max_outputs=30))
       else:
         self.image_summaries.append(tf.summary.image('input', self.observation[:, :, :, 0:1] * 255, max_outputs=30))
-      self.summaries = []
 
-      # with tf.variable_scope('conv'):
-      #   for i, (kernel_size, stride, nb_kernels) in enumerate(self._conv_layers):
-      #     out = layers.conv2d(self.observation, num_outputs=nb_kernels, kernel_size=kernel_size,
-      #                         stride=stride, activation_fn=None,
-      #                         variables_collections=tf.get_collection("variables"),
-      #                         outputs_collections="activations", scope="conv_{}".format(i))
-      #     # out = layer_norm_fn(out, relu=True)
-      #     out = tf.nn.relu(out)
-      #     self.summaries.append(tf.contrib.layers.summarize_activation(out))
-      out = layers.flatten(self.observation, scope="flatten")
+      self.summaries_sf = []
+      self.summaries_aux = []
+
+      out = self.observation
+      out = layers.flatten(out, scope="flatten")
 
       with tf.variable_scope("fc"):
-        for i, nb_filt in enumerate(self._fc_layers):
+        for i, nb_filt in enumerate(self.config.fc_layers):
           out = layers.fully_connected(out, num_outputs=nb_filt,
                                        activation_fn=None,
                                        variables_collections=tf.get_collection("variables"),
                                        outputs_collections="activations", scope="fc_{}".format(i))
 
-          if i < len(self._fc_layers) - 1:
-            # out = layer_norm_fn(out, relu=False)
+          if i < len(self.config.fc_layers) - 1:
             # out = layer_norm_fn(out, relu=True)
             out = tf.nn.relu(out)
-          self.summaries.append(tf.contrib.layers.summarize_activation(out))
+          self.summaries_sf.append(tf.contrib.layers.summarize_activation(out))
+          self.summaries_aux.append(tf.contrib.layers.summarize_activation(out))
       self.fi = out
 
-      # out = tf.stop_gradient(layer_norm_fn(self.fi, relu=True))
       out = tf.stop_gradient(tf.nn.relu(self.fi))
+
+      # ------------------- Adding option Q ---------------------
+      self.q = layers.fully_connected(out, num_outputs=self.action_size + 1,
+                                      activation_fn=None,
+                                      variables_collections=tf.get_collection("variables"),
+                                      outputs_collections="activations", scope="Q")
+
       with tf.variable_scope("sf"):
-        for i, nb_filt in enumerate(self._sf_layers):
+        for i, nb_filt in enumerate(self.config.sf_layers):
           out = layers.fully_connected(out, num_outputs=nb_filt,
                                        activation_fn=None,
                                        variables_collections=tf.get_collection("variables"),
                                        outputs_collections="activations", scope="sf_{}".format(i))
-          if i < len(self._sf_layers) - 1:
-            # out = layer_norm_fn(out, relu=False)
+          if i < len(self.config.sf_layers) - 1:
+            # out = layer_norm_fn(out, relu=True)
             out = tf.nn.relu(out)
-          self.summaries.append(tf.contrib.layers.summarize_activation(out))
+          self.summaries_sf.append(tf.contrib.layers.summarize_activation(out))
 
       self.sf = out
 
       out = self.fi
       with tf.variable_scope("action_fc"):
         self.actions_placeholder = tf.placeholder(shape=[None], dtype=tf.float32, name="Actions")
-        actions = layers.fully_connected(self.actions_placeholder[..., None], num_outputs=self._fc_layers[-1],
-                                     activation_fn=None,
-                                     variables_collections=tf.get_collection("variables"),
-                                     outputs_collections="activations", scope="action_fc{}".format(i))
-        # out = layer_norm_fn(out, relu=False)
+        actions = layers.fully_connected(self.actions_placeholder[..., None], num_outputs=self.fc_layers[-1],
+                                         activation_fn=None,
+                                         variables_collections=tf.get_collection("variables"),
+                                         outputs_collections="activations", scope="action_fc{}".format(i))
+        self.summaries_aux.append(tf.contrib.layers.summarize_activation(actions))
       out = tf.add(out, actions)
-      # out = layer_norm_fn(out, relu=True)
       out = tf.nn.relu(out)
 
       with tf.variable_scope("aux_fc"):
-        for i, nb_filt in enumerate(self._aux_fc_layers):
+        for i, nb_filt in enumerate(self.config.aux_fc_layers):
           out = layers.fully_connected(out, num_outputs=nb_filt,
                                        activation_fn=None,
                                        variables_collections=tf.get_collection("variables"),
                                        outputs_collections="activations", scope="aux_fc_{}".format(i))
-          # out = layer_norm_fn(out, relu=False)
-          if i < len(self._aux_fc_layers) - 1:
-            # out = layer_norm_fn(out, relu=True)
-            out= tf.nn.relu(out)
-          self.summaries.append(tf.contrib.layers.summarize_activation(out))
+          if i < len(self.config.aux_fc_layers) - 1:
+            out = tf.nn.relu(out)
+          self.summaries_aux.append(tf.contrib.layers.summarize_activation(out))
 
-      # with tf.variable_scope("aux_deconv"):
-      #   decoder_out = tf.expand_dims(tf.expand_dims(out, 1), 1)
-      #   for i, (kernel_size, stride, padding, nb_kernels) in enumerate(self._aux_deconv_layers):
-      #     decoder_out = layers.conv2d_transpose(decoder_out, num_outputs=nb_kernels, kernel_size=kernel_size,
-      #                                           stride=stride, activation_fn=None,
-      #                                           padding="same" if padding > 0 else "valid",
-      #                                           variables_collections=tf.get_collection("variables"),
-      #                                           outputs_collections="activations", scope="aux_deconv_{}".format(i))
-      #     if i < len(self._aux_deconv_layers) - 1:
-      #       # decoder_out = layer_norm_fn(decoder_out, relu=False)
-      #       decoder_out = tf.nn.relu(decoder_out)
-      #     self.summaries.append(tf.contrib.layers.summarize_activation(decoder_out))
-
-      # with tf.variable_scope("aux_deconv"):
-      #   decoder_out = tf.expand_dims(tf.expand_dims(out, 1), 1)
-      #   for i, (kernel_size, stride, padding, nb_kernels) in enumerate(self._aux_deconv_layers):
-      #     decoder_out = layers.conv2d(decoder_out, num_outputs=nb_kernels, kernel_size=kernel_size,
-      #                                           stride=stride, activation_fn=None,
-      #                                           padding="same" if padding > 0 else "valid",
-      #                                           variables_collections=tf.get_collection("variables"),
-      #                                           outputs_collections="activations", scope="aux_deconv_{}".format(i))
-      #     if i < len(self._aux_deconv_layers) - 1:
-      #       # decoder_out = layer_norm_fn(decoder_out, relu=False)
-      #       decoder_out = tf.nn.relu(decoder_out)
-      #     self.summaries.append(tf.contrib.layers.summarize_activation(decoder_out))
-      #
-      # decoder_out = tf.depth_to_space(decoder_out, 13, "depth_to_space")
       decoder_out = tf.reshape(out, (-1, config.input_size[0], config.input_size[1], config.history_size))
       self.next_obs = decoder_out
 
-      if self._config.history_size == 3:
+      if self.config.history_size == 3:
         self.image_summaries.append(tf.summary.image('next_obs', self.next_obs * 255, max_outputs=30))
       else:
         self.image_summaries.append(tf.summary.image('next_obs', self.next_obs[:, :, :, 0:1] * 255, max_outputs=30))
 
       if scope != 'global':
-        self.target_sf = tf.placeholder(shape=[None, self._sf_layers[-1]], dtype=tf.float32, name="target_SF")
+        self.target_sf = tf.placeholder(shape=[None, self.sf_layers[-1]], dtype=tf.float32, name="target_SF")
         self.target_next_obs = tf.placeholder(
           shape=[None, config.input_size[0], config.input_size[1], config.history_size], dtype=tf.float32,
           name="target_next_obs")
-        if self._config.history_size == 3:
+        if self.config.history_size == 3:
           self.image_summaries.append(tf.summary.image('target_next_obs', self.target_next_obs * 255, max_outputs=30))
         else:
-          self.image_summaries.append(tf.summary.image('target_next_obs', self.target_next_obs[:, :, :, 0:1] * 255, max_outputs=30))
-        self.matrix_sf = tf.placeholder(shape=[self._config.sf_transition_matrix_size, self._sf_layers[-1]],
-                                     dtype=tf.float32, name="matrix_sf")
+          self.image_summaries.append(
+            tf.summary.image('target_next_obs', self.target_next_obs[:, :, :, 0:1] * 255, max_outputs=30))
+        self.matrix_sf = tf.placeholder(shape=[self.nb_states, self.sf_layers[-1]],
+                                        dtype=tf.float32, name="matrix_sf")
         self.s, self.u, self.v = tf.svd(self.matrix_sf)
 
         with tf.name_scope('sf_loss'):
@@ -974,24 +947,36 @@ class DIFNetwork_FC():
 
         with tf.name_scope('aux_loss'):
           aux_error = self.next_obs - self.target_next_obs
-          self.aux_loss = tf.reduce_mean(self._config.aux_coef * tf.square(aux_error))
+          self.aux_loss = tf.reduce_mean(self.config.aux_coef * tf.square(aux_error))
 
-        self.loss = self.sf_loss + self.aux_loss
-        loss_summaries = [tf.summary.scalar('avg_sf_loss', self.sf_loss),
-                          tf.summary.scalar('aux_loss', self.aux_loss),
-                          tf.summary.scalar('total_loss', self.loss)]
-
+        # regularizer_features = tf.reduce_mean(self.config.feat_decay * tf.nn.l2_loss(self.fi))
         local_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope)
-        gradients = tf.gradients(self.loss, local_vars)
-        self.var_norms = tf.global_norm(local_vars)
-        grads, self.grad_norms = tf.clip_by_global_norm(gradients, self._config.gradient_clip_value)
+        
+        # regularizer_sf_weights = tf.add_n(
+        #   [self.config.sf_weight_decay * tf.nn.l2_loss(w) for w in local_vars if 'sf' in w.name])
+        # self.loss = self.sf_loss + self.aux_loss + regularizer_features + regularizer_sf_weights
+        # loss_summaries = [tf.summary.scalar('avg_sf_loss', self.sf_loss),
+        #                   tf.summary.scalar('aux_loss', self.aux_loss),
+        #                   tf.summary.scalar('total_loss', self.loss)]
 
-        self.merged_summary = tf.summary.merge(self.image_summaries + self.summaries + loss_summaries + [
-          tf.summary.scalar('gradient_norm', tf.global_norm(gradients)),
-          tf.summary.scalar('cliped_gradient_norm', tf.global_norm(grads)),
-          gradient_summaries(zip(grads, local_vars))])
+        gradients_sf = tf.gradients(self.sf_loss, local_vars)
+        gradients_aux = tf.gradients(self.aux_loss, local_vars)
+        self.var_norms = tf.global_norm(local_vars)
+        grads_sf, self.grad_norms = tf.clip_by_global_norm(gradients_sf, self.config.gradient_clip_value)
+        grads_aux, self.grad_norms = tf.clip_by_global_norm(gradients_aux, self.config.gradient_clip_value)
+
+        self.merged_summary_sf = tf.summary.merge(self.summaries_sf + [tf.summary.scalar('avg_sf_loss', self.sf_loss)] + [
+          tf.summary.scalar('gradient_norm', tf.global_norm(gradients_sf)),
+          tf.summary.scalar('cliped_gradient_norm', tf.global_norm(grads_sf)),
+          gradient_summaries(zip(grads_sf, local_vars))])
+        self.merged_summary_aux = tf.summary.merge(self.image_summaries + self.summaries_aux +
+                                                   [tf.summary.scalar('aux_loss', self.aux_loss)] + [
+          tf.summary.scalar('gradient_norm', tf.global_norm(gradients_aux)),
+          tf.summary.scalar('cliped_gradient_norm', tf.global_norm(grads_aux)),
+          gradient_summaries(zip(grads_aux, local_vars))])
         global_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, 'global')
-        self.apply_grads = self._network_optimizer.apply_gradients(zip(grads, global_vars))
+        self.apply_grads_sf = self.network_optimizer.apply_gradients(zip(grads_sf, global_vars))
+        self.apply_grads_aux = self.network_optimizer.apply_gradients(zip(grads_aux, global_vars))
 
 def layer_norm_fn(x, relu=True):
   x = layers.layer_norm(x, scale=True, center=True)

@@ -374,18 +374,10 @@ class DQNSF_FCNetwork:
             # out = layer_norm_fn(out, relu=True)
             out = tf.nn.relu(out)
           self.summaries.append(tf.contrib.layers.summarize_activation(out))
-      self.fi = out
-
-      out = tf.stop_gradient(tf.nn.relu(self.fi))
-
-      # ------------------- Adding option Q ---------------------
-      self.q = layers.fully_connected(out, num_outputs=self.action_size + 1,
-                                      activation_fn=None,
-                                      variables_collections=tf.get_collection("variables"),
-                                      outputs_collections="activations", scope="Q")
-
+        self.fi = out
 
       with tf.variable_scope("sf"):
+        out = tf.stop_gradient(tf.nn.relu(self.fi))
         for i, nb_filt in enumerate(self.sf_layers):
           out = layers.fully_connected(out, num_outputs=nb_filt,
                                        activation_fn=None,
@@ -395,20 +387,19 @@ class DQNSF_FCNetwork:
             # out = layer_norm_fn(out, relu=True)
             out = tf.nn.relu(out)
           self.summaries.append(tf.contrib.layers.summarize_activation(out))
+        self.sf = out
 
-      self.sf = out
 
-      out = self.fi
       with tf.variable_scope("action_fc"):
         self.actions_placeholder = tf.placeholder(shape=[None], dtype=tf.float32, name="Actions")
         actions = layers.fully_connected(self.actions_placeholder[..., None], num_outputs=self.fc_layers[-1],
                                          activation_fn=None,
                                          variables_collections=tf.get_collection("variables"),
                                          outputs_collections="activations", scope="action_fc{}".format(i))
-      out = tf.add(out, actions)
-      out = tf.nn.relu(out)
 
       with tf.variable_scope("aux_fc"):
+        out = tf.add(self.fi, actions)
+        out = tf.nn.relu(out)
         for i, nb_filt in enumerate(self.aux_fc_layers):
           out = layers.fully_connected(out, num_outputs=nb_filt,
                                        activation_fn=None,
@@ -417,25 +408,23 @@ class DQNSF_FCNetwork:
           if i < len(self.aux_fc_layers) - 1:
             out = tf.nn.relu(out)
           self.summaries.append(tf.contrib.layers.summarize_activation(out))
+        self.next_obs = tf.reshape(out, (-1, config.input_size[0], config.input_size[1], config.history_size))
 
-      decoder_out = tf.reshape(out, (-1, config.input_size[0], config.input_size[1], config.history_size))
-      self.next_obs = decoder_out
-
-      if self.config.history_size == 3:
-        self.image_summaries.append(tf.summary.image('next_obs', self.next_obs * 255, max_outputs=30))
-      else:
-        self.image_summaries.append(tf.summary.image('next_obs', self.next_obs[:, :, :, 0:1] * 255, max_outputs=30))
+        if self.config.history_size == 3:
+          self.image_summaries.append(tf.summary.image('next_obs', self.next_obs * 255, max_outputs=30))
+        else:
+          self.image_summaries.append(tf.summary.image('next_obs', self.next_obs[:, :, :, 0:1] * 255, max_outputs=30))
 
       if scope != 'target':
-        self.target_q_a = tf.placeholder(shape=[None], dtype=tf.float32, name="target_Q_a")
-        self.actions_onehot = tf.one_hot(tf.cast(self.actions_placeholder, tf.int32), self.action_size + 1,
-                                         dtype=tf.float32, name="actions_one_hot")
-        self.q_a = tf.reduce_sum(tf.multiply(self.q, self.actions_onehot),
-                                 reduction_indices=1, name="Q_a")
+        # self.target_q_a = tf.placeholder(shape=[None], dtype=tf.float32, name="target_Q_a")
+        # self.actions_onehot = tf.one_hot(tf.cast(self.actions_placeholder, tf.int32), self.action_size + 1,
+        #                                  dtype=tf.float32, name="actions_one_hot")
+        # self.q_a = tf.reduce_sum(tf.multiply(self.q, self.actions_onehot),
+        #                          reduction_indices=1, name="Q_a")
 
-        with tf.name_scope('q_loss'):
-          td_error = self.q_a - self.target_q_a
-          self.q_loss = tf.reduce_mean(huber_loss(td_error))
+        # with tf.name_scope('q_loss'):
+        #   td_error = self.q_a - self.target_q_a
+        #   self.q_loss = tf.reduce_mean(huber_loss(td_error))
 
         self.target_sf = tf.placeholder(shape=[None, self.sf_layers[-1]], dtype=tf.float32, name="target_SF")
         self.target_next_obs = tf.placeholder(
@@ -477,12 +466,12 @@ class DQNSF_FCNetwork:
         self.apply_grads = self.network_optimizer.apply_gradients(zip(grads, local_vars))
 
         # --------------- Q_loss ----------------------
-        local_q_vars = [v for v in tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope) if "Q" in v.name]
-        q_loss_summary = [tf.summary.scalar('q_loss', self.q_loss)]
-        q_gradients = tf.gradients(self.q_loss, local_q_vars)
-        q_grads, self.grad_norms = tf.clip_by_global_norm(q_gradients, self.config.gradient_clip_value)
-        self.q_merged_summary = tf.summary.merge(q_loss_summary)
-        self.q_apply_grads = self.network_optimizer.apply_gradients(zip(q_grads, local_q_vars))
+        # local_q_vars = [v for v in tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope) if "Q" in v.name]
+        # q_loss_summary = [tf.summary.scalar('q_loss', self.q_loss)]
+        # q_gradients = tf.gradients(self.q_loss, local_q_vars)
+        # q_grads, self.grad_norms = tf.clip_by_global_norm(q_gradients, self.config.gradient_clip_value)
+        # self.q_merged_summary = tf.summary.merge(q_loss_summary)
+        # self.q_apply_grads = self.network_optimizer.apply_gradients(zip(q_grads, local_q_vars))
 
 class DQNSF_ONEHOT_Network:
   def __init__(self, scope, config, action_size, nb_states):

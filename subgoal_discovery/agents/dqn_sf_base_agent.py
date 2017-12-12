@@ -150,7 +150,7 @@ class DQNSFBaseAgent(BaseVisAgent):
     sns.plt.close()
     np.savetxt(os.path.join(folder_path, 'Matrix_FI_numeric.txt'), self.matrix_fi, fmt='%-7.2f')
 
-    self.plot_eigenoptions("eigenoptions", sess)
+    # self.plot_eigenoptions("eigenoptions", sess)
     folder_path = os.path.join(os.path.join(self.config.stage_logdir, "summaries"), "policies")
     tf.gfile.MakeDirs(folder_path)
     self.plot_policy_and_value_function_approx(folder_path, sess)
@@ -402,14 +402,10 @@ class DQNSFBaseAgent(BaseVisAgent):
           self.env.define_reward_function(eigenvectors[i] if k == "poz" else -eigenvectors[i])
           V, pi = polIter.solvePolicyIteration()
 
-          # Now I will eliminate any actions that may give us a small improvement.
-          # This is where the epsilon parameter is important. If it is not set all
-          # it will never be considered, since I set it to a very small value
           for j in range(len(V)):
             if V[j] < epsilon:
               pi[j] = len(self.env.get_action_set())
 
-          # if plotGraphs:
           self.plot_value_function(V[0:self.nb_states], str(i) + '_' + k + "_", folder)
           self.plot_policy(pi[0:self.nb_states], str(i) + '_' + k + "_", folder)
 

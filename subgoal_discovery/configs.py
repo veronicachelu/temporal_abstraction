@@ -285,14 +285,12 @@ def dqn_sf_4rooms_fc2():
   fc_layers = 128,
   sf_layers = 128,
   aux_fc_layers = 507,
-  feat_decay = 0.0005
-  sf_weight_decay = 0.0005
-  # Optimization
+  feat_decay = 0
+  sf_weight_decay = 0
   network_optimizer = 'AdamOptimizer'
-  # lr = 0.0007
   lr = 1e-3
   discount = 0.985
-  entropy_coef = 1e-4
+
   sf_coef = 1
   aux_coef = 1
 
@@ -303,25 +301,16 @@ def dqn_sf_4rooms_fc2():
   training_steps = 5000000
   steps = observation_steps + training_steps
   sf_matrix_size = 50000
-  target_update_freq = 320
+  target_update_freq = 100
   batch_size = 32
-  option_steps = 100000
-  option_observation_steps = 10000
-  option_explore_steps = 1000
+
   final_random_action_prob = 0.1
   initial_random_action_prob = 1.0
 
-  # final_random_action_prob = 0.1
-  # initial_random_action_prob = 1.0
   gradient_clip_value = 40
   summary_interval = 100000
   checkpoint_interval = 100000
-  eval_interval = 1
-  option_update_freq = 100
-  option_batch_size = 100
-  option_memory_size = 50000
-  option_summary_interval = 1000
-  option_checkpoint_interval = 1000
+
   return locals()
 
 def dqn_sf_4rooms_onehot():

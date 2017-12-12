@@ -407,13 +407,13 @@ def dif_4rooms_fc():
   input_size = (13, 13)
   history_size = 3
   fc_layers = 128,
-  sf_layers = 128, 128
+  sf_layers = 128,
   aux_fc_layers = 507,
   # aux_deconv_layers = (4, 2, 1, 64), (4, 2, 0, 64), (3, 2, 0, 3)
   # Optimization
-  network_optimizer = 'RMSPropOptimizer'
+  network_optimizer = 'AdamOptimizer'
   # lr = 0.0007
-  lr = 1e-4
+  lr = 1e-3
   discount = 0.985
   entropy_coef = 1e-4
   critic_coef = 0.5
@@ -426,6 +426,10 @@ def dif_4rooms_fc():
     GridWorld, "./mdps/4rooms.mdp")
   max_update_freq = 30
   min_update_freq = 5
+  batch_size = 32
+  memory_size = 2000
+  observation_steps = 2000
+  aux_update_freq = 30
   steps = 1e6   # 1M
   training_steps = 5e5
   explore_steps = 1e5

@@ -17,6 +17,7 @@ import scipy.stats
 import seaborn as sns
 from auxilary.visualizer import Visualizer
 sns.set()
+import random
 import matplotlib.pyplot as plt
 from matplotlib import cm
 from auxilary.policy_iteration import PolicyIteration
@@ -67,37 +68,57 @@ class DIFAgent(Visualizer):
       self.matrix_sf = np.zeros((self.config.sf_transition_matrix_size, self.config.sf_layers[-1]))
       self.mat_counter = 0
 
-  def train(self, rollout, sess, bootstrap_sf, summaries=False):
+  def train_sf(self, rollout, sess, bootstrap_sf, summaries=False):
     rollout = np.array(rollout)
     observations = rollout[:, 0]
-    fi = rollout[:, 1]
-    next_observations = rollout[:, 2]
-    actions = rollout[:, 3]
+    next_observations = rollout[:, 1]
+    actions = rollout[:, 2]
+
+    feed_dict = {self.local_network.observation: np.stack(observations, axis=0)}
+    fi = sess.run(self.local_network.fi,
+                          feed_dict=feed_dict)
 
     sf_plus = np.asarray(fi.tolist() + [bootstrap_sf])
     discounted_sf = discount(sf_plus, self.config.discount)[:-1]
 
     feed_dict = {self.local_network.target_sf: np.stack(discounted_sf, axis=0),
-                 self.local_network.observation: np.stack(observations, axis=0),
+                 self.local_network.observation: np.stack(observations, axis=0)} #,
+                 # self.local_network.target_next_obs: np.stack(next_observations, axis=0),
+                 # self.local_network.actions_placeholder: actions}
+
+    _, ms, sf_loss = \
+      sess.run([self.local_network.apply_grads_sf,
+                self.local_network.merged_summary_sf,
+                self.local_network.sf_loss],
+               feed_dict=feed_dict)
+
+    return ms, sf_loss
+
+  def train_aux(self, sess):
+    minibatch = random.sample(self.aux_episode_buffer, self.config.batch_size)
+    rollout = np.array(minibatch)
+    observations = rollout[:, 0]
+    next_observations = rollout[:, 1]
+    actions = rollout[:, 2]
+
+    feed_dict = {self.local_network.observation: np.stack(observations, axis=0), #,
                  self.local_network.target_next_obs: np.stack(next_observations, axis=0),
                  self.local_network.actions_placeholder: actions}
 
-    _, ms, img_summ, loss, sf_loss, aux_loss = \
-      sess.run([self.local_network.apply_grads,
-                self.local_network.merged_summary,
+    _, ms, img_summ, aux_loss = \
+      sess.run([self.local_network.apply_grads_aux,
+                self.local_network.merged_summary_aux,
                 self.local_network.image_summaries,
-                self.local_network.loss,
-                self.local_network.sf_loss,
                 self.local_network.aux_loss],
                feed_dict=feed_dict)
 
-    return ms, loss, sf_loss, aux_loss
+    return ms, img_summ, aux_loss
 
   def play(self, sess, coord, saver):
     with sess.as_default(), sess.graph.as_default():
       episode_count = sess.run(self.global_step)
       self.total_steps = sess.run(self.total_steps_tensor)
-
+      ms_aux = ms_sf = None
       print("Starting worker " + str(self.thread_id))
 
       while not coord.should_stop():
@@ -106,6 +127,7 @@ class DIFAgent(Visualizer):
 
         sess.run(self.update_local_vars)
         episode_buffer = []
+        self.aux_episode_buffer = deque()
         episode_reward = 0
         d = False
         t = 0
@@ -116,42 +138,50 @@ class DIFAgent(Visualizer):
         while not d:
           a = np.random.choice(range(self.action_size))
 
-          feed_dict = {self.local_network.observation: np.stack([s])}
-          sf, fi = sess.run([self.local_network.sf, self.local_network.fi],
-                                feed_dict=feed_dict)
-          sf, fi = sf[0], fi[0]
-
-          if self.total_steps > self.config.training_steps:
-            self.matrix_sf[self.mat_counter % self.config.sf_transition_matrix_size] = sf
-            self.mat_counter += 1
-
-            if self.mat_counter == self.sf_transition_matrix_size:
-              self.plot_eigenoptions("eigenoptions", sess)
-              exit(0)
+          # feed_dict = {self.local_network.observation: np.stack([s])}
+          # sf, fi = sess.run([self.local_network.sf, self.local_network.fi],
+          #                       feed_dict=feed_dict)
+          # sf, fi = sf[0], fi[0]
 
           s1, r, d, _ = self.env.step(a)
-
+          if d:
+            s1 = s
           r = np.clip(r, -1, 1)
           self.total_steps += 1
-          if self.total_steps < self.config.training_steps:
-            episode_buffer.append([s, fi, s1, a])
+          # if self.total_steps < self.config.training_steps:
+          episode_buffer.append([s, s1, a])
+          self.aux_episode_buffer.append([s, s1, a])
           episode_reward += r
           t += 1
           t_counter += 1
           s = s1
 
-          if self.total_steps < self.config.training_steps:
-            if t_counter == self.config.max_update_freq or d:
-              feed_dict = {self.local_network.observation: np.stack([s])}
-              sf = sess.run(self.local_network.sf,
-                                        feed_dict=feed_dict)[0]
-              bootstrap_sf = np.zeros_like(sf) if d else sf
-              ms, loss, sf_loss, aux_loss = self.train(episode_buffer, sess, bootstrap_sf)
-              if self.name == "worker_0":
-                print("Episode {} >>> Step {} >>> SF_loss {} >>> AUX_loss {} ".format(episode_count, self.total_steps, sf_loss, aux_loss))
+          if len(self.aux_episode_buffer) == self.config.memory_size:
+            self.aux_episode_buffer.popleft()
+          if self.total_steps > self.config.observation_steps and len(
+              self.aux_episode_buffer) > self.config.observation_steps and \
+            self.total_steps % self.config.aux_update_freq == 0:
+            ms_aux, img_sum, aux_loss = self.train_aux(sess)
+            if self.name == "worker_0":
+              print("Episode {} >>> Step {} >>> AUX_loss {} ".format(episode_count,
+                                                                     self.total_steps,
+                                                                     aux_loss))
 
-              episode_buffer = []
-              t_counter = 0
+
+          if t_counter == self.config.max_update_freq or d:
+            feed_dict = {self.local_network.observation: np.stack([s])}
+            sf = sess.run(self.local_network.sf,
+                                      feed_dict=feed_dict)[0]
+            bootstrap_sf = np.zeros_like(sf) if d else sf
+            ms_sf, sf_loss = self.train_sf(episode_buffer, sess, bootstrap_sf)
+
+            if self.name == "worker_0":
+              print("Episode {} >>> Step {} >>> SF_loss {}".format(episode_count,
+                                                                   self.total_steps,
+                                                                   sf_loss))
+
+            episode_buffer = []
+            t_counter = 0
           if self.name == "worker_0":
             print("Episode {} >>> Step {} >>> Length: {} >>> Reward: {}".format(episode_count, self.total_steps, t, episode_reward))
         self.episode_rewards.append(episode_reward)
@@ -175,7 +205,10 @@ class DIFAgent(Visualizer):
           self.summary.value.add(tag='Perf/Reward', simple_value=float(last_reward))
           self.summary.value.add(tag='Perf/Length', simple_value=float(last_length))
 
-          self.summary_writer.add_summary(ms, self.total_steps)
+          if ms_sf is not None:
+            self.summary_writer.add_summary(ms_sf, self.total_steps)
+          if ms_aux is not None:
+            self.summary_writer.add_summary(ms_aux, self.total_steps)
 
           # self.summary_writer.add_summary(img_summ, self.total_steps)
 
