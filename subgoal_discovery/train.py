@@ -47,7 +47,7 @@ def start_agents(agents, config, coord, sess, saver):
     thread.start()
     agent_threads.append(thread)
   elif FLAGS.task == "option":
-    thread = threading.Thread(target=(lambda: agents.plot_options(sess, coord, saver)))
+    thread = threading.Thread(target=(lambda: agents.plot_policy_and_value_function_approx(sess)))
     thread.start()
     agent_threads.append(thread)
   elif FLAGS.task == "play_option":
@@ -85,7 +85,7 @@ def get_available_gpus():
 
 def train(config, logdir):
   tf.reset_default_graph()
-  sess = tf.Session()
+  sess = tf.Session(config=tf.ConfigProto(log_device_placement=True))
   stage_logdir = os.path.join(logdir, "dif")
   tf.gfile.MakeDirs(stage_logdir)
   with sess:
@@ -154,7 +154,7 @@ if __name__ == '__main__':
     'timestamp', datetime.datetime.now().strftime('%Y%m%dT%H%M%S'),
     'Sub directory to store logs.')
   tf.app.flags.DEFINE_string(
-    'config', "dqn_sf_4rooms_onehot",
+    'config', "dqn_sf_4rooms_fc2",
     'Configuration to execute.')
   tf.app.flags.DEFINE_boolean(
     'train', True,
@@ -175,7 +175,7 @@ if __name__ == '__main__':
     'Task nature')
   tf.app.flags.DEFINE_string(
     # 'load_from', None,
-    'load_from', "./logdir/2-dqn_sf_4rooms_onehot",
+    'load_from', "./logdir/9-dqn_sf_4rooms_fc2",
     'Load directory to load models from.')
   tf.app.flags.DEFINE_integer(
     'option', 0,

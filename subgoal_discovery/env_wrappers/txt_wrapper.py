@@ -164,6 +164,20 @@ class GridWorld:
         reward = 1
       else:
         reward = 0
+    elif len(self.rewardFunction) != self.nb_states and self.network != None and self.sess != None:
+      currStateIdx = self.get_state_index(self.agentX, self.agentY)
+      s, _, _ = self.get_state(currStateIdx)
+      feed_dict = {self.network.observation: np.stack([s])}
+      fi = self.sess.run(self.network.fi,
+                    feed_dict=feed_dict)[0]
+      nextStateIdx = self.get_state_index(nextX, nextY)
+      s1, _, _ = self.get_state(nextStateIdx)
+      feed_dict = {self.network.observation: np.stack([s1])}
+      fi1 = self.sess.run(self.network.fi,
+                         feed_dict=feed_dict)[0]
+      reward = self.cosine_similarity((fi1 - fi), self.rewardFunction)
+
+
     else:
       currStateIdx = self.get_state_index(self.agentX, self.agentY)
       nextStateIdx = self.get_state_index(nextX, nextY)
@@ -172,6 +186,14 @@ class GridWorld:
                - self.rewardFunction[currStateIdx]
 
     return reward
+
+  def cosine_similarity(self, next_sf, evect):
+    state_dif_norm = np.linalg.norm(next_sf)
+    state_dif_normalized = next_sf / (state_dif_norm + 1e-8)
+    # evect_norm = np.linalg.norm(evect)
+    # evect_normalized = evect / (evect_norm + 1e-8)
+
+    return np.dot(state_dif_normalized, evect)
 
   def get_state(self, idx):
     x, y = self.get_state_xy(idx)
@@ -277,6 +299,11 @@ class GridWorld:
   def define_reward_function(self, vector):
     self.rewardFunction = vector
 
+  def define_network(self, net):
+    self.network = net
+
+  def define_session(self, sess):
+    self.sess = sess
 
 if __name__ == '__main__':
 

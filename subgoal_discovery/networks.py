@@ -356,6 +356,8 @@ class DQNSF_FCNetwork:
         self.image_summaries.append(tf.summary.image('input', self.observation * 255, max_outputs=30))
       else:
         self.image_summaries.append(tf.summary.image('input', self.observation[:, :, :, 0:1] * 255, max_outputs=30))
+
+
       self.summaries = []
 
       out = self.observation
@@ -412,7 +414,7 @@ class DQNSF_FCNetwork:
                                        activation_fn=None,
                                        variables_collections=tf.get_collection("variables"),
                                        outputs_collections="activations", scope="aux_fc_{}".format(i))
-          if i > 0:
+          if i < len(self.aux_fc_layers) - 1:
             out = tf.nn.relu(out)
           self.summaries.append(tf.contrib.layers.summarize_activation(out))
 
@@ -448,8 +450,6 @@ class DQNSF_FCNetwork:
                                         dtype=tf.float32, name="matrix_sf")
         self.s, self.u, self.v = tf.svd(self.matrix_sf)
 
-
-
         with tf.name_scope('sf_loss'):
           sf_td_error = self.target_sf - self.sf
           self.sf_loss = tf.reduce_mean(tf.square(sf_td_error))
@@ -458,12 +458,14 @@ class DQNSF_FCNetwork:
           aux_error = self.next_obs - self.target_next_obs
           self.aux_loss = tf.reduce_mean(self.config.aux_coef * tf.square(aux_error))
 
-        self.loss = self.sf_loss + self.aux_loss
+        regularizer_features = tf.reduce_mean(self.config.feat_decay * tf.nn.l2_loss(self.fi))
+        local_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope)
+        regularizer_sf_weights = tf.add_n([self.config.sf_weight_decay * tf.nn.l2_loss(w) for w in local_vars if 'sf' in w.name])
+        self.loss = self.sf_loss + self.aux_loss + regularizer_features + regularizer_sf_weights
         loss_summaries = [tf.summary.scalar('avg_sf_loss', self.sf_loss),
                           tf.summary.scalar('aux_loss', self.aux_loss),
                           tf.summary.scalar('total_loss', self.loss)]
 
-        local_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope)
         gradients = tf.gradients(self.loss, local_vars)
         self.var_norms = tf.global_norm(local_vars)
         grads, self.grad_norms = tf.clip_by_global_norm(gradients, self.config.gradient_clip_value)
@@ -527,6 +529,10 @@ class DQNSF_ONEHOT_Network:
                                         dtype=tf.float32, name="matrix_sf")
         self.s, self.u, self.v = tf.svd(self.matrix_sf)
 
+        self.matrix_fi = tf.placeholder(shape=[self.nb_states, self.fc_layers[-1]],
+                                        dtype=tf.float32, name="matrix_fi")
+        self.statistics_summaries = []
+        self.statistics_summaries.append(tf.summary.image('input', self.observation * 255, max_outputs=30))
 
         with tf.name_scope('sf_loss'):
           sf_td_error = self.target_sf - self.sf
