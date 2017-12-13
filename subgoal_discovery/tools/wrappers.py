@@ -678,9 +678,9 @@ class FrameResize(object):
 
     def reset(self):
       observ = self._env.reset()
-      preprocessed_observ = self.get_preprocessed_frame(observ)
+      # preprocessed_observ = self.get_preprocessed_frame(observ)
       self._step = 0
-      return preprocessed_observ
+      return observ
 
 # if __name__ == '__main__':
 #   env = gym.make("Breakout-v0")
