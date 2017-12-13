@@ -672,9 +672,9 @@ class FrameResize(object):
 
     def step(self, action):
       observ, reward, done, info = self._env.step(action)
-      preprocessed_observ = self.get_preprocessed_frame(observ)
+      # preprocessed_observ = self.get_preprocessed_frame(observ)
       self._step += 1
-      return preprocessed_observ, reward, done, info
+      return observ, reward, done, info
 
     def reset(self):
       observ = self._env.reset()
