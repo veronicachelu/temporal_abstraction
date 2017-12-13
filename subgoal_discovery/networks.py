@@ -352,7 +352,7 @@ class DQNSF_FCNetwork:
                                         dtype=tf.float32, name="Inputs")
 
       self.image_summaries = []
-      self.image_summaries.append(tf.summary.image('input', (self.observation / 2.0 + 0.5) * 255, max_outputs=30))
+      self.image_summaries.append(tf.summary.image('input', self.observation, max_outputs=30))
 
       self.summaries = []
 
@@ -380,7 +380,6 @@ class DQNSF_FCNetwork:
                                        variables_collections=tf.get_collection("variables"),
                                        outputs_collections="activations", scope="sf_{}".format(i))
           if i < len(self.sf_layers) - 1:
-            # out = layer_norm_fn(out, relu=True)
             out = tf.nn.relu(out)
           self.summaries.append(tf.contrib.layers.summarize_activation(out))
         self.sf = out
@@ -395,7 +394,7 @@ class DQNSF_FCNetwork:
 
       with tf.variable_scope("aux_fc"):
         out = tf.add(self.fi, actions)
-        out = tf.nn.relu(out)
+        # out = tf.nn.relu(out)
         for i, nb_filt in enumerate(self.aux_fc_layers):
           out = layers.fully_connected(out, num_outputs=nb_filt,
                                        activation_fn=None,
@@ -406,7 +405,7 @@ class DQNSF_FCNetwork:
           self.summaries.append(tf.contrib.layers.summarize_activation(out))
         self.next_obs = tf.reshape(out, (-1, config.input_size[0], config.input_size[1], config.history_size))
 
-        self.image_summaries.append(tf.summary.image('next_obs', (self.next_obs / 2.0 + 0.5) * 255, max_outputs=30))
+        self.image_summaries.append(tf.summary.image('next_obs', self.next_obs, max_outputs=30))
 
       if scope != 'target':
         # self.target_q_a = tf.placeholder(shape=[None], dtype=tf.float32, name="target_Q_a")
@@ -419,11 +418,15 @@ class DQNSF_FCNetwork:
         #   td_error = self.q_a - self.target_q_a
         #   self.q_loss = tf.reduce_mean(huber_loss(td_error))
 
+        # self.pix_state /= 255.
+        # self.pix_state -= 0.5
+        # self.pix_state *= 2.
+
         self.target_sf = tf.placeholder(shape=[None, self.sf_layers[-1]], dtype=tf.float32, name="target_SF")
         self.target_next_obs = tf.placeholder(
           shape=[None, config.input_size[0], config.input_size[1], config.history_size], dtype=tf.float32,
           name="target_next_obs")
-        self.image_summaries.append(tf.summary.image('target_next_obs', (self.target_next_obs / 2.0 + 0.5) * 255, max_outputs=30))
+        self.image_summaries.append(tf.summary.image('target_next_obs', self.target_next_obs, max_outputs=30))
 
         self.matrix_sf = tf.placeholder(shape=[self.nb_states, self.sf_layers[-1]],
                                         dtype=tf.float32, name="matrix_sf")

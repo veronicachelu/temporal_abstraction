@@ -13,3 +13,5 @@ pip-selfcheck.json
 /build
 /dist
 *.eggs
+.DS_Store
+subgoal_discovery/.DS_Store
