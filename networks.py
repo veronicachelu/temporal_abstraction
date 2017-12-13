@@ -871,34 +871,24 @@ class DIFNetwork_FC():
                                        outputs_collections="activations", scope="fc_{}".format(i))
 
           if i < len(self.config.fc_layers) - 1:
-            # out = layer_norm_fn(out, relu=True)
             out = tf.nn.relu(out)
           self.summaries_sf.append(tf.contrib.layers.summarize_activation(out))
           self.summaries_aux.append(tf.contrib.layers.summarize_activation(out))
-      self.fi = out
-
-      out = tf.stop_gradient(tf.nn.relu(self.fi))
-
-      # ------------------- Adding option Q ---------------------
-      self.q = layers.fully_connected(out, num_outputs=self.action_size + 1,
-                                      activation_fn=None,
-                                      variables_collections=tf.get_collection("variables"),
-                                      outputs_collections="activations", scope="Q")
+        self.fi = out
 
       with tf.variable_scope("sf"):
+        out = tf.stop_gradient(tf.nn.relu(self.fi))
         for i, nb_filt in enumerate(self.config.sf_layers):
           out = layers.fully_connected(out, num_outputs=nb_filt,
                                        activation_fn=None,
                                        variables_collections=tf.get_collection("variables"),
                                        outputs_collections="activations", scope="sf_{}".format(i))
           if i < len(self.config.sf_layers) - 1:
-            # out = layer_norm_fn(out, relu=True)
             out = tf.nn.relu(out)
           self.summaries_sf.append(tf.contrib.layers.summarize_activation(out))
+        self.sf = out
 
-      self.sf = out
 
-      out = self.fi
       with tf.variable_scope("action_fc"):
         self.actions_placeholder = tf.placeholder(shape=[None], dtype=tf.float32, name="Actions")
         actions = layers.fully_connected(self.actions_placeholder[..., None], num_outputs=self.fc_layers[-1],
@@ -906,8 +896,8 @@ class DIFNetwork_FC():
                                          variables_collections=tf.get_collection("variables"),
                                          outputs_collections="activations", scope="action_fc{}".format(i))
         self.summaries_aux.append(tf.contrib.layers.summarize_activation(actions))
-      out = tf.add(out, actions)
-      out = tf.nn.relu(out)
+        out = tf.add(self.fi, actions)
+        out = tf.nn.relu(out)
 
       with tf.variable_scope("aux_fc"):
         for i, nb_filt in enumerate(self.config.aux_fc_layers):
@@ -918,9 +908,7 @@ class DIFNetwork_FC():
           if i < len(self.config.aux_fc_layers) - 1:
             out = tf.nn.relu(out)
           self.summaries_aux.append(tf.contrib.layers.summarize_activation(out))
-
-      decoder_out = tf.reshape(out, (-1, config.input_size[0], config.input_size[1], config.history_size))
-      self.next_obs = decoder_out
+        self.next_obs = tf.reshape(out, (-1, config.input_size[0], config.input_size[1], config.history_size))
 
       if self.config.history_size == 3:
         self.image_summaries.append(tf.summary.image('next_obs', self.next_obs * 255, max_outputs=30))

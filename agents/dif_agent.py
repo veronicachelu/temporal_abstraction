@@ -167,7 +167,6 @@ class DIFAgent(Visualizer):
                                                                      self.total_steps,
                                                                      aux_loss))
 
-
           if t_counter == self.config.max_update_freq or d:
             feed_dict = {self.local_network.observation: np.stack([s])}
             sf = sess.run(self.local_network.sf,

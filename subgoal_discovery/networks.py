@@ -352,11 +352,7 @@ class DQNSF_FCNetwork:
                                         dtype=tf.float32, name="Inputs")
 
       self.image_summaries = []
-      if self.config.history_size == 3:
-        self.image_summaries.append(tf.summary.image('input', self.observation * 255, max_outputs=30))
-      else:
-        self.image_summaries.append(tf.summary.image('input', self.observation[:, :, :, 0:1] * 255, max_outputs=30))
-
+      self.image_summaries.append(tf.summary.image('input', (self.observation / 2.0 + 0.5) * 255, max_outputs=30))
 
       self.summaries = []
 
@@ -410,10 +406,7 @@ class DQNSF_FCNetwork:
           self.summaries.append(tf.contrib.layers.summarize_activation(out))
         self.next_obs = tf.reshape(out, (-1, config.input_size[0], config.input_size[1], config.history_size))
 
-        if self.config.history_size == 3:
-          self.image_summaries.append(tf.summary.image('next_obs', self.next_obs * 255, max_outputs=30))
-        else:
-          self.image_summaries.append(tf.summary.image('next_obs', self.next_obs[:, :, :, 0:1] * 255, max_outputs=30))
+        self.image_summaries.append(tf.summary.image('next_obs', (self.next_obs / 2.0 + 0.5) * 255, max_outputs=30))
 
       if scope != 'target':
         # self.target_q_a = tf.placeholder(shape=[None], dtype=tf.float32, name="target_Q_a")
@@ -430,22 +423,19 @@ class DQNSF_FCNetwork:
         self.target_next_obs = tf.placeholder(
           shape=[None, config.input_size[0], config.input_size[1], config.history_size], dtype=tf.float32,
           name="target_next_obs")
-        if self.config.history_size == 3:
-          self.image_summaries.append(tf.summary.image('target_next_obs', self.target_next_obs * 255, max_outputs=30))
-        else:
-          self.image_summaries.append(
-            tf.summary.image('target_next_obs', self.target_next_obs[:, :, :, 0:1] * 255, max_outputs=30))
+        self.image_summaries.append(tf.summary.image('target_next_obs', (self.target_next_obs / 2.0 + 0.5) * 255, max_outputs=30))
+
         self.matrix_sf = tf.placeholder(shape=[self.nb_states, self.sf_layers[-1]],
                                         dtype=tf.float32, name="matrix_sf")
         self.s, self.u, self.v = tf.svd(self.matrix_sf)
 
         with tf.name_scope('sf_loss'):
           sf_td_error = self.target_sf - self.sf
-          self.sf_loss = tf.reduce_mean(tf.square(sf_td_error))
+          self.sf_loss = tf.reduce_mean(huber_loss(sf_td_error))
 
         with tf.name_scope('aux_loss'):
           aux_error = self.next_obs - self.target_next_obs
-          self.aux_loss = tf.reduce_mean(self.config.aux_coef * tf.square(aux_error))
+          self.aux_loss = tf.reduce_mean(self.config.aux_coef * huber_loss(aux_error))
 
         regularizer_features = tf.reduce_mean(self.config.feat_decay * tf.nn.l2_loss(self.fi))
         local_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope)

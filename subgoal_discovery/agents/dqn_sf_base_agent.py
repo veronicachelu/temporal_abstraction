@@ -150,7 +150,7 @@ class DQNSFBaseAgent(BaseVisAgent):
     sns.plt.close()
     np.savetxt(os.path.join(folder_path, 'Matrix_FI_numeric.txt'), self.matrix_fi, fmt='%-7.2f')
 
-    # self.plot_eigenoptions("eigenoptions", sess)
+    self.plot_eigenoptions("eigenoptions", sess)
     folder_path = os.path.join(os.path.join(self.config.stage_logdir, "summaries"), "policies")
     tf.gfile.MakeDirs(folder_path)
     self.plot_policy_and_value_function_approx(folder_path, sess)

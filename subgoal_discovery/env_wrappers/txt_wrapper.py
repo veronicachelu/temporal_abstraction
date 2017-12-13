@@ -66,6 +66,9 @@ class GridWorld:
     mdp_screen[self.agentX, self.agentY] = [0, 255, 0]
     mdp_screen[self.goalX, self.goalY] = [255, 0, 0]
     self.pix_state = mdp_screen
+    self.pix_state /= 255.
+    self.pix_state -= 0.5
+    self.pix_state *= 2.
     # self.pix_state = scipy.misc.imresize(mdp_screen, [200, 200, 3], interp='nearest')
     return self.pix_state
     # return mdp_screen
@@ -193,8 +196,10 @@ class GridWorld:
     # evect_norm = np.linalg.norm(evect)
     # evect_normalized = evect / (evect_norm + 1e-8)
     res = np.dot(state_dif_normalized, evect)
-    res = -1 is res < 0
-    res = 1 is res > 0
+    if  res < 0:
+      res = -1
+    elif res > 0:
+      res = 1
     return res
 
   def get_state(self, idx):
