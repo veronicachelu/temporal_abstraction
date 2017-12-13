@@ -663,7 +663,7 @@ class FrameResize(object):
       img = Image.fromarray(np.asarray(observ, np.uint8))
       img = img.resize((self.resized_width, self.resized_height))
       pix = np.array(img).astype(float)
-      pix = pix.astype(float) / 255
+      pix = pix.astype(float)# / 255
 
       # pil_image = Image.fromarray(np.uint8(pix * 255))
       # pil_image.show()

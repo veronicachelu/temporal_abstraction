@@ -301,8 +301,8 @@ def dqn_sf_4rooms_fc2():
   training_steps = 5000000
   steps = observation_steps + training_steps
   sf_matrix_size = 50000
-  target_update_freq = 32
-  batch_size = 32
+  target_update_freq = 16 * 100
+  batch_size = 16
 
   final_random_action_prob = 0.1
   initial_random_action_prob = 1.0
