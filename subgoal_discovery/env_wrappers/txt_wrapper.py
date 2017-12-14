@@ -324,7 +324,7 @@ if __name__ == '__main__':
   player_rng = np.random.RandomState(0)
   # game = GridWorld("../mdps/longI.mdp")
   game = GridWorld("../mdps/4rooms.mdp")
-  game = wrappers.LimitDuration(game, 100)
+  game = wrappers.LimitDuration(game, 100000)
   game = wrappers.FrameResize(game, (13,13))
   game = wrappers.ConvertTo32Bit(game)
 

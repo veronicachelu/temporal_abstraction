@@ -32,7 +32,7 @@ def default():
   num_agents = 8
   eval_episodes = 1
   use_gpu = False
-  max_length = 100
+  max_length = 10000000
   return locals()
 
 def a3c_sf_4rooms():

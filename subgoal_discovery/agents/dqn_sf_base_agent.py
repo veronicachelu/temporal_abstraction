@@ -193,12 +193,12 @@ class DQNSFBaseAgent(BaseVisAgent):
   def plot_eigenoptions(self, folder, sess):
     # feed_dict = {self.orig_net.matrix_sf: self.matrix_sf}
     # s, v = sess.run([self.orig_net.s, self.orig_net.v], feed_dict=feed_dict)
-    u, s, v = np.linalg.svd(self.matrix_sf)
+    u, s, v = np.linalg.svd(self.matrix_sf, full_matrices=False)
     eigenvalues = s
     eigenvectors = v
     # U, s, V = np.linalg.svd(matrix)
-    S = np.diag(s[2:40])
-    sr_r_m = np.dot(u[:, 2:40], np.dot(S, v[2:40]))
+    S = np.diag(s[1:])
+    sr_r_m = np.dot(u[:, 1:], np.dot(S, v[1:]))
     import seaborn as sns
     sns.plt.clf()
     ax = sns.heatmap(sr_r_m, cmap="Blues")
