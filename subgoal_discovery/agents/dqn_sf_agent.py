@@ -180,6 +180,60 @@ class DQNSFAgent(DQNSFBaseAgent):
     if sign == "neg":
       self.evect = -self.evect
 
+  def state_uniform_walk(self, sess, saver):
+    while True:
+      for idx in range(self.nb_states):
+        if self.total_steps >= self.config.observation_steps:
+          break
+        s, ii, jj = self.env.get_state(idx)
+        if self.env.not_wall(ii, jj):
+          a = self.policy_evaluation(s)
+
+          # feed_dict = {self.orig_net.observation: np.stack([s])}
+          # sf, fi = sess.run([self.orig_net.sf, self.orig_net.fi],
+          #                   feed_dict=feed_dict)
+          # sf, fi = sf[0], fi[0]
+
+          s1, r, d, _ = self.env.fake_step(a)
+
+          print(self.total_steps)
+          self.episode_buffer["observations"][self.total_steps] = s
+          if d:
+            s1 = s
+          self.episode_buffer["next_observations"][self.total_steps] = s1
+          self.episode_buffer["actions"][self.total_steps] = a
+          self.episode_buffer["done"][self.total_steps] = d
+
+          if self.total_steps % self.config.checkpoint_interval == 0 and self.total_steps != 0:
+            self.save_buffer()
+            self.save_model(sess, saver, self.total_steps)
+
+          self.total_steps += 1
+          sess.run(self.increment_global_step)
+
+  def state_random_walk(self, sess, saver):
+    s = self.env.reset()
+    while True:
+      if self.total_steps >= self.config.observation_steps:
+        break
+      a = self.policy_evaluation(s)
+      s1, r, d, _ = self.env.step(a)
+
+      print(self.total_steps)
+      self.episode_buffer["observations"][self.total_steps] = s
+      if d:
+        s1 = s
+      self.episode_buffer["next_observations"][self.total_steps] = s1
+      self.episode_buffer["actions"][self.total_steps] = a
+      self.episode_buffer["done"][self.total_steps] = d
+
+      if self.total_steps % self.config.checkpoint_interval == 0 and self.total_steps != 0:
+        self.save_buffer()
+        self.save_model(sess, saver, self.total_steps)
+
+      self.total_steps += 1
+      sess.run(self.increment_global_step)
+
   def play(self, sess, coord, saver):
     with sess.as_default(), sess.graph.as_default():
       # sess.run(self.global_step.assign(self.config.observation_steps))
@@ -188,36 +242,10 @@ class DQNSFAgent(DQNSFBaseAgent):
         self.updateTarget(sess)
 
       print("Starting agent")
-      s = self.env.reset()
-
-      while self.total_steps < self.config.observation_steps:
-        a = self.policy_evaluation(s)
-
-        # feed_dict = {self.orig_net.observation: np.stack([s])}
-        # sf, fi = sess.run([self.orig_net.sf, self.orig_net.fi],
-        #                   feed_dict=feed_dict)
-        # sf, fi = sf[0], fi[0]
-
-        s1, r, d, info = self.env.step(a)
-
-        print(self.total_steps)
-        self.episode_buffer["observations"][self.total_steps] = s
-
-        if d:
-          s = self.env.reset()
-        else:
-          s = s1
-
-        self.episode_buffer["next_observations"][self.total_steps] = s
-        self.episode_buffer["actions"][self.total_steps] = a
-        self.episode_buffer["done"][self.total_steps] = d
-
-        if self.total_steps % self.config.checkpoint_interval == 0 and self.total_steps != 0:
-          self.save_buffer()
-          self.save_model(sess, saver, self.total_steps)
-
-        self.total_steps += 1
-        sess.run(self.increment_global_step)
+      if self.config.state_uniform_walk:
+        self.state_uniform_walk(sess, saver)
+      else:
+        self.state_random_walk(sess, saver)
 
       while self.total_steps <= self.config.observation_steps + self.config.training_steps:
 

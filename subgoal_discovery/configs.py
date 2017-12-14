@@ -290,7 +290,7 @@ def dqn_sf_4rooms_fc2():
   network_optimizer = 'AdamOptimizer'
   lr = 1e-3
   discount = 0.985
-
+  state_uniform_walk = False
   sf_coef = 1
   aux_coef = 1
 
