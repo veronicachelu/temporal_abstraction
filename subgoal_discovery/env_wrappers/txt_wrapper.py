@@ -196,10 +196,10 @@ class GridWorld:
     # evect_norm = np.linalg.norm(evect)
     # evect_normalized = evect / (evect_norm + 1e-8)
     res = np.dot(state_dif_normalized, evect)
-    if  res < 0:
-      res = -1
-    elif res > 0:
-      res = 1
+    # if  res < 0:
+    #   res = -1
+    # elif res > 0:
+    #   res = 1
     return res
 
   def get_state(self, idx):
