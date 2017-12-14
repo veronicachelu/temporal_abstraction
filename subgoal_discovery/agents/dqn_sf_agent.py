@@ -217,12 +217,15 @@ class DQNSFAgent(DQNSFBaseAgent):
       if self.total_steps >= self.config.observation_steps:
         break
       a = self.policy_evaluation(s)
-      s1, r, d, _ = self.env.step(a)
+      s1, r, d, _ = self.env.special_step(a, s)
 
       print(self.total_steps)
       self.episode_buffer["observations"][self.total_steps] = s
       if d:
         s1 = s
+      else:
+        s = s1
+
       self.episode_buffer["next_observations"][self.total_steps] = s1
       self.episode_buffer["actions"][self.total_steps] = a
       self.episode_buffer["done"][self.total_steps] = d
