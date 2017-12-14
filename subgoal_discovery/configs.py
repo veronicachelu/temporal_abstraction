@@ -282,9 +282,9 @@ def dqn_sf_4rooms_fc2():
 
   input_size = (13, 13)
   history_size = 3
-  fc_layers = 32,
-  sf_layers = 32, 32
-  aux_fc_layers = 32, 507,
+  fc_layers = 128,
+  sf_layers = 128,
+  aux_fc_layers = 507,
   feat_decay = 0
   sf_weight_decay = 0
   network_optimizer = 'AdamOptimizer'
