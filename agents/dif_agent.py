@@ -190,37 +190,37 @@ class DIFAgent(Visualizer):
             t_counter = 0
           if self.name == "worker_0":
             print("Episode {} >>> Step {} >>> Length: {} >>> Reward: {}".format(episode_count, self.total_steps, t, episode_reward))
-        self.episode_rewards.append(episode_reward)
-        self.episode_lengths.append(t)
+        # self.episode_rewards.append(episode_reward)
+        # self.episode_lengths.append(t)
 
-        if episode_count % self.config.checkpoint_interval == 0 and self.name == 'worker_0' and \
-                self.total_steps != 0:
-          saver.save(sess, self.model_path + '/model-' + str(episode_count) + '.cptk',
-                     global_step=self.global_step)
-          print("Saved Model at {}".format(self.model_path + '/model-' + str(episode_count) + '.cptk'))
-          # if self.mat_counter > self.config.sf_transition_matrix_size:
-          #   np.save(self.matrix_path, self.matrix_sf)
-          #   print("Saved Matrix at {}".format(self.matrix_path))
+          if self.total_steps % self.config.checkpoint_interval == 0 and self.name == 'worker_0' and \
+                  self.total_steps != 0:
+            saver.save(sess, self.model_path + '/model-' + str(self.total_steps) + '.cptk',
+                       global_step=self.global_step)
+            print("Saved Model at {}".format(self.model_path + '/model-' + str(self.total_steps) + '.cptk'))
+            # if self.mat_counter > self.config.sf_transition_matrix_size:
+            #   np.save(self.matrix_path, self.matrix_sf)
+            #   print("Saved Matrix at {}".format(self.matrix_path))
 
-        if episode_count % self.config.summary_interval == 0 and self.total_steps != 0 and \
-                self.name == 'worker_0':
+          if self.total_steps % self.config.summary_interval == 0 and self.total_steps != 0 and \
+                  self.name == 'worker_0':
 
-          last_reward = self.episode_rewards[-1]
-          last_length = self.episode_lengths[-1]
+            # last_reward = self.episode_rewards[-1]
+            # last_length = self.episode_lengths[-1]
+            #
+            # self.summary.value.add(tag='Perf/Reward', simple_value=float(last_reward))
+            # self.summary.value.add(tag='Perf/Length', simple_value=float(last_length))
 
-          self.summary.value.add(tag='Perf/Reward', simple_value=float(last_reward))
-          self.summary.value.add(tag='Perf/Length', simple_value=float(last_length))
+            if ms_sf is not None:
+              self.summary_writer.add_summary(ms_sf, self.total_steps)
+            if ms_aux is not None:
+              self.summary_writer.add_summary(ms_aux, self.total_steps)
 
-          if ms_sf is not None:
-            self.summary_writer.add_summary(ms_sf, self.total_steps)
-          if ms_aux is not None:
-            self.summary_writer.add_summary(ms_aux, self.total_steps)
+            # self.summary_writer.add_summary(img_summ, self.total_steps)
 
-          # self.summary_writer.add_summary(img_summ, self.total_steps)
+            self.summary_writer.add_summary(self.summary, self.total_steps)
+            self.summary_writer.flush()
 
-          self.summary_writer.add_summary(self.summary, self.total_steps)
-          self.summary_writer.flush()
-
-        if self.name == 'worker_0':
-          sess.run(self.increment_global_step)
+          if self.name == 'worker_0':
+            sess.run(self.increment_global_step)
         episode_count += 1

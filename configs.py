@@ -427,7 +427,7 @@ def dif_4rooms_fc():
   final_random_action_prob = 0.1
   initial_random_action_prob = 1.0
   gradient_clip_value = 40
-  summary_interval = 10
-  checkpoint_interval = 10
+  summary_interval = 100000
+  checkpoint_interval = 100000
 
   return locals()
