@@ -429,5 +429,6 @@ def dif_4rooms_fc():
   gradient_clip_value = 40
   summary_interval = 100000
   checkpoint_interval = 100000
+  max_length = 1e6
 
   return locals()

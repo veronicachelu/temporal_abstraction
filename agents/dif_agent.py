@@ -116,7 +116,8 @@ class DIFAgent(Visualizer):
 
   def play(self, sess, coord, saver):
     with sess.as_default(), sess.graph.as_default():
-      episode_count = sess.run(self.global_step)
+      self.total_steps = sess.run(self.global_step)
+      episode_count = 0
       self.total_steps = sess.run(self.total_steps_tensor)
       ms_aux = ms_sf = None
       print("Starting worker " + str(self.thread_id))
