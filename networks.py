@@ -852,10 +852,7 @@ class DIFNetwork_FC():
                                         dtype=tf.float32, name="Inputs")
 
       self.image_summaries = []
-      if self.config.history_size == 3:
-        self.image_summaries.append(tf.summary.image('input', self.observation * 255, max_outputs=30))
-      else:
-        self.image_summaries.append(tf.summary.image('input', self.observation[:, :, :, 0:1] * 255, max_outputs=30))
+      self.image_summaries.append(tf.summary.image('input', self.observation, max_outputs=30))
 
       self.summaries_sf = []
       self.summaries_aux = []
@@ -895,11 +892,8 @@ class DIFNetwork_FC():
                                          activation_fn=None,
                                          variables_collections=tf.get_collection("variables"),
                                          outputs_collections="activations", scope="action_fc{}".format(i))
-        self.summaries_aux.append(tf.contrib.layers.summarize_activation(actions))
-        out = tf.add(self.fi, actions)
-        out = tf.nn.relu(out)
-
       with tf.variable_scope("aux_fc"):
+        out = tf.add(self.fi, actions)
         for i, nb_filt in enumerate(self.config.aux_fc_layers):
           out = layers.fully_connected(out, num_outputs=nb_filt,
                                        activation_fn=None,
@@ -910,21 +904,15 @@ class DIFNetwork_FC():
           self.summaries_aux.append(tf.contrib.layers.summarize_activation(out))
         self.next_obs = tf.reshape(out, (-1, config.input_size[0], config.input_size[1], config.history_size))
 
-      if self.config.history_size == 3:
-        self.image_summaries.append(tf.summary.image('next_obs', self.next_obs * 255, max_outputs=30))
-      else:
-        self.image_summaries.append(tf.summary.image('next_obs', self.next_obs[:, :, :, 0:1] * 255, max_outputs=30))
+        self.image_summaries.append(tf.summary.image('next_obs', self.next_obs, max_outputs=30))
 
       if scope != 'global':
         self.target_sf = tf.placeholder(shape=[None, self.sf_layers[-1]], dtype=tf.float32, name="target_SF")
         self.target_next_obs = tf.placeholder(
           shape=[None, config.input_size[0], config.input_size[1], config.history_size], dtype=tf.float32,
           name="target_next_obs")
-        if self.config.history_size == 3:
-          self.image_summaries.append(tf.summary.image('target_next_obs', self.target_next_obs * 255, max_outputs=30))
-        else:
-          self.image_summaries.append(
-            tf.summary.image('target_next_obs', self.target_next_obs[:, :, :, 0:1] * 255, max_outputs=30))
+        self.image_summaries.append(tf.summary.image('target_next_obs', self.target_next_obs, max_outputs=30))
+
         self.matrix_sf = tf.placeholder(shape=[self.nb_states, self.sf_layers[-1]],
                                         dtype=tf.float32, name="matrix_sf")
         self.s, self.u, self.v = tf.svd(self.matrix_sf)
@@ -939,13 +927,6 @@ class DIFNetwork_FC():
 
         # regularizer_features = tf.reduce_mean(self.config.feat_decay * tf.nn.l2_loss(self.fi))
         local_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope)
-        
-        # regularizer_sf_weights = tf.add_n(
-        #   [self.config.sf_weight_decay * tf.nn.l2_loss(w) for w in local_vars if 'sf' in w.name])
-        # self.loss = self.sf_loss + self.aux_loss + regularizer_features + regularizer_sf_weights
-        # loss_summaries = [tf.summary.scalar('avg_sf_loss', self.sf_loss),
-        #                   tf.summary.scalar('aux_loss', self.aux_loss),
-        #                   tf.summary.scalar('total_loss', self.loss)]
 
         gradients_sf = tf.gradients(self.sf_loss, local_vars)
         gradients_aux = tf.gradients(self.aux_loss, local_vars)

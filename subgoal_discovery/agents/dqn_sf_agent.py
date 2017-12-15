@@ -53,49 +53,15 @@ class DQNSFAgent(DQNSFBaseAgent):
       index_array = np.arange(self.config.observation_steps)
       np.random.shuffle(index_array)
       self.episode_buffer["observations"] = self.episode_buffer["observations"][index_array]
-      # self.episode_buffer["fi"] = self.episode_buffer["fi"][index_array]
       self.episode_buffer["next_observations"] = self.episode_buffer["next_observations"][index_array]
       self.episode_buffer["actions"] = self.episode_buffer["actions"][index_array]
       self.episode_buffer["done"] = self.episode_buffer["done"][index_array]
 
       for i in range(0, self.config.observation_steps, self.config.batch_size):
           yield [self.episode_buffer["observations"][i:i + self.config.batch_size],
-                 # self.episode_buffer["fi"][i:i + self.config.batch_size],
                  self.episode_buffer["next_observations"][i:i + self.config.batch_size],
                  self.episode_buffer["actions"][i:i + self.config.batch_size],
                  self.episode_buffer["done"][i:i + self.config.batch_size]]
-
-  # def show_statistics(self, sess):
-  #   matrix_sf = np.zeros((self.nb_states, self.config.sf_layers[-1]))
-  #   matrix_fi = np.zeros((self.nb_states, self.config.sf_layers[-1]))
-  #   real_states = []
-  #   states = []
-  #   for idx in range(self.nb_states):
-  #     s, ii, jj = self.env.get_state(idx)
-  #     if self.env.not_wall(ii, jj):
-  #       states.append(s)
-  #       real_states.append(True)
-  #     else:
-  #       real_states.append(False)
-  #   feed_dict = {self.orig_net.observation:  np.stack(states, axis=0)}
-  #   fi, sf = sess.run([self.orig_net.fi, self.orig_net.sf], feed_dict=feed_dict)
-  #   i = 0
-  #   for idx in range(self.nb_states):
-  #     if real_states[idx]:
-  #       matrix_fi[idx], matrix_sf[idx] = fi[i], sf[i]
-  #       i += 1
-  #
-  #   sns.plt.clf()
-  #   buf = io.BytesIO()
-  #   ax = sns.heatmap(self.matrix_sf, cmap="Blues")
-  #   ax.set(xlabel='SR_vect_size=128', ylabel='Grid states/positions')
-  #   sns.plt.savefig(buf, format='png')
-  #   buf.seek(0)
-  #   sns.plt.close()
-  #
-  #   image = tf.image.decode_png(buf.getvalue(), channels=4)
-  #
-  #   return matrix_fi, matrix_sf
 
   def train(self, sess):
     minibatch = self.batch_generator.__next__()
@@ -239,7 +205,7 @@ class DQNSFAgent(DQNSFBaseAgent):
 
   def play(self, sess, coord, saver):
     with sess.as_default(), sess.graph.as_default():
-      # sess.run(self.global_step.assign(self.config.observation_steps))
+      sess.run(self.global_step.assign(self.config.observation_steps))
       self.total_steps = sess.run(self.global_step)
       if self.total_steps == 0:
         self.updateTarget(sess)

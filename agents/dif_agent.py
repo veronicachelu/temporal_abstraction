@@ -60,19 +60,19 @@ class DIFAgent(Visualizer):
     self.env = game
     self.nb_states = game.nb_states
 
-    self.matrix_path = os.path.join(self.model_path, "matrix.npy")
-    if os.path.exists(self.matrix_path):
-      self.matrix_sf = np.load(self.matrix_path)
-      self.mat_counter = self.config.sf_transition_matrix_size
-    else:
-      self.matrix_sf = np.zeros((self.config.sf_transition_matrix_size, self.config.sf_layers[-1]))
-      self.mat_counter = 0
+    # self.matrix_path = os.path.join(self.model_path, "matrix.npy")
+    # if os.path.exists(self.matrix_path):
+    #   self.matrix_sf = np.load(self.matrix_path)
+    #   self.mat_counter = self.config.sf_transition_matrix_size
+    # else:
+    #   self.matrix_sf = np.zeros((self.config.sf_transition_matrix_size, self.config.sf_layers[-1]))
+    #   self.mat_counter = 0
 
   def train_sf(self, rollout, sess, bootstrap_sf, summaries=False):
     rollout = np.array(rollout)
     observations = rollout[:, 0]
-    next_observations = rollout[:, 1]
-    actions = rollout[:, 2]
+    # next_observations = rollout[:, 1]
+    # actions = rollout[:, 2]
 
     feed_dict = {self.local_network.observation: np.stack(observations, axis=0)}
     fi = sess.run(self.local_network.fi,
@@ -136,6 +136,13 @@ class DIFAgent(Visualizer):
         s = self.env.reset()
 
         while not d:
+
+          if self.total_steps > self.config.steps:
+            return 0
+
+          if self.total_steps % self.config.target_update_iter == 0:
+            sess.run(self.update_local_vars)
+
           a = np.random.choice(range(self.action_size))
 
           # feed_dict = {self.local_network.observation: np.stack([s])}
@@ -146,7 +153,7 @@ class DIFAgent(Visualizer):
           s1, r, d, _ = self.env.step(a)
           if d:
             s1 = s
-          r = np.clip(r, -1, 1)
+          # r = np.clip(r, -1, 1)
           self.total_steps += 1
           # if self.total_steps < self.config.training_steps:
           episode_buffer.append([s, s1, a])
@@ -191,9 +198,9 @@ class DIFAgent(Visualizer):
           saver.save(sess, self.model_path + '/model-' + str(episode_count) + '.cptk',
                      global_step=self.global_step)
           print("Saved Model at {}".format(self.model_path + '/model-' + str(episode_count) + '.cptk'))
-          if self.mat_counter > self.config.sf_transition_matrix_size:
-            np.save(self.matrix_path, self.matrix_sf)
-            print("Saved Matrix at {}".format(self.matrix_path))
+          # if self.mat_counter > self.config.sf_transition_matrix_size:
+          #   np.save(self.matrix_path, self.matrix_sf)
+          #   print("Saved Matrix at {}".format(self.matrix_path))
 
         if episode_count % self.config.summary_interval == 0 and self.total_steps != 0 and \
                 self.name == 'worker_0':
