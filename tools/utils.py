@@ -19,6 +19,26 @@ def update_target_graph(from_scope, to_scope):
     return op_holder
 
 
+def update_target_graph_aux(from_scope, to_scope):
+    from_vars = [v for v in tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, from_scope) if "sf" not in v.name]
+    to_vars = [v for v in tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, to_scope) if "sf" not in v.name]
+
+    op_holder = []
+    for from_var, to_var in zip(from_vars, to_vars):
+        op_holder.append(to_var.assign(from_var))
+    return op_holder
+
+
+def update_target_graph_sf(from_scope, to_scope):
+    from_vars = [v for v in tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, from_scope) if "sf" in v.name]
+    to_vars = [v for v in tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, to_scope) if "sf" in v.name]
+
+    op_holder = []
+    for from_var, to_var in zip(from_vars, to_vars):
+        op_holder.append(to_var.assign(from_var))
+    return op_holder
+
+
 def discount(x, gamma):
     # axis = len(x.shape) - 1
     return np.flip(lfilter([1], [1, -gamma], np.flip(x, 0), axis=0), axis=0)

@@ -24,52 +24,157 @@ FLAGS = tf.app.flags.FLAGS
 
 class Visualizer():
 
+  # def build_matrix(self, sess, coord, saver):
+  #   matrix_path = os.path.join(os.path.join(self.config.stage_logdir, "models"), "matrix.npy")
+  #   if os.path.exists(matrix_path):
+  #     self.matrix_sf = np.load(matrix_path)
+  #   else:
+  #     with sess.as_default(), sess.graph.as_default():
+  #       self.matrix_sf = np.zeros((self.nb_states, self.config.sf_layers[-1]))
+  #       for idx in range(self.nb_states):
+  #         s, ii, jj = self.env.get_state(idx)
+  #         if self.env.not_wall(ii, jj):
+  #           feed_dict = {self.local_network.observation: [s]}
+  #           sf = sess.run(self.local_network.sf, feed_dict=feed_dict)[0]
+  #           self.matrix_sf[idx] = sf
+  #
+  #           # plt.pcolor(self.matrix_sf, cmap='hot', interpolation='nearest')
+  #           # plt.savefig(os.path.join(self.summary_path, 'SR_matrix.png'))
+  #       # self.reconstruct_sr(self.matrix_sf)
+  #       np.save(matrix_path, self.matrix_sf)
+  #       # self.plot_sr_vectors(self.matrix_sf)
+  #       # self.plot_sr_matrix(self.matrix_sf)
+  #       # self.eigen_decomp(self.matrix_sf)
+  #   import seaborn as sns
+  #   sns.plt.clf()
+  #   ax = sns.heatmap(self.matrix_sf, cmap="Blues")
+  #   folder_path = os.path.join(os.path.join(self.config.stage_logdir, "summaries"), "eigenoptions")
+  #   tf.gfile.MakeDirs(folder_path)
+  #   sns.plt.savefig(os.path.join(folder_path, 'SR_matrix.png'))
+  #   sns.plt.close()
+  #   #
+  #   # ax = sns.heatmap(self.matrix_sf, cmap="Blues")
+  #   # folder_path = os.path.join(os.path.join(self.config.stage_logdir, "summaries"), "eigenoptions")
+  #   # tf.gfile.MakeDirs(folder_path)
+  #   # plt.savefig(os.path.join(folder_path, 'Matrix_SF.png'))
+  #   np.savetxt(os.path.join(folder_path, 'Matrix_SF_numeric.txt'), self.matrix_sf, fmt='%-7.2f')
+  #
+  #   self.plot_eigenoptions("eigenoptions", sess)
   def build_matrix(self, sess, coord, saver):
     matrix_path = os.path.join(os.path.join(self.config.stage_logdir, "models"), "matrix.npy")
-    if os.path.exists(matrix_path):
+    matrix_fi_path = os.path.join(os.path.join(self.config.stage_logdir, "models"), "matrix_fi.npy")
+    if os.path.exists(matrix_path) and os.path.exists(matrix_fi_path):
       self.matrix_sf = np.load(matrix_path)
+      self.matrix_fi = np.load(matrix_fi_path)
     else:
       with sess.as_default(), sess.graph.as_default():
         self.matrix_sf = np.zeros((self.nb_states, self.config.sf_layers[-1]))
+        self.matrix_fi = np.zeros((self.nb_states, self.config.sf_layers[-1]))
         for idx in range(self.nb_states):
           s, ii, jj = self.env.get_state(idx)
           if self.env.not_wall(ii, jj):
             feed_dict = {self.local_network.observation: [s]}
-            sf = sess.run(self.local_network.sf, feed_dict=feed_dict)[0]
-            self.matrix_sf[idx] = sf
+            fi, sf = sess.run([self.local_network.fi, self.local_network.sf], feed_dict=feed_dict)
+            self.matrix_fi[idx], self.matrix_sf[idx] = fi[0], sf[0]
 
             # plt.pcolor(self.matrix_sf, cmap='hot', interpolation='nearest')
             # plt.savefig(os.path.join(self.summary_path, 'SR_matrix.png'))
         # self.reconstruct_sr(self.matrix_sf)
         np.save(matrix_path, self.matrix_sf)
+        np.save(matrix_fi_path, self.matrix_fi)
+
         # self.plot_sr_vectors(self.matrix_sf)
         # self.plot_sr_matrix(self.matrix_sf)
         # self.eigen_decomp(self.matrix_sf)
     import seaborn as sns
     sns.plt.clf()
     ax = sns.heatmap(self.matrix_sf, cmap="Blues")
+    ax.set(xlabel='SR_vect_size=128', ylabel='Grid states/positions')
     folder_path = os.path.join(os.path.join(self.config.stage_logdir, "summaries"), "eigenoptions")
     tf.gfile.MakeDirs(folder_path)
     sns.plt.savefig(os.path.join(folder_path, 'SR_matrix.png'))
     sns.plt.close()
-    #
-    # ax = sns.heatmap(self.matrix_sf, cmap="Blues")
-    # folder_path = os.path.join(os.path.join(self.config.stage_logdir, "summaries"), "eigenoptions")
-    # tf.gfile.MakeDirs(folder_path)
-    # plt.savefig(os.path.join(folder_path, 'Matrix_SF.png'))
     np.savetxt(os.path.join(folder_path, 'Matrix_SF_numeric.txt'), self.matrix_sf, fmt='%-7.2f')
 
-    self.plot_eigenoptions("eigenoptions", sess)
+    sns.plt.clf()
+    ax = sns.heatmap(self.matrix_fi, cmap="Blues")
+    ax.set(xlabel='FI_vect_size=128', ylabel='Grid states/positions')
+    folder_path = os.path.join(os.path.join(self.config.stage_logdir, "summaries"), "eigenoptions")
+    tf.gfile.MakeDirs(folder_path)
+    sns.plt.savefig(os.path.join(folder_path, 'FI_matrix.png'))
+    sns.plt.close()
+    np.savetxt(os.path.join(folder_path, 'Matrix_FI_numeric.txt'), self.matrix_fi, fmt='%-7.2f')
 
-  def plot_eigenoptions(self, folder, sess):
+    self.plot_eigenoptions("eigenoptions", sess)
+    folder_path = os.path.join(os.path.join(self.config.stage_logdir, "summaries"), "policies")
+    tf.gfile.MakeDirs(folder_path)
+    self.plot_policy_and_value_function_approx(folder_path, sess)
+
+  def plot_policy_and_value_function_approx(self, folder, sess):
     # feed_dict = {self.orig_net.matrix_sf: self.matrix_sf}
     # s, v = sess.run([self.orig_net.s, self.orig_net.v], feed_dict=feed_dict)
     u, s, v = np.linalg.svd(self.matrix_sf)
     eigenvalues = s
     eigenvectors = v
 
+    epsilon = 0.0001
+    options = []
+    with sess.as_default(), sess.graph.as_default():
+      self.env.define_network(self.local_network)
+      self.env.define_session(sess)
+      for k in ["poz", "neg"]:
+        for i in range(len(eigenvalues)):
+          polIter = PolicyIteration(0.9, self.env, augmentActionSet=True)
+          self.env.define_reward_function(eigenvectors[i] if k == "poz" else -eigenvectors[i])
+          V, pi = polIter.solvePolicyIteration()
+
+          for j in range(len(V)):
+            if V[j] < epsilon:
+              pi[j] = len(self.env.get_action_set())
+
+          self.plot_value_function(V[0:self.nb_states], str(i) + '_' + k + "_", folder)
+          self.plot_policy(pi[0:self.nb_states], str(i) + '_' + k + "_", folder)
+
+          options.append(pi[0:self.nb_states])
+          # optionsActionSet = self.env.get_action_set()
+          # np.append(optionsActionSet, ['terminate'])
+          # actionSetPerOption.append(optionsActionSet)
+
+  def plot_eigenoptions(self, folder, sess):
+    # feed_dict = {self.orig_net.matrix_sf: self.matrix_sf}
+    # s, v = sess.run([self.orig_net.s, self.orig_net.v], feed_dict=feed_dict)
+    u, s, v = np.linalg.svd(self.matrix_sf, full_matrices=False)
+    eigenvalues = s
+    eigenvectors = v
+    # U, s, V = np.linalg.svd(matrix)
+    S = np.diag(s[1:])
+    sr_r_m = np.dot(u[:, 1:], np.dot(S, v[1:]))
+    import seaborn as sns
+    sns.plt.clf()
+    ax = sns.heatmap(sr_r_m, cmap="Blues")
+    ax.set(xlabel='SR_vect_size=128', ylabel='Grid states/positions')
+    folder_path = os.path.join(os.path.join(self.config.stage_logdir, "summaries"), "eigenoptions")
+    tf.gfile.MakeDirs(folder_path)
+    sns.plt.savefig(os.path.join(folder_path, 'reconstructed_sr.png'))
+    sns.plt.close()
+
+    folder_path = os.path.join(os.path.join(self.config.stage_logdir, "summaries"), folder)
+    tf.gfile.MakeDirs(folder_path)
+
+    # variance_eigenvectors = []
+    # for i in range(self.nb_states):
+    #   variance_eigenvectors.append([])
+    # for i in range(self.nb_states):
+    #   variance_eigenvectors[i].append(np.var(eigenvectors[:, i]))
+    #   sns.plt.clf()
+    #   sns.plt.plot(variance_eigenvectors[i])
+    #   sns.plt.savefig(os.path.join(folder_path, 'var_eig_' + str(i) + '.png'))
+    #   sns.plt.close()
+
+
     sns.plt.clf()
     ax = sns.heatmap(eigenvectors, cmap="Blues")
+    ax.set(xlabel='Eigenvector_dim=128', ylabel='Eigenvectors')
 
     folder_path = os.path.join(os.path.join(self.config.stage_logdir, "summaries"), folder)
     tf.gfile.MakeDirs(folder_path)
@@ -85,6 +190,32 @@ class Visualizer():
     eigenvalues_path = os.path.join(os.path.join(self.config.stage_logdir, "models"), "eigenvalues.npy")
     np.save(eigenvectors_path, eigenvectors)
     np.save(eigenvalues_path, eigenvalues)
+
+
+  # def plot_eigenoptions(self, folder, sess):
+  #   # feed_dict = {self.orig_net.matrix_sf: self.matrix_sf}
+  #   # s, v = sess.run([self.orig_net.s, self.orig_net.v], feed_dict=feed_dict)
+  #   u, s, v = np.linalg.svd(self.matrix_sf)
+  #   eigenvalues = s
+  #   eigenvectors = v
+  #
+  #   sns.plt.clf()
+  #   ax = sns.heatmap(eigenvectors, cmap="Blues")
+  #
+  #   folder_path = os.path.join(os.path.join(self.config.stage_logdir, "summaries"), folder)
+  #   tf.gfile.MakeDirs(folder_path)
+  #   sns.plt.savefig(os.path.join(folder_path, 'Eigenvectors.png'))
+  #   sns.plt.close()
+  #
+  #   sns.plt.clf()
+  #   sns.plt.plot(eigenvalues, 'o')
+  #   sns.plt.savefig(os.path.join(folder_path, 'Eignevalues.png'))
+  #   sns.plt.close()
+  #
+  #   eigenvectors_path = os.path.join(os.path.join(self.config.stage_logdir, "models"), "eigenvectors.npy")
+  #   eigenvalues_path = os.path.join(os.path.join(self.config.stage_logdir, "models"), "eigenvalues.npy")
+  #   np.save(eigenvectors_path, eigenvectors)
+  #   # np.save(eigenvalues_path, eigenvalues)
 
   # def build_matrix(self, sess, coord, saver):
   #   with sess.as_default(), sess.graph.as_default():
@@ -303,7 +434,9 @@ class Visualizer():
         # actionSetPerOption.append(optionsActionSet)
 
 
-  def plot_value_function(self, value_function, prefix):
+  def plot_value_function(self, value_function, prefix, folder=None):
+    if folder is None:
+      folder = self.summary_path
     '''3d plot of a value function.'''
     fig, ax = plt.subplots(subplot_kw=dict(projection='3d'))
     X, Y = np.meshgrid(np.arange(self.config.input_size[1]), np.arange(self.config.input_size[0]))
@@ -320,7 +453,7 @@ class Visualizer():
     ax.plot_surface(X, Y, Z, rstride=1, cstride=1,
                     cmap=plt.get_cmap('jet'))
     plt.gca().view_init(elev=30, azim=30)
-    plt.savefig(os.path.join(self.summary_path, "SuccessorFeatures" + prefix + 'value_function.png'))
+    plt.savefig(os.path.join(folder, "SuccessorFeatures" + prefix + 'value_function.png'))
     plt.close()
 
   def plot_options(self, sess, coord, saver):
@@ -407,9 +540,6 @@ class Visualizer():
           plt.savefig(os.path.join(self.summary_path, "SuccessorFeatures_" + prefix + 'policy.png'))
           plt.close()
 
-
-
-
   def cosine_similarity(self, next_sf, evect):
       state_dif_norm = np.linalg.norm(next_sf)
       state_dif_normalized = next_sf / (state_dif_norm + 1e-8)
@@ -418,7 +548,9 @@ class Visualizer():
 
       return np.dot(state_dif_normalized, evect_normalized)
 
-  def plot_policy(self, policy, prefix):
+  def plot_policy(self, policy, prefix, folder=None):
+    if folder is None:
+      folder = self.summary_path
     plt.clf()
     for idx in range(len(policy)):
       i, j = self.env.get_state_xy(idx)
@@ -462,5 +594,5 @@ class Visualizer():
       plt.axhline(j, color='k', linestyle=':')
     plt.axhline(self.config.input_size[0], color='k', linestyle=':')
 
-    plt.savefig(os.path.join(self.summary_path, "SuccessorFeatures_" + prefix + 'policy.png'))
+    plt.savefig(os.path.join(folder, "SuccessorFeatures_" + prefix + 'policy.png'))
     plt.close()

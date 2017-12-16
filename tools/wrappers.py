@@ -663,7 +663,7 @@ class FrameResize(object):
       img = Image.fromarray(np.asarray(observ, np.uint8))
       img = img.resize((self.resized_width, self.resized_height))
       pix = np.array(img).astype(float)
-      pix = pix.astype(float) / 255
+      pix = pix.astype(float)# / 255
 
       # pil_image = Image.fromarray(np.uint8(pix * 255))
       # pil_image.show()
@@ -672,15 +672,15 @@ class FrameResize(object):
 
     def step(self, action):
       observ, reward, done, info = self._env.step(action)
-      preprocessed_observ = self.get_preprocessed_frame(observ)
+      # preprocessed_observ = self.get_preprocessed_frame(observ)
       self._step += 1
-      return preprocessed_observ, reward, done, info
+      return observ, reward, done, info
 
     def reset(self):
       observ = self._env.reset()
-      preprocessed_observ = self.get_preprocessed_frame(observ)
+      # preprocessed_observ = self.get_preprocessed_frame(observ)
       self._step = 0
-      return preprocessed_observ
+      return observ
 
 # if __name__ == '__main__':
 #   env = gym.make("Breakout-v0")

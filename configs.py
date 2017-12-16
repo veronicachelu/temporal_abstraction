@@ -412,23 +412,24 @@ def dif_4rooms_fc():
   discount = 0.985
   sf_coef = 1
   aux_coef = 1
-  target_update_iter = 1600
+  target_update_iter_aux = 1
+  target_update_iter_sf = 30
 
   env = functools.partial(
     GridWorld, "./mdps/4rooms.mdp")
   max_update_freq = 30
   min_update_freq = 5
   batch_size = 16
-  memory_size = 20000
-  observation_steps = 20000
-  aux_update_freq = 30
+  memory_size = 500000
+  observation_steps = 1000
+  aux_update_freq = 1
   steps = 1e6   # 1M
   training_steps = 5e5
   final_random_action_prob = 0.1
   initial_random_action_prob = 1.0
   gradient_clip_value = 40
-  summary_interval = 100000
-  checkpoint_interval = 100000
+  summary_interval = 10
+  checkpoint_interval = 10
   max_length = 1e6
 
   return locals()
