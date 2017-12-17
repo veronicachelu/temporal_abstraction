@@ -28,6 +28,7 @@ from agents import ACOptionAgent
 from agents import ACMatrixAgent
 from agents import LinearSFAgent
 from agents import DIFAgent
+from agents import EigenOCAgent
 from agents import SFAgent
 from env_wrappers import GridWorld
 from env_wrappers import Gridworld_NonMatching
@@ -430,6 +431,60 @@ def dif_4rooms_fc():
   gradient_clip_value = 40
   summary_interval = 10
   checkpoint_interval = 10
+  max_length = 1e6
+
+  return locals()
+
+def eigenoc():
+  locals().update(default())
+  agent = EigenOCAgent
+  num_agents = 8
+  use_gpu = False
+  nb_options = 2
+  # Network
+  network = networks.EignOCNetwork
+  weight_summaries = dict(
+      all=r'.*')
+
+  input_size = (13, 13)
+  history_size = 3
+  history_size = 3
+  fc_layers = 128,
+  sf_layers = 128,
+  aux_fc_layers = 507,
+  network_optimizer = 'AdamOptimizer'
+  lr = 1e-3
+  discount = 0.985
+  sf_coef = 1
+  aux_coef = 1
+  entropy_coef = 1e-4 #0.01
+  critic_coef = 0.5
+  eigen_critic_coef = 0.5
+  target_update_iter_aux = 1
+  target_update_iter_sf = 30
+
+  env = functools.partial(
+    GridWorld, "./mdps/4rooms.mdp")
+  max_update_freq = 30
+  min_update_freq = 5
+  batch_size = 16
+  memory_size = 50000
+  sf_matrix_size = 50000
+  observation_steps = 1000
+  aux_update_freq = 1
+  alpha_r = 0.5
+  steps = 1e6  # 1M
+  episodes = 1e6  # 1M
+  eigen_exploration_steps = 5000
+  explore_steps = 1
+  final_random_action_prob = 0.1
+  initial_random_action_prob = 1.0
+  gradient_clip_value = 40
+  steps_summary_interval = 1
+  episode_summary_interval = 1
+  steps_checkpoint_interval = 1
+  episode_checkpoint_interval = 1
+  eval_interval = 100
   max_length = 1e6
 
   return locals()
