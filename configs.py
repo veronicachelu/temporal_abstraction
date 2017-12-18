@@ -437,17 +437,16 @@ def dif_4rooms_fc():
 
 def eigenoc():
   locals().update(default())
-  agent = EigenOCAgent
+  dif_agent = EigenOCAgent
   num_agents = 8
   use_gpu = False
-  nb_options = 2
+  nb_options = 8
   # Network
   network = networks.EignOCNetwork
   weight_summaries = dict(
       all=r'.*')
 
   input_size = (13, 13)
-  history_size = 3
   history_size = 3
   fc_layers = 128,
   sf_layers = 128,
@@ -468,7 +467,7 @@ def eigenoc():
   max_update_freq = 30
   min_update_freq = 5
   batch_size = 16
-  memory_size = 50000
+  memory_size = 100000
   sf_matrix_size = 50000
   observation_steps = 1000
   aux_update_freq = 1
@@ -480,10 +479,10 @@ def eigenoc():
   final_random_action_prob = 0.1
   initial_random_action_prob = 1.0
   gradient_clip_value = 40
-  steps_summary_interval = 1
-  episode_summary_interval = 1
-  steps_checkpoint_interval = 1
-  episode_checkpoint_interval = 1
+  steps_summary_interval = 1000
+  episode_summary_interval = 1000
+  steps_checkpoint_interval = 1000
+  episode_checkpoint_interval = 1000
   eval_interval = 100
   max_length = 1e6
 

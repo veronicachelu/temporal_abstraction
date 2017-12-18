@@ -103,7 +103,7 @@ if __name__ == '__main__':
     'timestamp', datetime.datetime.now().strftime('%Y%m%dT%H%M%S'),
     'Sub directory to store logs.')
   tf.app.flags.DEFINE_string(
-    'config', "dif_4rooms_fc",
+    'config', "eigenoc",
     'Configuration to execute.')
   tf.app.flags.DEFINE_boolean(
     'env_processes', True,
@@ -112,7 +112,8 @@ if __name__ == '__main__':
     'train', True,
     'Training.')
   tf.app.flags.DEFINE_boolean(
-    'resume', False,
+    # 'resume', False,
+    'resume', True,
     'Resume.')
   tf.app.flags.DEFINE_boolean(
     'show_training', False,
@@ -121,7 +122,7 @@ if __name__ == '__main__':
     'task', "sf",
     'Task nature')
   tf.app.flags.DEFINE_string(
-    'load_from', None,
-    # 'load_from', "./logdir/27-dif_4rooms_fc",
+    # 'load_from', None,
+    'load_from', "./logdir/0-eigenoc",
     'Load directory to load models from.')
   tf.app.run()

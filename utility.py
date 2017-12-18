@@ -208,8 +208,8 @@ def gradient_summaries(grad_vars, groups=None, scope='gradients'):
   # for grads in grouped.items():
   #   grads = [tf.reshape(grad, [-1]) for grad in grads]
   #   grads = tf.concat(grads, 0)
-    summaries.append(tf.summary.histogram(scope + '/' + var.name + '_grad', grad))
-    summaries.append(tf.summary.histogram(scope + '/' + var.name, var))
+    summaries.append(tf.summary.histogram(scope + '/' + var.name.replace(':', '_') + '_grad', grad))
+    summaries.append(tf.summary.histogram(scope + '/' + var.name.replace(':', '_'), var))
   return tf.summary.merge(summaries)
 
 

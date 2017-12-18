@@ -740,9 +740,7 @@ class DIFNetwork():
                                          activation_fn=None,
                                          variables_collections=tf.get_collection("variables"),
                                          outputs_collections="activations", scope="action_fc{}".format(i))
-        # out = layer_norm_fn(out, relu=False)
       out = tf.add(out, actions)
-      # out = layer_norm_fn(out, relu=True)
       out = tf.nn.relu(out)
 
       with tf.variable_scope("aux_fc"):
@@ -751,9 +749,7 @@ class DIFNetwork():
                                        activation_fn=None,
                                        variables_collections=tf.get_collection("variables"),
                                        outputs_collections="activations", scope="aux_fc_{}".format(i))
-          # out = layer_norm_fn(out, relu=False)
           if i < len(self._aux_fc_layers) - 1:
-            # out = layer_norm_fn(out, relu=True)
             out = tf.nn.relu(out)
           self.summaries.append(tf.contrib.layers.summarize_activation(out))
 
@@ -770,20 +766,6 @@ class DIFNetwork():
             decoder_out = tf.nn.relu(decoder_out)
           self.summaries.append(tf.contrib.layers.summarize_activation(decoder_out))
 
-      # with tf.variable_scope("aux_deconv"):
-      #   decoder_out = tf.expand_dims(tf.expand_dims(out, 1), 1)
-      #   for i, (kernel_size, stride, padding, nb_kernels) in enumerate(self._aux_deconv_layers):
-      #     decoder_out = layers.conv2d(decoder_out, num_outputs=nb_kernels, kernel_size=kernel_size,
-      #                                           stride=stride, activation_fn=None,
-      #                                           padding="same" if padding > 0 else "valid",
-      #                                           variables_collections=tf.get_collection("variables"),
-      #                                           outputs_collections="activations", scope="aux_deconv_{}".format(i))
-      #     if i < len(self._aux_deconv_layers) - 1:
-      #       # decoder_out = layer_norm_fn(decoder_out, relu=False)
-      #       decoder_out = tf.nn.relu(decoder_out)
-      #     self.summaries.append(tf.contrib.layers.summarize_activation(decoder_out))
-      #
-      # decoder_out = tf.depth_to_space(decoder_out, 13, "depth_to_space")
       self.next_obs = decoder_out
 
       if self._config.history_size == 3:
@@ -940,13 +922,13 @@ class DIFNetwork_FC():
 
         self.merged_summary_sf = tf.summary.merge(
           self.summaries_sf + [tf.summary.scalar('avg_sf_loss', self.sf_loss)] + [
-            tf.summary.scalar('gradient_norm', tf.global_norm(gradients_sf)),
-            tf.summary.scalar('cliped_gradient_norm', tf.global_norm(grads_sf)),
+            tf.summary.scalar('gradient_norm_sf', tf.global_norm(gradients_sf)),
+            tf.summary.scalar('cliped_gradient_norm_sf', tf.global_norm(grads_sf)),
             gradient_summaries(zip(grads_sf, local_vars))])
         self.merged_summary_aux = tf.summary.merge(self.image_summaries + self.summaries_aux +
                                                    [tf.summary.scalar('aux_loss', self.aux_loss)] + [
-                                                     tf.summary.scalar('gradient_norm', tf.global_norm(gradients_aux)),
-                                                     tf.summary.scalar('cliped_gradient_norm',
+                                                     tf.summary.scalar('gradient_norm_sf', tf.global_norm(gradients_aux)),
+                                                     tf.summary.scalar('cliped_gradient_norm_sf',
                                                                        tf.global_norm(grads_aux)),
                                                      gradient_summaries(zip(grads_aux, local_vars))])
         global_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, 'global')
@@ -967,8 +949,6 @@ class EignOCNetwork():
     self.config = config
     self.network_optimizer = config.network_optimizer(
       self.config.lr, name='network_optimizer')
-    # self.exploration_options = TFLinearSchedule(self.config.explore_steps, self.config.final_random_action_prob,
-    #                                             self.config.initial_random_action_prob)
 
     with tf.variable_scope(scope):
       self.observation = tf.placeholder(shape=[None, config.input_size[0], config.input_size[1], config.history_size],
@@ -993,7 +973,6 @@ class EignOCNetwork():
                                        outputs_collections="activations", scope="fc_{}".format(i))
 
           if i < len(self.fc_layers) - 1:
-            # out = layer_norm_fn(out, relu=True)
             out = tf.nn.relu(out)
           self.summaries_sf.append(tf.contrib.layers.summarize_activation(out))
           self.summaries_aux.append(tf.contrib.layers.summarize_activation(out))
@@ -1094,7 +1073,7 @@ class EignOCNetwork():
         self.target_eigen_return = tf.placeholder(shape=[None], dtype=tf.float32)
         self.target_return = tf.placeholder(shape=[None], dtype=tf.float32)
         self.policies = self.get_intra_option_policies(self.options_placeholder)
-        self.responsible_actions = self.responsible_actions(self.policies, self.actions_placeholder)
+        self.responsible_actions = self.get_responsible_actions(self.policies, self.actions_placeholder)
         eigen_q_val = self.get_eigen_q(self.options_placeholder)
         q_val = self.get_q(self.options_placeholder)
         o_term = self.get_o_term(self.options_placeholder)
@@ -1103,7 +1082,7 @@ class EignOCNetwork():
 
         self.matrix_sf = tf.placeholder(shape=[self.config.sf_matrix_size, self.sf_layers[-1]],
                                         dtype=tf.float32, name="matrix_sf")
-        self.s, self.u, self.v = tf.svd(self.matrix_sf)
+        self.eigenvalues, _, self.eigenvectors = tf.svd(self.matrix_sf)
 
         with tf.name_scope('sf_loss'):
           sf_td_error = self.target_sf - self.sf
@@ -1130,9 +1109,9 @@ class EignOCNetwork():
                                                                                        tf.log(self.policies + 1e-7),
                                                                                        axis=1))
         with tf.name_scope('policy_loss'):
-          self.policy_loss = -tf.reduce_mean(tf.log(self.responsible_actions + 1e-7) * tf.stop_gradient(eigen_td_error))
+          self.policy_loss = -tf.reduce_mean(tf.log(self.responsible_actions + 1e-7) * tf.stop_gradient(td_error))
 
-        self.option_loss = self.policy_loss - self.entropy_loss + self.critic_loss + self.term_loss + self.eigen_critic_loss
+        self.option_loss = self.policy_loss - self.entropy_loss + self.critic_loss + self.term_loss# + self.eigen_critic_loss
 
         local_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope)
 
@@ -1158,7 +1137,7 @@ class EignOCNetwork():
                                                      gradient_summaries(zip(grads_aux, local_vars))])
         self.merged_summary_option = tf.summary.merge(
           self.summaries_option + [tf.summary.scalar('avg_critic_loss', self.critic_loss),
-                                   tf.summary.scalar('avg_eigen_critic_loss', self.eigen_critic_loss),
+                                   #tf.summary.scalar('avg_eigen_critic_loss', self.eigen_critic_loss),
                                    tf.summary.scalar('avg_termination_loss', self.term_loss),
                                    tf.summary.scalar('avg_entropy_loss', self.entropy_loss),
                                    tf.summary.scalar('avg_policy_loss', self.policy_loss),
@@ -1178,7 +1157,7 @@ class EignOCNetwork():
     return pi_o
 
   def get_responsible_actions(self, policies, actions):
-    actions_onehot = tf.one_hot(actions, self.action_size, dtype=tf.float32,
+    actions_onehot = tf.one_hot(tf.cast(actions, tf.int32), self.action_size, dtype=tf.float32,
                                 name="actions_one_hot")
     responsible_actions = tf.reduce_sum(policies * actions_onehot, [1])
     return responsible_actions

@@ -21,9 +21,9 @@ def update_target_graph(from_scope, to_scope):
 
 def update_target_graph_aux(from_scope, to_scope):
   from_vars = [v for v in tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, from_scope) if
-               "aux" not in v.name and "option" not in v.name]
+               "sf" not in v.name and "option" not in v.name]
   to_vars = [v for v in tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, to_scope) if
-             "aux" not in v.name and "option" not in v.name]
+             "sf" not in v.name and "option" not in v.name]
 
   op_holder = []
   for from_var, to_var in zip(from_vars, to_vars):
