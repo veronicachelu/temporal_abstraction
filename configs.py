@@ -456,9 +456,9 @@ def eigenoc():
   discount = 0.985
   sf_coef = 1
   aux_coef = 1
-  entropy_coef = 1e-4 #0.01
-  critic_coef = 0.5
-  eigen_critic_coef = 0.5
+  entropy_coef = 0.01
+  critic_coef = 1
+  eigen_critic_coef = 1
   target_update_iter_aux = 1
   target_update_iter_sf = 30
 
@@ -487,3 +487,4 @@ def eigenoc():
   max_length = 1e6
 
   return locals()
+

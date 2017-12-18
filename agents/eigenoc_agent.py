@@ -84,7 +84,7 @@ class EigenOCAgent(Visualizer):
       self.total_steps = sess.run(self.total_steps_tensor)
 
       ms_aux = ms_sf = ms_option = None
-      print("Starting worker " + str(self.thread_id))
+      tf.logging.info("Starting worker " + str(self.thread_id))
       self.aux_episode_buffer = deque()
 
       while not coord.should_stop():
@@ -121,16 +121,20 @@ class EigenOCAgent(Visualizer):
           r = np.clip(r, -1, 1)
           if d:
             s1 = s
-
           self.store_general_info(s, s1, self.action, r)
-
+          tf.logging.warning(
+            "Option {} >> Action {} >> Q {} >>> V {} >> Term {} >> Reward: {} >> Done {}".format(self.option,
+                                                                                                 self.action,
+                                                                                                 self.q_value,
+                                                                                                 self.value,
+                                                                                                 self.o_term, r, d))
           if self.total_steps > self.config.observation_steps:
             t_counter_sf += 1
             if len(self.aux_episode_buffer) > self.config.observation_steps and \
                         self.total_steps % self.config.aux_update_freq == 0:
               ms_aux, aux_loss = self.train_aux()
               if self.name == "worker_0":
-                print("Episode {} >> Step {} >>> AUX_loss {} ".format(self.episode_count, self.total_steps, aux_loss))
+                tf.logging.info("Episode {} >> Step {} >>> AUX_loss {} ".format(self.episode_count, self.total_steps, aux_loss))
             if t_counter_sf == self.config.max_update_freq or d:
               feed_dict = {self.local_network.observation: np.stack([s1])}
               sf = sess.run(self.local_network.sf,
@@ -138,7 +142,7 @@ class EigenOCAgent(Visualizer):
               bootstrap_sf = np.zeros_like(sf) if d else sf
               ms_sf, sf_loss = self.train_sf(bootstrap_sf)
               if self.name == "worker_0":
-                print("Episode {} >> Step {} >>> SF_loss {}".format(self.episode_count, self.total_steps, sf_loss))
+                tf.logging.info("Episode {} >> Step {} >>> SF_loss {}".format(self.episode_count, self.total_steps, sf_loss))
               self.episode_buffer_sf = []
               t_counter_sf = 0
 
@@ -180,7 +184,6 @@ class EigenOCAgent(Visualizer):
 
             if self.total_steps % self.config.steps_summary_interval == 0 and self.name == 'worker_0':
               self.write_step_summary(ms_sf, ms_aux, ms_option)
-
 
           s = s1
           t += 1
@@ -241,6 +244,7 @@ class EigenOCAgent(Visualizer):
       self.action = np.argmax(pi == self.action)
     else:
       self.action = np.random.choice(range(self.action_size))
+
 
   def store_general_info(self, s, s1, a, r):
     self.episode_buffer_sf.append([s, s1, a])
