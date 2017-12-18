@@ -1006,7 +1006,7 @@ class EignOCNetwork():
         condition = local_random > probability_of_random_option
 
         self.current_option = tf.where(condition, max_options, exp_options)
-        self.summaries_option.append(tf.contrib.layers.summarize_activation(self.current_option))
+        # self.summaries_option.append(tf.contrib.layers.summarize_activation(self.current_option))
         self.v = tf.reduce_max(self.q_val, axis=1) * (1 - probability_of_random_option) + \
                  probability_of_random_option * tf.reduce_mean(self.q_val, axis=1)
         self.summaries_option.append(tf.contrib.layers.summarize_activation(self.v))
