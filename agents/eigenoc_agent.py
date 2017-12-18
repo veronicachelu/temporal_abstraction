@@ -122,12 +122,13 @@ class EigenOCAgent(Visualizer):
           if d:
             s1 = s
           self.store_general_info(s, s1, self.action, r)
-          tf.logging.warning(
-            "Option {} >> Action {} >> Q {} >>> V {} >> Term {} >> Reward: {} >> Done {}".format(self.option,
-                                                                                                 self.action,
-                                                                                                 self.q_value,
-                                                                                                 self.value,
-                                                                                                 self.o_term, r, d))
+          if self.total_steps > self.config.eigen_exploration_steps:
+            tf.logging.warning(
+              "Option {} >> Action {} >> Q {} >>> V {} >> Term {} >> Reward: {} >> Done {}".format(self.option,
+                                                                                                   self.action,
+                                                                                                   self.q_value,
+                                                                                                   self.value,
+                                                                                                   self.o_term, r, d))
           if self.total_steps > self.config.observation_steps:
             t_counter_sf += 1
             if len(self.aux_episode_buffer) > self.config.observation_steps and \
