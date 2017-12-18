@@ -480,9 +480,9 @@ def eigenoc():
   initial_random_action_prob = 1.0
   gradient_clip_value = 40
   steps_summary_interval = 1000
-  episode_summary_interval = 1000
+  episode_summary_interval = 1
   steps_checkpoint_interval = 1000
-  episode_checkpoint_interval = 1000
+  episode_checkpoint_interval = 1
   eval_interval = 100
   max_length = 1e6
 
