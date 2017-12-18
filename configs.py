@@ -440,7 +440,7 @@ def eigenoc():
   dif_agent = EigenOCAgent
   num_agents = 8
   use_gpu = False
-  nb_options = 8
+  nb_options = 4
   # Network
   network = networks.EignOCNetwork
   weight_summaries = dict(

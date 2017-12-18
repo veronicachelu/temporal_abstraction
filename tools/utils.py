@@ -55,6 +55,9 @@ def discount(x, gamma):
   # axis = len(x.shape) - 1
   return np.flip(lfilter([1], [1, -gamma], np.flip(x, 0), axis=0), axis=0)
 
+def reward_discount(x, gamma):
+  return lfilter([1], [1, -gamma], x[::-1], axis=0)[::-1]
+
 
 def normalized_columns_initializer(std=1.0):
   def _initializer(shape, dtype=None, partition_info=None):

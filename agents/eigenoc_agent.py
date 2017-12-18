@@ -1,7 +1,7 @@
 import numpy as np
 import tensorflow as tf
 from tools.utils import update_target_graph_aux, update_target_graph_sf, \
-  update_target_graph_option, discount
+  update_target_graph_option, discount, reward_discount
 import os
 from tools.ring_buffer import RingBuffer
 import matplotlib.patches as patches
@@ -409,7 +409,7 @@ class EigenOCAgent(Visualizer):
     eigen_rewards = rollout[:, 4]
 
     rewards_plus = np.asarray(rewards.tolist() + [bootstrap_value])
-    discounted_returns = discount(rewards_plus, self.config.discount)[:-1]
+    discounted_returns = reward_discount(rewards_plus, self.config.discount)[:-1]
 
     # eigen_rewards_plus = np.asarray(eigen_rewards.tolist() + [bootstrap_value])
     # discounted_eigen_returns = discount(eigen_rewards_plus, self.config.discount)[:-1]
