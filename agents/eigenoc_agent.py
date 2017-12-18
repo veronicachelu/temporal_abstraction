@@ -55,7 +55,9 @@ class EigenOCAgent(Visualizer):
     self.episode_mean_returns = []
     self.episode_mean_oterms = []
     self.episode_mean_options = []
+    self.episode_mean_actions = []
     self.episode_options = []
+    self.episode_actions = []
     self.config = config
     self.total_steps_tensor = tf.Variable(0, dtype=tf.int32, name='total_steps_tensor', trainable=False)
     self.increment_total_steps_tensor = self.total_steps_tensor.assign_add(1)
@@ -100,6 +102,7 @@ class EigenOCAgent(Visualizer):
         self.episode_q_values = []
         self.episode_oterm = []
         self.episode_options = []
+        self.episode_actions = []
         self.episode_reward = 0
         self.episode_option_histogram = np.zeros(self.config.nb_options)
         d = False
@@ -206,7 +209,8 @@ class EigenOCAgent(Visualizer):
           self.episode_mean_oterms.append(np.mean(self.episode_oterm))
         if len(self.episode_options) != 0:
           self.episode_mean_options.append(get_mode(self.episode_options))
-
+        if len(self.episode_actions) != 0:
+          self.episode_mean_actions.append(get_mode(self.episode_actions))
         # if episode_count % self.config.eval_interval == 0 and self.total_steps != 0 and \
         #         self.name == 'worker_0':
         #   eval_reward = self.evaluate_agent(sess)
@@ -245,7 +249,7 @@ class EigenOCAgent(Visualizer):
       self.action = np.argmax(pi == self.action)
     else:
       self.action = np.random.choice(range(self.action_size))
-
+    self.episode_actions.append(self.action)
 
   def store_general_info(self, s, s1, a, r):
     self.episode_buffer_sf.append([s, s1, a])
@@ -307,6 +311,9 @@ class EigenOCAgent(Visualizer):
     if len(self.episode_mean_options) != 0:
       last_frequent_option = self.episode_mean_options[-1]
       self.summary.value.add(tag='Perf/FreqOptions', simple_value=last_frequent_option)
+    if len(self.episode_mean_options) != 0:
+      last_frequent_action = self.episode_mean_actions[-1]
+      self.summary.value.add(tag='Perf/FreqActions', simple_value=last_frequent_action)
 
     if len(self.episode_options) != 0:
       counts, bin_edges = np.histogram(self.episode_options,
