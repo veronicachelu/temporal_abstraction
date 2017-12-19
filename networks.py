@@ -996,9 +996,9 @@ class EignOCNetwork():
         self.summaries_option.append(tf.contrib.layers.summarize_activation(self.q_val))
 
         max_options = tf.cast(tf.argmax(self.q_val, 1), dtype=tf.int32)
-        exp_options = tf.random_uniform(shape=[1], minval=0, maxval=self.config.nb_options,
+        exp_options = tf.random_uniform(shape=[tf.shape(self.q_val)[0]], minval=0, maxval=self.config.nb_options,
                                         dtype=tf.int32)
-        local_random = tf.random_uniform(shape=[1], minval=0., maxval=1., dtype=tf.float32,
+        local_random = tf.random_uniform(shape=[tf.shape(self.q_val)[0]], minval=0., maxval=1., dtype=tf.float32,
                                          name="rand_options")
         # probability_of_random_option = self._exploration_options.value(self.total_steps)
         probability_of_random_option = self.config.final_random_action_prob

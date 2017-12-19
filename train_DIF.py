@@ -10,9 +10,7 @@ import utility
 from tools import wrappers
 import configs
 from env_wrappers import _create_environment
-import pydevd
 
-pydevd.settrace('sniper', port='65000')
 
 def train(config, env_processes, logdir):
   tf.reset_default_graph()
@@ -114,8 +112,8 @@ if __name__ == '__main__':
     'train', True,
     'Training.')
   tf.app.flags.DEFINE_boolean(
-    'resume', False,
-    # 'resume', True,
+    # 'resume', False,
+    'resume', True,
     'Resume.')
   tf.app.flags.DEFINE_boolean(
     'show_training', False,
@@ -124,7 +122,7 @@ if __name__ == '__main__':
     'task', "sf",
     'Task nature')
   tf.app.flags.DEFINE_string(
-    'load_from', None,
-    # 'load_from', "./logdir/0-eigenoc",
+    # 'load_from', None,
+    'load_from', "./logdir/13-eigenoc",
     'Load directory to load models from.')
   tf.app.run()
