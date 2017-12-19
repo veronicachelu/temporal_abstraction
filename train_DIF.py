@@ -10,7 +10,9 @@ import utility
 from tools import wrappers
 import configs
 from env_wrappers import _create_environment
+import pydevd
 
+pydevd.settrace('sniper', port='65000')
 
 def train(config, env_processes, logdir):
   tf.reset_default_graph()
