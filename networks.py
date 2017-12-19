@@ -1100,7 +1100,7 @@ class EignOCNetwork():
 
         with tf.name_scope('critic_loss'):
           td_error = self.target_return - q_val
-          self.critic_loss = tf.reduce_mean(self.config.critic_coef * tf.square(td_error))
+          self.critic_loss = tf.reduce_mean(0.5 * self.config.critic_coef * tf.square(td_error))
 
         with tf.name_scope('termination_loss'):
           self.term_loss = tf.reduce_mean(

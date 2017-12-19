@@ -452,8 +452,8 @@ def eigenoc():
   sf_layers = 128,
   aux_fc_layers = 507,
   network_optimizer = 'AdamOptimizer'
-  lr = 1e-3
-  discount = 0.985
+  lr = 0.0001
+  discount = 0.99
   sf_coef = 1
   aux_coef = 1
   entropy_coef = 0.01
