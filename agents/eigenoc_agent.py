@@ -187,7 +187,7 @@ class EigenOCAgent(Visualizer):
               #   tf.logging.info("Saved Matrix at {}".format(self.matrix_path))
 
             if self.total_steps % self.config.steps_summary_interval == 0 and self.name == 'worker_0':
-              self.write_step_summary(ms_sf, ms_aux, ms_option)
+              self.write_step_summary(ms_sf, ms_aux, ms_option, r)
 
           s = s1
           t += 1
@@ -282,13 +282,22 @@ class EigenOCAgent(Visualizer):
                global_step=self.global_step)
     tf.logging.info("Saved Model at {}".format(self.model_path + '/model-{}.{}.cptk'.format(self.episode_count, self.total_steps)))
 
-  def write_step_summary(self, ms_sf, ms_aux, ms_option):
+  def write_step_summary(self, ms_sf, ms_aux, ms_option, r):
     if ms_sf is not None:
       self.summary_writer.add_summary(ms_sf, self.total_steps)
     if ms_aux is not None:
       self.summary_writer.add_summary(ms_aux, self.total_steps)
     if ms_option is not None:
       self.summary_writer.add_summary(ms_option, self.total_steps)
+
+    if self.total_steps > self.config.eigen_exploration_steps:
+      self.summary.value.add(tag='Step/Reward', simple_value=r)
+      self.summary.value.add(tag='Step/Action', simple_value=self.action)
+      self.summary.value.add(tag='Step/Option', simple_value=self.option)
+      self.summary.value.add(tag='Step/Q', simple_value=self.q_value)
+      self.summary.value.add(tag='Step/V', simple_value=self.value)
+      self.summary.value.add(tag='Step/Term', simple_value=self.o_term)
+      self.summary_writer.add_summary(self.summary, self.total_steps)
 
     self.summary_writer.flush()
 
