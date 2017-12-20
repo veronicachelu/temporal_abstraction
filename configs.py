@@ -485,6 +485,8 @@ def eigenoc():
   episode_checkpoint_interval = 1
   eval_interval = 100
   max_length = 1e6
+  clip_option_grad_by_value = True
+  clip_by_value = 1
 
   return locals()
 

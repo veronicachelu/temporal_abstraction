@@ -140,16 +140,16 @@ class EigenOCAgent(Visualizer):
               ms_aux, aux_loss = self.train_aux()
               if self.name == "worker_0":
                 tf.logging.info("Episode {} >> Step {} >>> AUX_loss {} ".format(self.episode_count, self.total_steps, aux_loss))
-            if t_counter_sf == self.config.max_update_freq or d:
-              feed_dict = {self.local_network.observation: np.stack([s1])}
-              sf = sess.run(self.local_network.sf,
-                            feed_dict=feed_dict)[0]
-              bootstrap_sf = np.zeros_like(sf) if d else sf
-              ms_sf, sf_loss = self.train_sf(bootstrap_sf)
-              if self.name == "worker_0":
-                tf.logging.info("Episode {} >> Step {} >>> SF_loss {}".format(self.episode_count, self.total_steps, sf_loss))
-              self.episode_buffer_sf = []
-              t_counter_sf = 0
+            # if t_counter_sf == self.config.max_update_freq or d:
+            #   feed_dict = {self.local_network.observation: np.stack([s1])}
+            #   sf = sess.run(self.local_network.sf,
+            #                 feed_dict=feed_dict)[0]
+            #   bootstrap_sf = np.zeros_like(sf) if d else sf
+            #   ms_sf, sf_loss = self.train_sf(bootstrap_sf)
+            #   if self.name == "worker_0":
+            #     tf.logging.info("Episode {} >> Step {} >>> SF_loss {}".format(self.episode_count, self.total_steps, sf_loss))
+            #   self.episode_buffer_sf = []
+            #   t_counter_sf = 0
 
             if self.total_steps > self.config.eigen_exploration_steps:
               t_counter_option += 1
@@ -179,7 +179,7 @@ class EigenOCAgent(Visualizer):
 
               if not d:
                 if self.o_term:
-                  self.option_evaluation(s)
+                  self.option_evaluation(s1)
 
             if self.total_steps % self.config.steps_checkpoint_interval == 0 and self.name == 'worker_0':
               self.save_model()
@@ -224,15 +224,19 @@ class EigenOCAgent(Visualizer):
 
         if self.episode_count % self.config.episode_summary_interval == 0 and self.total_steps != 0 and \
                 self.name == 'worker_0':
-          self.write_episode_summary(ms_sf, ms_aux, ms_option)
+          self.write_episode_summary(ms_sf, ms_aux, ms_option, r)
 
         if self.name == 'worker_0':
           sess.run(self.increment_global_step)
           self.episode_count += 1
 
   def option_evaluation(self, s):
-    feed_dict = {self.local_network.observation: np.stack([s])}
-    self.option = self.sess.run([self.local_network.current_option], feed_dict=feed_dict)[0][0]
+    if random.random() <= self.config.final_random_action_prob:
+      self.option = np.random.choice(range(self.config.nb_options))
+    else:
+      feed_dict = {self.local_network.observation: np.stack([s])}
+      q_values = self.sess.run(self.local_network.q_val, feed_dict=feed_dict)[0]
+      self.option = np.argmax(q_values)
     self.episode_options.append(self.option)
     self.episode_option_histogram[self.option] += 1
 
@@ -303,7 +307,7 @@ class EigenOCAgent(Visualizer):
 
     self.summary_writer.flush()
 
-  def write_episode_summary(self, ms_sf, ms_aux, ms_option):
+  def write_episode_summary(self, ms_sf, ms_aux, ms_option, r):
     if len(self.episode_rewards) != 0:
       last_reward = self.episode_rewards[-1]
       self.summary.value.add(tag='Perf/Reward', simple_value=float(last_reward))
@@ -346,7 +350,7 @@ class EigenOCAgent(Visualizer):
       self.summary.value.add(tag='Perf/OptionsHist', histo=hist)
       self.summary_writer.add_summary(self.summary, self.total_steps)
 
-    self.write_step_summary(ms_sf, ms_aux, ms_option)
+    self.write_step_summary(ms_sf, ms_aux, ms_option, r)
     self.summary_writer.flush()
 
   def add_current_state_SR(self, s):

@@ -995,19 +995,19 @@ class EignOCNetwork():
                                             outputs_collections="activations", scope="fc_q_val")
         self.summaries_option.append(tf.contrib.layers.summarize_activation(self.q_val))
 
-        max_options = tf.cast(tf.argmax(self.q_val, 1), dtype=tf.int32)
-        exp_options = tf.random_uniform(shape=[tf.shape(self.q_val)[0]], minval=0, maxval=self.config.nb_options,
-                                        dtype=tf.int32)
-        local_random = tf.random_uniform(shape=[tf.shape(self.q_val)[0]], minval=0., maxval=1., dtype=tf.float32,
-                                         name="rand_options")
+        # max_options = tf.cast(tf.argmax(self.q_val, 1), dtype=tf.int32)
+        # exp_options = tf.random_uniform(shape=[tf.shape(self.q_val)[0]], minval=0, maxval=self.config.nb_options,
+        #                                 dtype=tf.int32)
+        # local_random = tf.random_uniform(shape=[tf.shape(self.q_val)[0]], minval=0., maxval=1., dtype=tf.float32,
+        #                                  name="rand_options")
         # probability_of_random_option = self._exploration_options.value(self.total_steps)
         probability_of_random_option = self.config.final_random_action_prob
         # condition = local_random > tf.tile(probability_of_random_option[None, ...], [1])
-        condition = local_random > probability_of_random_option
+        # condition = local_random > probability_of_random_option
 
-        self.current_option = tf.where(condition, max_options, exp_options)
-        self.summaries_option.append(tf.contrib.layers.summarize_activation(self.current_option))
-        self.summaries_option.append(tf.contrib.layers.summarize_activation(self.current_option))
+        # self.current_option = tf.where(condition, max_options, exp_options)
+        # self.summaries_option.append(tf.contrib.layers.summarize_activation(self.current_option))
+        # self.summaries_option.append(tf.contrib.layers.summarize_activation(self.current_option))
         self.v = tf.reduce_max(self.q_val, axis=1) * (1 - probability_of_random_option) + \
                  probability_of_random_option * tf.reduce_mean(self.q_val, axis=1)
         self.summaries_option.append(tf.contrib.layers.summarize_activation(self.v))
