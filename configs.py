@@ -476,7 +476,8 @@ def eigenoc():
   episodes = 1e6  # 1M
   eigen_exploration_steps = 5000
   explore_steps = 1
-  final_random_action_prob = 0.1
+  final_random_option_prob = 0.1
+  final_random_action_prob = 0.01
   initial_random_action_prob = 1.0
   gradient_clip_value = 40
   steps_summary_interval = 1000
