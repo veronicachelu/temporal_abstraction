@@ -109,6 +109,7 @@ class EigenOCAgent(Visualizer):
         t = 0
         t_counter_sf = 0
         t_counter_option = 0
+        self.R = 0
 
         s = self.env.reset()
         # if self.total_steps > self.config.eigen_exploration_steps:
@@ -169,7 +170,7 @@ class EigenOCAgent(Visualizer):
 
                   R = value if self.o_term else q_value
                 # ms_option, option_loss, policy_loss, entropy_loss, critic_loss, eigen_critic_loss, term_loss = self.train_option(R)
-                ms_option, option_loss, policy_loss, entropy_loss, critic_loss, term_loss = self.train_option(R)
+                ms_option, option_loss, policy_loss, entropy_loss, critic_loss, term_loss, self.R = self.train_option(R)
                 if self.name == "worker_0":
                   tf.logging.info("Episode {} >> Step {} >>> option_loss {}".format(self.episode_count, self.total_steps, option_loss))
 
@@ -297,6 +298,7 @@ class EigenOCAgent(Visualizer):
       self.summary.value.add(tag='Step/Q', simple_value=self.q_value)
       self.summary.value.add(tag='Step/V', simple_value=self.value)
       self.summary.value.add(tag='Step/Term', simple_value=self.o_term)
+      self.summary.value.add(tag='Step/R', simple_value=self.R)
       self.summary_writer.add_summary(self.summary, self.total_steps)
 
     self.summary_writer.flush()
@@ -441,4 +443,4 @@ class EigenOCAgent(Visualizer):
                 self.local_network.term_loss],
                feed_dict=feed_dict)
     # return ms_option, option_loss, policy_loss, entropy_loss, critic_loss, eigen_critic_loss, term_loss
-    return ms_option, option_loss, policy_loss, entropy_loss, critic_loss, term_loss
+    return ms_option, option_loss, policy_loss, entropy_loss, critic_loss, term_loss, discounted_returns[-1]
