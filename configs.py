@@ -479,13 +479,14 @@ def eigenoc():
   final_random_option_prob = 0.1
   final_random_action_prob = 0.01
   initial_random_action_prob = 1.0
-  gradient_clip_value = 40
+  gradient_clip_norm_value = 5
   steps_summary_interval = 1000
   episode_summary_interval = 1
   steps_checkpoint_interval = 1000
   episode_checkpoint_interval = 1
   eval_interval = 100
   max_length = 72000
+  entropy_decay_steps = 100000
   clip_option_grad_by_value = True
   clip_by_value = 1
 
