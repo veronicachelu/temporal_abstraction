@@ -67,7 +67,7 @@ class EigenOCAgent(Visualizer):
     self.summary_writer = tf.summary.FileWriter(self.summary_path + "/worker_" + str(self.thread_id))
     self.summary = tf.Summary()
 
-    self.local_network = config.network(self.name, config, self.action_size, self.nb_states)
+    self.local_network = config.network(self.name, config, self.action_size, self.nb_states, self.total_steps_tensor)
 
     self.update_local_vars_aux = update_target_graph_aux('global', self.name)
     self.update_local_vars_sf = update_target_graph_sf('global', self.name)
@@ -261,6 +261,8 @@ class EigenOCAgent(Visualizer):
     if len(self.aux_episode_buffer) == self.config.memory_size:
       self.aux_episode_buffer.popleft()
     self.aux_episode_buffer.append([s, s1, a])
+    self.episode_reward += r
+
 
   def store_option_info(self, s, s1, a, r):
     if self.sr_matrix_buffer.full:
@@ -279,7 +281,6 @@ class EigenOCAgent(Visualizer):
       [s, self.option, self.action, r, r_i])
     self.episode_values.append(self.value)
     self.episode_q_values.append(self.q_value)
-    self.episode_reward += r
     self.episode_oterm.append(self.o_term)
 
   def save_model(self):

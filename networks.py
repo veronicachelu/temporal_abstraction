@@ -937,7 +937,7 @@ class DIFNetwork_FC():
 
 
 class EignOCNetwork():
-  def __init__(self, scope, config, action_size, nb_states):
+  def __init__(self, scope, config, action_size, nb_states, total_steps_tensor=None):
     self._scope = scope
     self.nb_states = nb_states
     self.fc_layers = config.fc_layers
@@ -949,6 +949,13 @@ class EignOCNetwork():
     self.config = config
     self.network_optimizer = config.network_optimizer(
       self.config.lr, name='network_optimizer')
+
+    # self._exploration_options = TFLinearSchedule(self._config.explore_steps, self._config.final_random_action_prob,
+    #                                              self._config.initial_random_action_prob)
+    if total_steps_tensor is not None:
+        self.entropy_coef = tf.train.polynomial_decay(self.config.initial_random_action_prob, total_steps_tensor,
+                                            self.config.entropy_decay_steps, self.config.final_random_action_prob,
+                                            power=0.5)
 
     with tf.variable_scope(scope):
       self.observation = tf.placeholder(shape=[None, config.input_size[0], config.input_size[1], config.history_size],
@@ -1001,7 +1008,7 @@ class EignOCNetwork():
         # local_random = tf.random_uniform(shape=[tf.shape(self.q_val)[0]], minval=0., maxval=1., dtype=tf.float32,
         #                                  name="rand_options")
         # probability_of_random_option = self._exploration_options.value(self.total_steps)
-        probability_of_random_option = self.config.final_random_action_prob
+        probability_of_random_option = self.config.final_random_option_prob
         # condition = local_random > tf.tile(probability_of_random_option[None, ...], [1])
         # condition = local_random > probability_of_random_option
 
@@ -1105,10 +1112,10 @@ class EignOCNetwork():
 
         with tf.name_scope('termination_loss'):
           self.term_loss = tf.reduce_mean(
-            o_term * (tf.stop_gradient(q_val) - tf.stop_gradient(self.v)))
+            o_term * (tf.stop_gradient(q_val) - tf.stop_gradient(self.v) + 0.01))
 
         with tf.name_scope('entropy_loss'):
-          self.entropy_loss = -self.config.entropy_coef * tf.reduce_mean(tf.reduce_sum(self.policies *
+          self.entropy_loss = -self.entropy_coef * tf.reduce_mean(tf.reduce_sum(self.policies *
                                                                                        tf.log(self.policies + 1e-7),
                                                                                        axis=1))
         with tf.name_scope('policy_loss'):
@@ -1123,9 +1130,9 @@ class EignOCNetwork():
         gradients_option = tf.gradients(self.option_loss, local_vars)
 
         self.var_norms = tf.global_norm(local_vars)
-        grads_sf, self.grad_norms_sf = tf.clip_by_global_norm(gradients_sf, self.config.gradient_clip_value)
-        grads_aux, self.grad_norms_aux = tf.clip_by_global_norm(gradients_aux, self.config.gradient_clip_value)
-        grads_option, self.grad_norms_option = tf.clip_by_global_norm(gradients_option, self.config.gradient_clip_value)
+        grads_sf, self.grad_norms_sf = tf.clip_by_global_norm(gradients_sf, self.config.gradient_clip_norm_value)
+        grads_aux, self.grad_norms_aux = tf.clip_by_global_norm(gradients_aux, self.config.gradient_clip_norm_value)
+        grads_option, self.grad_norms_option = tf.clip_by_global_norm(gradients_option, self.config.gradient_clip_norm_value)
 
         self.merged_summary_sf = tf.summary.merge(
           self.summaries_sf + [tf.summary.scalar('avg_sf_loss', self.sf_loss)] + [
