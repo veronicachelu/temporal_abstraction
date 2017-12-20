@@ -6,6 +6,7 @@ import numpy as np
 from PIL import Image
 import scipy.ndimage
 import numpy as np
+import random
 from gym import spaces
 
 class GridWorld:
@@ -105,8 +106,20 @@ class GridWorld:
     idx = y + x * self.nb_cols
     return idx
 
+  def get_start(self):
+    while True:
+      startX = random.randrange(0, self.nb_rows, 1)
+      startY = random.randrange(0, self.nb_cols, 1)
+      if self.MDP[startX][startY] != -1 and startX != self.goalX and startY != self.goalY:
+        break
+
+    start_inx = self.get_state_index(startX, startY)
+
+    return start_inx, startX, startY
+
   def get_initial_state(self):
-    agent_state_index = self.get_state_index(self.startX, self.startY)
+    # agent_state_index = self.get_state_index(self.startX, self.startY)
+    agent_state_index, self.startX, self.startY = self.get_start()
     self.agentX, self.agentY = self.startX, self.startY
     return agent_state_index
 

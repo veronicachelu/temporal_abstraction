@@ -451,8 +451,8 @@ def eigenoc():
   fc_layers = 128,
   sf_layers = 128,
   aux_fc_layers = 507,
-  network_optimizer = 'AdamOptimizer'
-  lr = 0.0001
+  network_optimizer = 'RMSPropOptimizer'
+  lr = 0.0007
   discount = 0.99
   sf_coef = 1
   aux_coef = 1
@@ -484,7 +484,7 @@ def eigenoc():
   steps_checkpoint_interval = 1000
   episode_checkpoint_interval = 1
   eval_interval = 100
-  max_length = 1e6
+  max_length = 72000
   clip_option_grad_by_value = True
   clip_by_value = 1
 
