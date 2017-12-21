@@ -467,8 +467,7 @@ class EigenOCAgent(Visualizer):
     episode_length = 0
     while not d:
       feed_dict = {self.local_network.observation: np.stack([s])}
-      options, o_term = self.sess.run([self.local_network.options, self.local_network.v,
-                                                       self.local_network.q_val, self.local_network.termination],
+      options, o_term = self.sess.run([self.local_network.options, self.local_network.termination],
                                                       feed_dict=feed_dict)
       o_term = o_term[0, option] > np.random.uniform()
       pi = options[0, option]
