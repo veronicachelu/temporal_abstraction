@@ -136,6 +136,7 @@ class EigenOCAgent(Visualizer):
                                                                                                    self.q_value,
                                                                                                    self.value,
                                                                                                    self.o_term, r, d))
+            tf.logging.info("Episode {} >> Step {} >> Length: {}".format(self.episode_count, self.total_steps, t))
           if self.total_steps > self.config.observation_steps:
             t_counter_sf += 1
             if len(self.aux_episode_buffer) > self.config.observation_steps and \
