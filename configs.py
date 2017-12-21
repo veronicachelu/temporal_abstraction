@@ -438,9 +438,9 @@ def dif_4rooms_fc():
 def eigenoc():
   locals().update(default())
   dif_agent = EigenOCAgent
-  num_agents = 8
+  num_agents = 12
   use_gpu = False
-  nb_options = 4
+  nb_options = 6
   # Network
   network = networks.EignOCNetwork
   weight_summaries = dict(
@@ -461,6 +461,7 @@ def eigenoc():
   eigen_critic_coef = 1
   target_update_iter_aux = 1
   target_update_iter_sf = 30
+  target_update_iter_option = 30
 
   env = functools.partial(
     GridWorld, "./mdps/4rooms.mdp")

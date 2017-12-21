@@ -119,6 +119,8 @@ class EigenOCAgent(Visualizer):
             sess.run(self.update_local_vars_aux)
           if self.total_steps % self.config.target_update_iter_sf == 0:
             sess.run(self.update_local_vars_sf)
+          if self.total_steps % self.config.target_update_iter_option == 0:
+            sess.run(self.update_local_vars_option)
 
           self.policy_evaluation(s)
           s1, r, d, _ = self.env.step(self.action)
