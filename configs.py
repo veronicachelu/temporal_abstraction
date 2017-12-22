@@ -487,7 +487,7 @@ def eigenoc():
   episode_checkpoint_interval = 1
   episode_eval_interval = 1
   max_length = 72000
-  entropy_decay_steps = 100000
+  entropy_decay_steps = 50000
   clip_option_grad_by_value = True
   clip_by_value = 1
   nb_test_ep = 100

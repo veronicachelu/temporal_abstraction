@@ -18,7 +18,7 @@ from PIL import Image
 import scipy.stats
 import seaborn as sns
 from auxilary.visualizer import Visualizer
-import pickle
+
 sns.set()
 import random
 import matplotlib.pyplot as plt
@@ -75,8 +75,9 @@ class EigenOCAgent(Visualizer):
     self.update_local_vars_option = update_target_graph_option('global', self.name)
     self.env = game
     self.nb_states = game.nb_states
-    self.init_or_load_SR()
-
+    self.sr_matrix_buffer = RingBuffer((self.config.sf_matrix_size, self.config.sf_layers[-1]))
+    self.eigenvectors = np.zeros((self.config.nb_options, self.config.sf_layers[-1]))
+    self.should_consider_eigenvectors = False
 
   def play(self, sess, coord, saver):
     with sess.as_default(), sess.graph.as_default():
@@ -100,7 +101,6 @@ class EigenOCAgent(Visualizer):
         self.episode_buffer_option = []
         self.episode_values = []
         self.episode_q_values = []
-        self.episode_eigen_q_values = []
         self.episode_oterm = []
         self.episode_options = []
         self.episode_actions = []
@@ -146,16 +146,16 @@ class EigenOCAgent(Visualizer):
               if self.name == "worker_0":
                 tf.logging.info(
                   "Episode {} >> Step {} >>> AUX_loss {} ".format(self.episode_count, self.total_steps, aux_loss))
-            if t_counter_sf == self.config.max_update_freq or d:
-              feed_dict = {self.local_network.observation: np.stack([s1])}
-              sf = sess.run(self.local_network.sf,
-                            feed_dict=feed_dict)[0]
-              bootstrap_sf = np.zeros_like(sf) if d else sf
-              ms_sf, sf_loss = self.train_sf(bootstrap_sf)
-              if self.name == "worker_0":
-                tf.logging.info("Episode {} >> Step {} >>> SF_loss {}".format(self.episode_count, self.total_steps, sf_loss))
-              self.episode_buffer_sf = []
-              t_counter_sf = 0
+            # if t_counter_sf == self.config.max_update_freq or d:
+            #   feed_dict = {self.local_network.observation: np.stack([s1])}
+            #   sf = sess.run(self.local_network.sf,
+            #                 feed_dict=feed_dict)[0]
+            #   bootstrap_sf = np.zeros_like(sf) if d else sf
+            #   ms_sf, sf_loss = self.train_sf(bootstrap_sf)
+            #   if self.name == "worker_0":
+            #     tf.logging.info("Episode {} >> Step {} >>> SF_loss {}".format(self.episode_count, self.total_steps, sf_loss))
+            #   self.episode_buffer_sf = []
+            #   t_counter_sf = 0
 
             if self.total_steps > self.config.eigen_exploration_steps:
               t_counter_option += 1
@@ -175,8 +175,8 @@ class EigenOCAgent(Visualizer):
                   value = value[0]
 
                   R = value if self.o_term else q_value
-                ms_option, option_loss, policy_loss, entropy_loss, critic_loss, eigen_critic_loss, term_loss, self.R = self.train_option(R)
-                # ms_option, option_loss, policy_loss, entropy_loss, critic_loss, term_loss, self.R = self.train_option(R)
+                # ms_option, option_loss, policy_loss, entropy_loss, critic_loss, eigen_critic_loss, term_loss = self.train_option(R)
+                ms_option, option_loss, policy_loss, entropy_loss, critic_loss, term_loss, self.R = self.train_option(R)
                 if self.name == "worker_0":
                   tf.logging.info(
                     "Episode {} >> Step {} >>> option_loss {}".format(self.episode_count, self.total_steps,
@@ -250,12 +250,11 @@ class EigenOCAgent(Visualizer):
   def policy_evaluation(self, s):
     if self.total_steps > self.config.eigen_exploration_steps:
       feed_dict = {self.local_network.observation: np.stack([s])}
-      options, value, q_value, eigen_q_value, o_term = self.sess.run([self.local_network.options, self.local_network.v,
-                                                       self.local_network.q_val, self.local_network.eigen_q_val, self.local_network.termination],
+      options, value, q_value, o_term = self.sess.run([self.local_network.options, self.local_network.v,
+                                                       self.local_network.q_val, self.local_network.termination],
                                                       feed_dict=feed_dict)
       self.o_term = o_term[0, self.option] > np.random.uniform()
       self.q_value = q_value[0, self.option]
-      self.eigen_q_value = eigen_q_value[0, self.option]
       self.value = value[0]
       pi = options[0, self.option]
       self.action = np.random.choice(pi, p=pi)
@@ -271,24 +270,23 @@ class EigenOCAgent(Visualizer):
     self.aux_episode_buffer.append([s, s1, a])
     self.episode_reward += r
 
-
   def store_option_info(self, s, s1, a, r):
     if self.sr_matrix_buffer.full:
       self.recompute_eigenvectors()
 
-    if self.should_consider_eigenvectors:
-      feed_dict = {self.local_network.observation: np.stack([s, s1])}
-      fi = self.sess.run(self.local_network.fi,
-                         feed_dict=feed_dict)
-      eigen_r = self.cosine_similarity((fi[1] - fi[0]), self.eigenvectors[self.option])
-      r_i = self.config.alpha_r * eigen_r + (1 - self.config.alpha_r) * r
-    else:
-      r_i = r
+    # if self.should_consider_eigenvectors:
+    #   feed_dict = {self.local_network.observation: np.stack([s, s1])}
+    #   fi = self.sess.run(self.local_network.fi,
+    #                      feed_dict=feed_dict)
+    #   eigen_r = self.cosine_similarity((fi[1] - fi[0]), self.eigenvectors[self.option])
+    #   r_i = self.config.alpha_r * eigen_r + (1 - self.config.alpha_r) * r
+    # else:
+    #   r_i = r
+    r_i = r
     self.episode_buffer_option.append(
       [s, self.option, self.action, r, r_i])
     self.episode_values.append(self.value)
     self.episode_q_values.append(self.q_value)
-    self.episode_eigen_q_values.append(self.eigen_q_value)
     self.episode_oterm.append(self.o_term)
 
   def save_model(self):
@@ -296,10 +294,6 @@ class EigenOCAgent(Visualizer):
                     global_step=self.global_step)
     tf.logging.info(
       "Saved Model at {}".format(self.model_path + '/model-{}.{}.cptk'.format(self.episode_count, self.total_steps)))
-
-    self.save_SR()
-    matrix_path = os.path.join(self.model_path, "sr_matrix.pkl")
-    tf.logging.info("Saved SR_matrix at {}".format(matrix_path))
 
   def write_step_summary(self, ms_sf, ms_aux, ms_option, r):
     if ms_sf is not None:
@@ -374,13 +368,13 @@ class EigenOCAgent(Visualizer):
     self.sr_matrix_buffer.append(sf)
 
   def recompute_eigenvectors(self):
-    self.should_consider_eigenvectors = True
+    self.should_consider_eigenvectors = False
     feed_dict = {self.local_network.matrix_sf: self.sr_matrix_buffer.get()}
     eigenval, eigenvect = self.sess.run([self.local_network.eigenvalues, self.local_network.eigenvectors],
                                         feed_dict=feed_dict)
     # u, s, v = np.linalg.svd(self.sr_matrix_buffer.get(), full_matrices=False)
-    eigenvalues = eigenval[1:self.config.nb_options+1]
-    self.eigenvectors = eigenvect[1:self.config.nb_options+1]
+    eigenvalues = eigenval[1:self.config.nb_options]
+    self.eigenvectors = eigenvect[1:self.config.nb_options]
 
   def cosine_similarity(self, next_sf, evect):
     state_dif_norm = np.linalg.norm(next_sf)
@@ -440,28 +434,28 @@ class EigenOCAgent(Visualizer):
     rewards_plus = np.asarray(rewards.tolist() + [bootstrap_value])
     discounted_returns = reward_discount(rewards_plus, self.config.discount)[:-1]
 
-    eigen_rewards_plus = np.asarray(eigen_rewards.tolist() + [bootstrap_value])
-    discounted_eigen_returns = discount(eigen_rewards_plus, self.config.discount)[:-1]
+    # eigen_rewards_plus = np.asarray(eigen_rewards.tolist() + [bootstrap_value])
+    # discounted_eigen_returns = discount(eigen_rewards_plus, self.config.discount)[:-1]
 
     feed_dict = {self.local_network.target_return: discounted_returns,
-                 self.local_network.target_eigen_return: discounted_eigen_returns,
+                 # self.local_network.target_eigen_return: discounted_eigen_returns,
                  self.local_network.observation: np.stack(observations, axis=0),
                  self.local_network.actions_placeholder: actions,
                  self.local_network.options_placeholder: options}
 
-    # _, ms_option, option_loss, policy_loss, entropy_loss, critic_loss, term_loss = \
-    _, ms_option, option_loss, policy_loss, entropy_loss, critic_loss, eigen_critic_loss, term_loss = \
+    # _, ms_option, option_loss, policy_loss, entropy_loss, critic_loss, eigen_critic_loss, term_loss = \
+    _, ms_option, option_loss, policy_loss, entropy_loss, critic_loss, term_loss = \
       self.sess.run([self.local_network.apply_grads_option,
                      self.local_network.merged_summary_option,
                      self.local_network.option_loss,
                      self.local_network.policy_loss,
                      self.local_network.entropy_loss,
                      self.local_network.critic_loss,
-                     self.local_network.eigen_critic_loss,
+                     # self.local_network.eigen_critic_loss,
                      self.local_network.term_loss],
                     feed_dict=feed_dict)
-    return ms_option, option_loss, policy_loss, entropy_loss, critic_loss, eigen_critic_loss, term_loss, discounted_returns[-1]
-    # return ms_option, option_loss, policy_loss, entropy_loss, critic_loss, term_loss, discounted_returns[-1]
+    # return ms_option, option_loss, policy_loss, entropy_loss, critic_loss, eigen_critic_loss, term_loss
+    return ms_option, option_loss, policy_loss, entropy_loss, critic_loss, term_loss, discounted_returns[-1]
 
   def evaluate_agent(self):
     episode_reward = 0
@@ -550,18 +544,3 @@ class EigenOCAgent(Visualizer):
         tf.logging.info("Ep {} finished in {} steps with reward {}".format(i, episode_length, episode_reward))
       tf.logging.info("Won {} episodes of {}".format(ep_rewards.count(1), self.config.nb_test_ep))
 
-  def init_or_load_SR(self):
-    matrix_path = os.path.join(self.model_path, "sr_matrix.pkl")
-    if os.path.exists(matrix_path):
-      with open(matrix_path, 'rb') as f:
-        self.sr_matrix_buffer = pickle.load(f)
-    else:
-      self.sr_matrix_buffer = RingBuffer((self.config.sf_matrix_size, self.config.sf_layers[-1]))
-
-    self.eigenvectors = np.zeros((self.config.nb_options, self.config.sf_layers[-1]))
-    self.should_consider_eigenvectors = False
-
-  def save_SR(self):
-    matrix_path = os.path.join(self.model_path, "sr_matrix.pkl")
-    with open(matrix_path, 'wb') as f:
-      pickle.dump(self.sr_matrix_buffer, f, pickle.HIGHEST_PROTOCOL)
