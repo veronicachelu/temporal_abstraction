@@ -534,6 +534,6 @@ class EigenOCAgent(Visualizer):
 
       ep_rewards.append(episode_reward)
       ep_lengths.append(episode_length)
-
+      tf.logging.info("Ep {} finished in {} steps with reward {}".format(i, episode_length, episode_reward))
     tf.logging.info("Won {} episodes of {}".format(ep_rewards.count(1), self.config.nb_test_ep))
 
