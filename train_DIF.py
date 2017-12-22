@@ -32,6 +32,8 @@ def train(config, env_processes, logdir):
           agent = config.dif_agent(envs[0], 0, global_step, config)
         elif FLAGS.task == "option":
           agent = config.dif_agent(envs[0], 0, global_step, config)
+        elif FLAGS.task == "eval":
+          agent = config.dif_agent(envs[0], 0, global_step, config)
         else:
           agents = [config.dif_agent(envs[i], i, global_step, config) for i in range(config.num_agents)]
 
@@ -54,6 +56,10 @@ def train(config, env_processes, logdir):
         agent_threads.append(thread)
       elif FLAGS.task == "option":
         thread = threading.Thread(target=(lambda: agent.plot_options(sess, coord, saver)))
+        thread.start()
+        agent_threads.append(thread)
+      elif FLAGS.task == "eval":
+        thread = threading.Thread(target=(lambda: agent.eval(sess, coord, saver)))
         thread.start()
         agent_threads.append(thread)
       else:

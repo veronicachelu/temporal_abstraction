@@ -490,6 +490,7 @@ def eigenoc():
   entropy_decay_steps = 100000
   clip_option_grad_by_value = True
   clip_by_value = 1
+  nb_test_ep = 100
 
   return locals()
 

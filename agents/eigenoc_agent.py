@@ -496,3 +496,44 @@ class EigenOCAgent(Visualizer):
     self.summary.value.add(tag='Eval/EvalLength', simple_value=float(eval_length))
     self.summary_writer.add_summary(self.summary, self.total_steps)
     self.summary_writer.flush()
+
+  def eval(self):
+    ep_rewards = []
+    ep_lengths = []
+    for i in range(self.config.nb_test_ep):
+      episode_reward = 0
+      s = self.env.reset()
+      feed_dict = {self.local_network.observation: np.stack([s])}
+      q_values = self.sess.run(self.local_network.q_val, feed_dict=feed_dict)[0]
+      option = np.argmax(q_values)
+      d = False
+      episode_length = 0
+      while not d:
+        feed_dict = {self.local_network.observation: np.stack([s])}
+        options, o_term = self.sess.run([self.local_network.options, self.local_network.termination],
+                                                        feed_dict=feed_dict)
+        o_term = o_term[0, option] > np.random.uniform()
+        pi = options[0, option]
+        action = np.random.choice(pi, p=pi)
+        action = np.argmax(pi == action)
+
+        s1, r, d, _ = self.env.step(action)
+
+        r = np.clip(r, -1, 1)
+        episode_reward += r
+        episode_length += 1
+
+        if not d and o_term:
+          feed_dict = {self.local_network.observation: np.stack([s1])}
+          q_values = self.sess.run(self.local_network.q_val, feed_dict=feed_dict)[0]
+          option = np.argmax(q_values)
+
+        s = s1
+        if episode_length > 100:
+          break
+
+      ep_rewards.append(episode_reward)
+      ep_lengths.append(episode_length)
+
+    tf.logging.info("Won {} episodes of {}".format(ep_rewards.count(1), self.config.nb_test_ep)
+
