@@ -92,7 +92,7 @@ class EigenOCAgent(Visualizer):
       self.aux_episode_buffer = deque()
 
       while not coord.should_stop():
-        if self.episode_count > self.config.episodes:
+        if self.total_steps > self.config.steps and self.name == "worker_0":
           return 0
         sess.run(self.update_local_vars_aux)
         sess.run(self.update_local_vars_sf)
