@@ -45,7 +45,8 @@ class EigenOCAgent(Visualizer):
     self.global_step = global_step
     self.model_path = os.path.join(config.stage_logdir, "models")
     self.summary_path = os.path.join(config.stage_logdir, "summaries")
-
+    self.test_path = os.path.join(self.config.stage_logdir, "test")
+    tf.gfile.MakeDirs(self.test_path)
     tf.gfile.MakeDirs(self.model_path)
     tf.gfile.MakeDirs(self.summary_path)
 
@@ -498,6 +499,7 @@ class EigenOCAgent(Visualizer):
     option = np.argmax(q_values)
     d = False
     episode_length = 0
+    episode_frames = []
     while not d:
       feed_dict = {self.local_network.observation: np.stack([s])}
       options, o_term = self.sess.run([self.local_network.options, self.local_network.termination],
@@ -506,7 +508,7 @@ class EigenOCAgent(Visualizer):
       pi = options[0, option]
       action = np.random.choice(pi, p=pi)
       action = np.argmax(pi == action)
-
+      episode_frames.append(set_image(s, option, action, episode_length))
       s1, r, d, _ = self.env.step(action)
 
       r = np.clip(r, -1, 1)
@@ -522,6 +524,10 @@ class EigenOCAgent(Visualizer):
       if episode_length > 100:
         break
 
+      images = np.array(episode_frames)
+      make_gif(images, os.path.join(self.test_path, 'eval_episode_{}.gif'.format(self.episode_count)),
+               duration=len(images) * 0.1, true_image=True)
+
     return episode_reward, episode_length
 
   def write_eval_summary(self, eval_reward, eval_length):
@@ -531,9 +537,6 @@ class EigenOCAgent(Visualizer):
     self.summary_writer.flush()
 
   def eval(self, sess, coord, saver):
-    test_path = os.path.join(self.config.stage_logdir, "test")
-    tf.gfile.MakeDirs(test_path)
-
     with sess.as_default(), sess.graph.as_default():
       self.sess = sess
       self.saver = saver
@@ -582,7 +585,7 @@ class EigenOCAgent(Visualizer):
         ep_lengths.append(episode_length)
         tf.logging.info("Ep {} finished in {} steps with reward {}".format(i, episode_length, episode_reward))
       images = np.array(episode_frames)
-      make_gif(images, os.path.join(test_path, 'test_episodes.gif'),
+      make_gif(images, os.path.join(self.test_path, 'test_episodes.gif'),
                duration=len(images) * 0.1, true_image=True)
       tf.logging.info("Won {} episodes of {}".format(ep_rewards.count(1), self.config.nb_test_ep))
 
