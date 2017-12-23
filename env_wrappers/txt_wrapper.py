@@ -110,7 +110,7 @@ class GridWorld:
     while True:
       startX = random.randrange(0, self.nb_rows, 1)
       startY = random.randrange(0, self.nb_cols, 1)
-      if self.MDP[startX][startY] != -1 and startX != self.goalX and startY != self.goalY:
+      if self.MDP[startX][startY] != -1 and (startX != self.goalX or startY != self.goalY):
         break
 
     start_inx = self.get_state_index(startX, startY)

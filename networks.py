@@ -927,7 +927,8 @@ class DIFNetwork_FC():
             gradient_summaries(zip(grads_sf, local_vars))])
         self.merged_summary_aux = tf.summary.merge(self.image_summaries + self.summaries_aux +
                                                    [tf.summary.scalar('aux_loss', self.aux_loss)] + [
-                                                     tf.summary.scalar('gradient_norm_sf', tf.global_norm(gradients_aux)),
+                                                     tf.summary.scalar('gradient_norm_sf',
+                                                                       tf.global_norm(gradients_aux)),
                                                      tf.summary.scalar('cliped_gradient_norm_sf',
                                                                        tf.global_norm(grads_aux)),
                                                      gradient_summaries(zip(grads_aux, local_vars))])
@@ -953,9 +954,10 @@ class EignOCNetwork():
     # self._exploration_options = TFLinearSchedule(self._config.explore_steps, self._config.final_random_action_prob,
     #                                              self._config.initial_random_action_prob)
     if total_steps_tensor is not None:
-        self.entropy_coef = tf.train.polynomial_decay(self.config.initial_random_action_prob, total_steps_tensor,
-                                            self.config.entropy_decay_steps, self.config.final_random_action_prob,
-                                            power=0.5)
+      self.entropy_coef = tf.train.polynomial_decay(self.config.initial_random_action_prob, total_steps_tensor,
+                                                    self.config.entropy_decay_steps,
+                                                    self.config.final_random_action_prob,
+                                                    power=0.5)
 
     with tf.variable_scope(scope):
       self.observation = tf.placeholder(shape=[None, config.input_size[0], config.input_size[1], config.history_size],
@@ -963,7 +965,7 @@ class EignOCNetwork():
       self.steps = tf.placeholder(shape=[], dtype=tf.int32, name="steps")
 
       self.image_summaries = []
-      self.image_summaries.append(tf.summary.image('input', self.observation, max_outputs=30))
+      # self.image_summaries.append(tf.summary.image('input', self.observation, max_outputs=30))
 
       self.summaries_sf = []
       self.summaries_aux = []
@@ -1019,14 +1021,14 @@ class EignOCNetwork():
                  probability_of_random_option * tf.reduce_mean(self.q_val, axis=1)
         self.summaries_option.append(tf.contrib.layers.summarize_activation(self.v))
 
-      with tf.variable_scope("eigen_option_q_val"):
-        out = tf.stop_gradient(tf.nn.relu(self.fi))
-        self.eigen_q_val = layers.fully_connected(out, num_outputs=self.nb_options,
-                                            activation_fn=None,
-                                            variables_collections=tf.get_collection("variables"),
-                                            outputs_collections="activations", scope="fc_q_val")
-        self.summaries_option.append(tf.contrib.layers.summarize_activation(self.eigen_q_val))
-
+      if self.config.eigen:
+        with tf.variable_scope("eigen_option_q_val"):
+          out = tf.stop_gradient(tf.nn.relu(self.fi))
+          self.eigen_q_val = layers.fully_connected(out, num_outputs=self.nb_options,
+                                                    activation_fn=None,
+                                                    variables_collections=tf.get_collection("variables"),
+                                                    outputs_collections="activations", scope="fc_q_val")
+          self.summaries_option.append(tf.contrib.layers.summarize_activation(self.eigen_q_val))
 
       with tf.variable_scope("eigen_option_i_o_policies"):
         out = tf.stop_gradient(tf.nn.relu(self.fi))
@@ -1072,7 +1074,7 @@ class EignOCNetwork():
           self.summaries_aux.append(tf.contrib.layers.summarize_activation(out))
         self.next_obs = tf.reshape(out, (-1, config.input_size[0], config.input_size[1], config.history_size))
 
-        self.image_summaries.append(tf.summary.image('next_obs', self.next_obs, max_outputs=30))
+        # self.image_summaries.append(tf.summary.image('next_obs', self.next_obs, max_outputs=30))
 
       if scope != 'global':
         self.target_sf = tf.placeholder(shape=[None, self.sf_layers[-1]], dtype=tf.float32, name="target_SF")
@@ -1084,11 +1086,13 @@ class EignOCNetwork():
         self.target_return = tf.placeholder(shape=[None], dtype=tf.float32)
         self.policies = self.get_intra_option_policies(self.options_placeholder)
         self.responsible_actions = self.get_responsible_actions(self.policies, self.actions_placeholder)
-        eigen_q_val = self.get_eigen_q(self.options_placeholder)
+        if self.config.eigen:
+          eigen_q_val = self.get_eigen_q(self.options_placeholder)
         q_val = self.get_q(self.options_placeholder)
         o_term = self.get_o_term(self.options_placeholder)
 
-        self.image_summaries.append(tf.summary.image('target_next_obs', self.target_next_obs, max_outputs=30))
+        self.image_summaries.append(
+          tf.summary.image('next', tf.concat([self.next_obs, self.target_next_obs], 2), max_outputs=30))
 
         self.matrix_sf = tf.placeholder(shape=[self.config.sf_matrix_size, self.sf_layers[-1]],
                                         dtype=tf.float32, name="matrix_sf")
@@ -1096,32 +1100,35 @@ class EignOCNetwork():
 
         with tf.name_scope('sf_loss'):
           sf_td_error = self.target_sf - self.sf
-          self.sf_loss = tf.reduce_mean(huber_loss(sf_td_error))
+        self.sf_loss = tf.reduce_mean(huber_loss(sf_td_error))
 
         with tf.name_scope('aux_loss'):
           aux_error = self.next_obs - self.target_next_obs
-          self.aux_loss = tf.reduce_mean(self.config.aux_coef * huber_loss(aux_error))
+        self.aux_loss = tf.reduce_mean(self.config.aux_coef * huber_loss(aux_error))
 
-        with tf.name_scope('eigen_critic_loss'):
-          eigen_td_error = self.target_eigen_return - eigen_q_val
-          self.eigen_critic_loss = tf.reduce_mean(0.5 * self.config.eigen_critic_coef * tf.square(eigen_td_error))
+        if self.config.eigen:
+          with tf.name_scope('eigen_critic_loss'):
+            eigen_td_error = self.target_eigen_return - eigen_q_val
+            self.eigen_critic_loss = tf.reduce_mean(0.5 * self.config.eigen_critic_coef * tf.square(eigen_td_error))
 
         with tf.name_scope('critic_loss'):
           td_error = self.target_return - q_val
-          self.critic_loss = tf.reduce_mean(0.5 * self.config.critic_coef * tf.square(td_error))
+        self.critic_loss = tf.reduce_mean(0.5 * self.config.critic_coef * tf.square(td_error))
 
         with tf.name_scope('termination_loss'):
-          self.term_loss = tf.reduce_mean(
-            o_term * (tf.stop_gradient(q_val) - tf.stop_gradient(self.v) + 0.01))
+          self.term_loss = tf.reduce_mean(o_term * (tf.stop_gradient(q_val) - tf.stop_gradient(self.v) + 0.01))
 
         with tf.name_scope('entropy_loss'):
           self.entropy_loss = -self.entropy_coef * tf.reduce_mean(tf.reduce_sum(self.policies *
-                                                                                       tf.log(self.policies + 1e-7),
-                                                                                       axis=1))
+                                                                                tf.log(self.policies + 1e-7),
+                                                                                axis=1))
         with tf.name_scope('policy_loss'):
-          self.policy_loss = -tf.reduce_mean(tf.log(self.responsible_actions + 1e-7) * tf.stop_gradient(eigen_td_error))
+          self.policy_loss = -tf.reduce_mean(tf.log(self.responsible_actions + 1e-7) * tf.stop_gradient(
+            eigen_td_error if self.config.eigen else td_error))
 
-        self.option_loss = self.policy_loss - self.entropy_loss + self.critic_loss + self.term_loss + self.eigen_critic_loss
+        self.option_loss = self.policy_loss - self.entropy_loss + self.critic_loss + self.term_loss
+        if self.config.eigen:
+          self.option_loss += self.eigen_critic_loss
 
         local_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope)
 
@@ -1132,7 +1139,8 @@ class EignOCNetwork():
         self.var_norms = tf.global_norm(local_vars)
         grads_sf, self.grad_norms_sf = tf.clip_by_global_norm(gradients_sf, self.config.gradient_clip_norm_value)
         grads_aux, self.grad_norms_aux = tf.clip_by_global_norm(gradients_aux, self.config.gradient_clip_norm_value)
-        grads_option, self.grad_norms_option = tf.clip_by_global_norm(gradients_option, self.config.gradient_clip_norm_value)
+        grads_option, self.grad_norms_option = tf.clip_by_global_norm(gradients_option,
+                                                                      self.config.gradient_clip_norm_value)
 
         self.merged_summary_sf = tf.summary.merge(
           self.summaries_sf + [tf.summary.scalar('avg_sf_loss', self.sf_loss)] + [
@@ -1141,23 +1149,29 @@ class EignOCNetwork():
             gradient_summaries(zip(grads_sf, local_vars))])
         self.merged_summary_aux = tf.summary.merge(self.image_summaries + self.summaries_aux +
                                                    [tf.summary.scalar('aux_loss', self.aux_loss)] + [
-                                                     tf.summary.scalar('gradient_norm_aux', tf.global_norm(gradients_aux)),
+                                                     tf.summary.scalar('gradient_norm_aux',
+                                                                       tf.global_norm(gradients_aux)),
                                                      tf.summary.scalar('cliped_gradient_norm_aux',
                                                                        tf.global_norm(grads_aux)),
                                                      gradient_summaries(zip(grads_aux, local_vars))])
-        self.merged_summary_option = tf.summary.merge(
-          self.summaries_option + [tf.summary.scalar('avg_critic_loss', self.critic_loss),
-                                   tf.summary.scalar('avg_eigen_critic_loss', self.eigen_critic_loss),
-                                   tf.summary.scalar('avg_termination_loss', self.term_loss),
-                                   tf.summary.scalar('avg_entropy_loss', self.entropy_loss),
-                                   tf.summary.scalar('avg_policy_loss', self.policy_loss),
-                                   tf.summary.scalar('gradient_norm_option', tf.global_norm(gradients_option)),
-                                   tf.summary.scalar('cliped_gradient_norm_option', tf.global_norm(grads_option)),
-            gradient_summaries(zip(grads_option, local_vars))])
+        options_to_merge = self.summaries_option + [tf.summary.scalar('avg_critic_loss', self.critic_loss),
+                                                    tf.summary.scalar('avg_termination_loss', self.term_loss),
+                                                    tf.summary.scalar('avg_entropy_loss', self.entropy_loss),
+                                                    tf.summary.scalar('avg_policy_loss', self.policy_loss),
+                                                    tf.summary.scalar('gradient_norm_option',
+                                                                      tf.global_norm(gradients_option)),
+                                                    tf.summary.scalar('cliped_gradient_norm_option',
+                                                                      tf.global_norm(grads_option)),
+                                                    gradient_summaries(zip(grads_option, local_vars))]
+        if self.config.eigen:
+          options_to_merge += [tf.summary.scalar('avg_eigen_critic_loss', self.eigen_critic_loss)]
+
+        self.merged_summary_option = tf.summary.merge(options_to_merge)
         global_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, 'global')
         self.apply_grads_sf = self.network_optimizer.apply_gradients(zip(grads_sf, global_vars))
         self.apply_grads_aux = self.network_optimizer.apply_gradients(zip(grads_aux, global_vars))
         self.apply_grads_option = self.network_optimizer.apply_gradients(zip(grads_option, global_vars))
+
 
   def get_intra_option_policies(self, options):
     options_taken_one_hot = tf.one_hot(options, self.nb_options, dtype=tf.float32, name="options_one_hot")
@@ -1166,23 +1180,27 @@ class EignOCNetwork():
                          reduction_indices=1, name="pi_o")
     return pi_o
 
+
   def get_responsible_actions(self, policies, actions):
     actions_onehot = tf.one_hot(tf.cast(actions, tf.int32), self.action_size, dtype=tf.float32,
                                 name="actions_one_hot")
     responsible_actions = tf.reduce_sum(policies * actions_onehot, [1])
     return responsible_actions
 
+
   def get_eigen_q(self, o):
     options_taken_one_hot = tf.one_hot(o, self.config.nb_options, name="options_one_hot")
     eigen_q_values_o = tf.reduce_sum(tf.multiply(self.eigen_q_val, options_taken_one_hot),
-                               reduction_indices=1, name="eigen_values_Q")
+                                     reduction_indices=1, name="eigen_values_Q")
     return eigen_q_values_o
+
 
   def get_q(self, o):
     options_taken_one_hot = tf.one_hot(o, self.config.nb_options, name="options_one_hot")
     q_values_o = tf.reduce_sum(tf.multiply(self.q_val, options_taken_one_hot),
                                reduction_indices=1, name="values_Q")
     return q_values_o
+
 
   def get_o_term(self, o, boolean_value=False):
     options_taken_one_hot = tf.one_hot(o, self.config.nb_options, name="options_one_hot")
@@ -1194,8 +1212,8 @@ class EignOCNetwork():
     return o_term
 
 
-def layer_norm_fn(x, relu=True):
-  x = layers.layer_norm(x, scale=True, center=True)
-  if relu:
-    x = tf.nn.relu(x)
-  return x
+  def layer_norm_fn(x, relu=True):
+    x = layers.layer_norm(x, scale=True, center=True)
+    if relu:
+      x = tf.nn.relu(x)
+    return x

@@ -6,7 +6,7 @@ from PIL import Image
 from PIL import ImageDraw
 from PIL import ImageFont
 from scipy.signal import lfilter
-
+import scipy.misc
 
 # Copies one set of variables to another.
 def update_target_graph(from_scope, to_scope):
@@ -85,6 +85,13 @@ def make_gif(images, fname, duration=2, true_image=False):
   clip = mpy.VideoClip(make_frame, duration=duration)
   clip.write_gif(fname, fps=len(images) / duration, verbose=False)
 
+def set_image(s, option, action, episode_length):
+  s_big = scipy.misc.imresize(255*(s/2 + 0.5), [200, 200, 3], interp='nearest')
+  frame = Image.fromarray(np.asarray(s_big, np.uint8))
+  draw = ImageDraw.Draw(frame)
+  font = ImageFont.truetype("./resources/FreeSans.ttf", 10)
+  draw.text((0, 0), "O: {} >> A: {} >> Len: {}".format(option, action, episode_length), (0, 0, 0), font=font)
+  return np.asarray(frame)
 
 def set_image_bandit(values, probs, selection, trial):
   bandit_image = Image.open('./resources/bandit.png')

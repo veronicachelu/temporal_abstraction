@@ -441,6 +441,7 @@ def eigenoc():
   num_agents = 12
   use_gpu = False
   nb_options = 6
+  eigen = True
   # Network
   network = networks.EignOCNetwork
   weight_summaries = dict(
@@ -470,20 +471,90 @@ def eigenoc():
   batch_size = 16
   memory_size = 100000
   sf_matrix_size = 50000
+  # sf_matrix_size = 100
   observation_steps = 1000
+  # observation_steps = 16
   aux_update_freq = 1
   alpha_r = 0.5
   steps = 1e6  # 1M
   episodes = 1e6  # 1M
   eigen_exploration_steps = 5000
+  # eigen_exploration_steps = 16
   explore_steps = 1
   final_random_option_prob = 0.1
   final_random_action_prob = 0.01
   initial_random_action_prob = 1.0
-  gradient_clip_norm_value = 5
+  gradient_clip_norm_value = 40
   steps_summary_interval = 1000
+  # steps_summary_interval = 10
   episode_summary_interval = 1
   steps_checkpoint_interval = 1000
+  # steps_checkpoint_interval = 10
+  episode_checkpoint_interval = 1
+  episode_eval_interval = 1
+  max_length = 72000
+  entropy_decay_steps = 50000
+  clip_option_grad_by_value = True
+  clip_by_value = 1
+  nb_test_ep = 100
+
+  return locals()
+
+def oc():
+  locals().update(default())
+  dif_agent = EigenOCAgent
+  num_agents = 12
+  use_gpu = False
+  nb_options = 6
+  eigen = False
+  # Network
+  network = networks.EignOCNetwork
+  weight_summaries = dict(
+      all=r'.*')
+
+  input_size = (13, 13)
+  history_size = 3
+  fc_layers = 128,
+  sf_layers = 128,
+  aux_fc_layers = 507,
+  network_optimizer = 'AdamOptimizer'
+  lr = 0.0001
+  discount = 0.99
+  sf_coef = 1
+  aux_coef = 1
+  entropy_coef = 0.01
+  critic_coef = 1
+  eigen_critic_coef = 1
+  target_update_iter_aux = 1
+  target_update_iter_sf = 30
+  target_update_iter_option = 30
+
+  env = functools.partial(
+    GridWorld, "./mdps/4rooms.mdp")
+  max_update_freq = 30
+  min_update_freq = 5
+  batch_size = 16
+  memory_size = 100000
+  sf_matrix_size = 50000
+  # sf_matrix_size = 100
+  observation_steps = 1000
+  # observation_steps = 16
+  aux_update_freq = 1
+  alpha_r = 0.5
+  steps = 1e6  # 1M
+  episodes = 1e6  # 1M
+  eigen_exploration_steps = 5000
+  # eigen_exploration_steps = 16
+  explore_steps = 1
+  final_random_option_prob = 0.1
+  final_random_action_prob = 0.01
+  initial_random_action_prob = 1.0
+  gradient_clip_norm_value = 40
+  steps_summary_interval = 1000
+  # steps_summary_interval = 10
+  episode_summary_interval = 1
+  steps_checkpoint_interval = 1000
+  # steps_checkpoint_interval = 10
   episode_checkpoint_interval = 1
   episode_eval_interval = 1
   max_length = 72000
