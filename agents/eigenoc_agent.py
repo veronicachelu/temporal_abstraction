@@ -45,7 +45,7 @@ class EigenOCAgent(Visualizer):
     self.global_step = global_step
     self.model_path = os.path.join(config.stage_logdir, "models")
     self.summary_path = os.path.join(config.stage_logdir, "summaries")
-    self.test_path = os.path.join(self.config.stage_logdir, "test")
+    self.test_path = os.path.join(config.stage_logdir, "test")
     tf.gfile.MakeDirs(self.test_path)
     tf.gfile.MakeDirs(self.model_path)
     tf.gfile.MakeDirs(self.summary_path)
