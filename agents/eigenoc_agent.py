@@ -276,7 +276,8 @@ class EigenOCAgent(Visualizer):
       results = self.sess.run(to_run, feed_dict=feed_dict)
       if self.config.eigen:
         options, value, q_value, o_term, eigen_q_value = results
-        self.eigen_q_value = eigen_q_value[0, self.option]
+        if not self.primitive_action:
+          self.eigen_q_value = eigen_q_value[0, self.option]
       else:
         options, value, q_value, o_term = results
       self.o_term = o_term[0, self.option] > np.random.uniform()
@@ -307,7 +308,8 @@ class EigenOCAgent(Visualizer):
                          feed_dict=feed_dict)
       eigen_r = self.cosine_similarity((fi[1] - fi[0]), self.eigenvectors[self.option])
       r_i = self.config.alpha_r * eigen_r + (1 - self.config.alpha_r) * r
-      self.episode_eigen_q_values.append(self.eigen_q_value)
+      if not self.primitive_action:
+        self.episode_eigen_q_values.append(self.eigen_q_value)
     else:
       r_i = r
     self.episode_buffer_option.append(
@@ -339,7 +341,7 @@ class EigenOCAgent(Visualizer):
       self.summary.value.add(tag='Step/Action', simple_value=self.action)
       self.summary.value.add(tag='Step/Option', simple_value=self.option)
       self.summary.value.add(tag='Step/Q', simple_value=self.q_value)
-      if self.config.eigen:
+      if self.config.eigen and not self.primitive_action:
         self.summary.value.add(tag='Step/EigenQ', simple_value=self.eigen_q_value)
       self.summary.value.add(tag='Step/V', simple_value=self.value)
       self.summary.value.add(tag='Step/Term', simple_value=int(self.o_term))
