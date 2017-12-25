@@ -553,7 +553,7 @@ class EigenOCAgent(Visualizer):
         action = np.random.choice(pi, p=pi)
         action = np.argmax(pi == action)
 
-      episode_frames.append(set_image(s, option, action, episode_length))
+      episode_frames.append(set_image(s, option, action, episode_length, primitive_action))
       s1, r, d, _ = self.env.step(action)
 
       r = np.clip(r, -1, 1)
