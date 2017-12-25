@@ -990,7 +990,8 @@ class EignOCNetwork():
 
       with tf.variable_scope("eigen_option_term"):
         out = tf.stop_gradient(tf.nn.relu(self.fi))
-        self.termination = layers.fully_connected(out, num_outputs=self.nb_options,
+        self.termination = layers.fully_connected(out, num_outputs=(
+          self.nb_options + self.action_size) if self.config.eigen else self.nb_options,
                                                   activation_fn=tf.nn.sigmoid,
                                                   variables_collections=tf.get_collection("variables"),
                                                   outputs_collections="activations", scope="fc_option_term")
@@ -999,7 +1000,7 @@ class EignOCNetwork():
       with tf.variable_scope("option_q_val"):
         out = tf.stop_gradient(tf.nn.relu(self.fi))
         self.q_val = layers.fully_connected(out, num_outputs=(
-        self.nb_options + self.action_size) if self.config.eigen else self.nb_options,
+          self.nb_options + self.action_size) if self.config.eigen else self.nb_options,
                                             activation_fn=None,
                                             variables_collections=tf.get_collection("variables"),
                                             outputs_collections="activations", scope="fc_q_val")
@@ -1007,7 +1008,7 @@ class EignOCNetwork():
 
         max_options = tf.cast(tf.argmax(self.q_val, 1), dtype=tf.int32)
         exp_options = tf.random_uniform(shape=[tf.shape(self.q_val)[0]], minval=0, maxval=(
-        self.nb_options + self.action_size) if self.config.eigen else self.nb_options,
+          self.nb_options + self.action_size) if self.config.eigen else self.nb_options,
                                         dtype=tf.int32)
         local_random = tf.random_uniform(shape=[tf.shape(self.q_val)[0]], minval=0., maxval=1., dtype=tf.float32,
                                          name="rand_options")
@@ -1017,7 +1018,9 @@ class EignOCNetwork():
         condition = local_random > probability_of_random_option
 
         self.current_option = tf.where(condition, max_options, exp_options)
-        self.primitive_action = tf.where(self.current_option >= self.nb_options, 1, 0)
+        self.primitive_action = tf.where(self.current_option >= self.nb_options,
+                                         tf.ones_like(self.current_option),
+                                         tf.zeros_like(self.current_option))
         self.summaries_option.append(tf.contrib.layers.summarize_activation(self.current_option))
         # self.summaries_option.append(tf.contrib.layers.summarize_activation(self.current_option))
         self.v = tf.reduce_max(self.q_val, axis=1) * (1 - probability_of_random_option) + \
@@ -1095,7 +1098,6 @@ class EignOCNetwork():
         q_val = self.get_q(self.options_placeholder)
         o_term = self.get_o_term(self.options_placeholder)
 
-
         self.image_summaries.append(
           tf.summary.image('next', tf.concat([self.next_obs, self.target_next_obs], 2), max_outputs=30))
 
@@ -1122,7 +1124,9 @@ class EignOCNetwork():
 
         with tf.name_scope('termination_loss'):
           if self.config.eigen:
-            self.term_loss = tf.reduce_mean(o_term * primitive_option * (tf.stop_gradient(q_val) - tf.stop_gradient(self.v) + 0.01))
+            self.term_loss = tf.reduce_mean(
+              o_term * tf.cast(tf.logical_not(tf.cast(primitive_option, tf.bool)), tf.float32) * (
+              tf.stop_gradient(q_val) - tf.stop_gradient(self.v) + 0.01))
           else:
             self.term_loss = tf.reduce_mean(o_term * (tf.stop_gradient(q_val) - tf.stop_gradient(self.v) + 0.01))
 
@@ -1200,19 +1204,31 @@ class EignOCNetwork():
     return eigen_q_values_o
 
   def get_q(self, o):
-    options_taken_one_hot = tf.one_hot(o, self.config.nb_options, name="options_one_hot")
+    options_taken_one_hot = tf.one_hot(o, (
+      self.config.nb_options + self.action_size) if self.config.eigen else self.config.nb_options,
+                                       name="options_one_hot")
     q_values_o = tf.reduce_sum(tf.multiply(self.q_val, options_taken_one_hot),
                                reduction_indices=1, name="values_Q")
     return q_values_o
 
   def get_primitive(self, o):
-    primitive_actions = tf.where(o >= self.nb_options, 1, 0)
+    primitive_actions = tf.where(o >= self.nb_options,
+                                 tf.ones_like(self.current_option),
+                                 tf.zeros_like(self.current_option))
     return primitive_actions
 
   def get_o_term(self, o, boolean_value=False):
-    options_taken_one_hot = tf.one_hot(o, self.config.nb_options, name="options_one_hot")
-    o_term = tf.reduce_sum(tf.multiply(self.termination, options_taken_one_hot),
-                           reduction_indices=1, name="o_terminations")
+    options_taken_one_hot = tf.one_hot(o, (
+      self.config.nb_options + self.action_size) if self.config.eigen else self.config.nb_options,
+                                       name="options_one_hot")
+    if self.config.eigen:
+      o_term = tf.where(o >= self.nb_options,
+                        tf.ones_like(o, tf.float32),
+                        tf.reduce_sum(tf.multiply(self.termination, options_taken_one_hot),
+                                      reduction_indices=1, name="o_terminations"))
+    else:
+      o_term = tf.reduce_sum(tf.multiply(self.termination, options_taken_one_hot),
+                             reduction_indices=1, name="o_terminations")
     if boolean_value:
       local_random = tf.random_uniform(shape=[], minval=0., maxval=1., dtype=tf.float32, name="rand_o_term")
       o_term = o_term > local_random

@@ -109,7 +109,7 @@ class EigenOCAgent(Visualizer):
         self.episode_options = []
         self.episode_actions = []
         self.episode_reward = 0
-        self.episode_option_histogram = np.zeros(self.config.nb_options)
+        # self.episode_option_histogram = np.zeros(self.config.nb_options)
         d = False
         t = 0
         t_counter_sf = 0
@@ -241,7 +241,7 @@ class EigenOCAgent(Visualizer):
           self.save_model()
 
         if self.episode_count % self.config.episode_summary_interval == 0 and self.total_steps != 0 and \
-                self.name == 'worker_0':
+                self.name == 'worker_0' and self.episode_count != 0:
           self.write_episode_summary(ms_sf, ms_aux, ms_option, r)
 
         if self.name == 'worker_0':
@@ -264,7 +264,7 @@ class EigenOCAgent(Visualizer):
       [self.local_network.current_option, self.local_network.primitive_action], feed_dict=feed_dict)
     self.option, self.primitive_action = self.option[0], self.primitive_action[0]
     self.episode_options.append(self.option)
-    self.episode_option_histogram[self.option] += 1
+    # self.episode_option_histogram[self.option] += 1
 
   def policy_evaluation(self, s):
     if self.total_steps > self.config.eigen_exploration_steps:
@@ -376,25 +376,25 @@ class EigenOCAgent(Visualizer):
       last_frequent_action = self.episode_mean_actions[-1]
       self.summary.value.add(tag='Perf/FreqActions', simple_value=last_frequent_action)
 
-    if len(self.episode_options) != 0:
-      counts, bin_edges = np.histogram(self.episode_options,
-                                       bins=list(range(self.config.nb_options)) + [self.config.nb_options])
-
-      hist = tf.HistogramProto(min=np.min(self.episode_options),
-                               max=np.max(self.episode_options),
-                               num=len(self.episode_options),
-                               sum=np.sum(self.episode_options),
-                               sum_squares=np.sum([e ** 2 for e in self.episode_options])
-                               )
-      bin_edges = bin_edges[1:]
-      # Add bin edges and counts
-      for edge in bin_edges:
-        hist.bucket_limit.append(edge)
-      for c in counts:
-        hist.bucket.append(c)
-
-      self.summary.value.add(tag='Perf/OptionsHist', histo=hist)
-      self.summary_writer.add_summary(self.summary, self.total_steps)
+    # if len(self.episode_options) != 0:
+    #   counts, bin_edges = np.histogram(self.episode_options,
+    #                                    bins=list(range(self.config.nb_options)) + [self.config.nb_options])
+    #
+    #   hist = tf.HistogramProto(min=np.min(self.episode_options),
+    #                            max=np.max(self.episode_options),
+    #                            num=len(self.episode_options),
+    #                            sum=np.sum(self.episode_options),
+    #                            sum_squares=np.sum([e ** 2 for e in self.episode_options])
+    #                            )
+    #   bin_edges = bin_edges[1:]
+    #   # Add bin edges and counts
+    #   for edge in bin_edges:
+    #     hist.bucket_limit.append(edge)
+    #   for c in counts:
+    #     hist.bucket.append(c)
+    #
+    #   self.summary.value.add(tag='Perf/OptionsHist', histo=hist)
+    #   self.summary_writer.add_summary(self.summary, self.total_steps)
 
     self.write_step_summary(ms_sf, ms_aux, ms_option, r)
     self.summary_writer.flush()
