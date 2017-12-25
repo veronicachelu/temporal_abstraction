@@ -517,8 +517,8 @@ class EigenOCAgent(Visualizer):
     episode_reward = 0
     s = self.env.reset()
     feed_dict = {self.local_network.observation: np.stack([s])}
-    q_values = self.sess.run(self.local_network.q_val, feed_dict=feed_dict)[0]
-    option = np.argmax(q_values)
+    option, primitive_action = self.sess.run([self.local_network.current_option, self.local_network.primitive_action], feed_dict=feed_dict)
+    option, primitive_action = option[0], primitive_action[0]
     d = False
     episode_length = 0
     episode_frames = []
@@ -527,9 +527,13 @@ class EigenOCAgent(Visualizer):
       options, o_term = self.sess.run([self.local_network.options, self.local_network.termination],
                                       feed_dict=feed_dict)
       o_term = o_term[0, option] > np.random.uniform()
-      pi = options[0, option]
-      action = np.random.choice(pi, p=pi)
-      action = np.argmax(pi == action)
+      if primitive_action:
+       action = option - self.nb_options
+      else:
+        pi = options[0, option]
+        action = np.random.choice(pi, p=pi)
+        action = np.argmax(pi == action)
+
       episode_frames.append(set_image(s, option, action, episode_length))
       s1, r, d, _ = self.env.step(action)
 
@@ -537,10 +541,11 @@ class EigenOCAgent(Visualizer):
       episode_reward += r
       episode_length += 1
 
-      if not d and o_term:
+      if not d and (o_term or primitive_action):
         feed_dict = {self.local_network.observation: np.stack([s1])}
-        q_values = self.sess.run(self.local_network.q_val, feed_dict=feed_dict)[0]
-        option = np.argmax(q_values)
+        option, primitive_action = self.sess.run(
+          [self.local_network.current_option, self.local_network.primitive_action], feed_dict=feed_dict)
+        option, primitive_action = option[0], primitive_action[0]
 
       s = s1
       if episode_length > 100:
@@ -573,31 +578,36 @@ class EigenOCAgent(Visualizer):
         episode_reward = 0
         s = self.env.reset()
         feed_dict = {self.local_network.observation: np.stack([s])}
-        q_values = self.sess.run(self.local_network.q_val, feed_dict=feed_dict)[0]
-        option = np.argmax(q_values)
+        option, primitive_action = self.sess.run(
+          [self.local_network.current_option, self.local_network.primitive_action], feed_dict=feed_dict)
+        option, primitive_action = option[0], primitive_action[0]
         d = False
         episode_length = 0
+        episode_frames = []
         while not d:
           feed_dict = {self.local_network.observation: np.stack([s])}
           options, o_term = self.sess.run([self.local_network.options, self.local_network.termination],
                                           feed_dict=feed_dict)
           o_term = o_term[0, option] > np.random.uniform()
-          pi = options[0, option]
-          action = np.random.choice(pi, p=pi)
-          action = np.argmax(pi == action)
+          if primitive_action:
+            action = option - self.nb_options
+          else:
+            pi = options[0, option]
+            action = np.random.choice(pi, p=pi)
+            action = np.argmax(pi == action)
 
           episode_frames.append(set_image(s, option, action, episode_length))
-
           s1, r, d, _ = self.env.step(action)
 
           r = np.clip(r, -1, 1)
           episode_reward += r
           episode_length += 1
 
-          if not d and o_term:
+          if not d and (o_term or primitive_action):
             feed_dict = {self.local_network.observation: np.stack([s1])}
-            q_values = self.sess.run(self.local_network.q_val, feed_dict=feed_dict)[0]
-            option = np.argmax(q_values)
+            option, primitive_action = self.sess.run(
+              [self.local_network.current_option, self.local_network.primitive_action], feed_dict=feed_dict)
+            option, primitive_action = option[0], primitive_action[0]
 
           s = s1
           if episode_length > 100:

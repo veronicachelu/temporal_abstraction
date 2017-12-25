@@ -1092,9 +1092,11 @@ class EignOCNetwork():
         self.target_return = tf.placeholder(shape=[None], dtype=tf.float32)
         self.policies = self.get_intra_option_policies(self.options_placeholder)
         self.responsible_actions = self.get_responsible_actions(self.policies, self.actions_placeholder)
+        ignore_loss = 1
         if self.config.eigen:
           eigen_q_val = self.get_eigen_q(self.options_placeholder)
           primitive_option = self.get_primitive(self.options_placeholder)
+          ignore_loss = tf.cast(tf.logical_not(tf.cast(primitive_option, tf.bool)), tf.float32)
         q_val = self.get_q(self.options_placeholder)
         o_term = self.get_o_term(self.options_placeholder)
 
@@ -1125,7 +1127,7 @@ class EignOCNetwork():
         with tf.name_scope('termination_loss'):
           if self.config.eigen:
             self.term_loss = tf.reduce_mean(
-              o_term * tf.cast(tf.logical_not(tf.cast(primitive_option, tf.bool)), tf.float32) * (
+              o_term * ignore_loss * (
               tf.stop_gradient(q_val) - tf.stop_gradient(self.v) + 0.01))
           else:
             self.term_loss = tf.reduce_mean(o_term * (tf.stop_gradient(q_val) - tf.stop_gradient(self.v) + 0.01))
@@ -1135,7 +1137,7 @@ class EignOCNetwork():
                                                                                 tf.log(self.policies + 1e-7),
                                                                                 axis=1))
         with tf.name_scope('policy_loss'):
-          self.policy_loss = -tf.reduce_mean(tf.log(self.responsible_actions + 1e-7) * tf.stop_gradient(
+          self.policy_loss = -tf.reduce_mean(tf.log(self.responsible_actions + 1e-7) * ignore_loss * tf.stop_gradient(
             eigen_td_error if self.config.eigen else td_error))
 
         self.option_loss = self.policy_loss - self.entropy_loss + self.critic_loss + self.term_loss
