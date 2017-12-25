@@ -583,7 +583,6 @@ class EigenOCAgent(Visualizer):
         option, primitive_action = option[0], primitive_action[0]
         d = False
         episode_length = 0
-        episode_frames = []
         while not d:
           feed_dict = {self.local_network.observation: np.stack([s])}
           options, o_term = self.sess.run([self.local_network.options, self.local_network.termination],
