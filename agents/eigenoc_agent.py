@@ -432,7 +432,7 @@ class EigenOCAgent(Visualizer):
       self.should_consider_eigenvectors = True
       matrix_sf = np.zeros((self.nb_states, self.config.sf_layers[-1]))
       for idx in range(self.nb_states):
-        s, ii, jj = self.env.get_state(idx)
+        s, ii, jj = self.env.fake_get_state(idx)
         if self.env.not_wall(ii, jj):
           feed_dict = {self.local_network.observation: [s]}
           sf = self.sess.run(self.local_network.sf, feed_dict=feed_dict)[0]
