@@ -595,7 +595,7 @@ class EigenOCAgent(Visualizer):
             action = np.random.choice(pi, p=pi)
             action = np.argmax(pi == action)
 
-          episode_frames.append(set_image(s, option, action, episode_length))
+          episode_frames.append(set_image(s, option, action, episode_length, primitive_action))
           s1, r, d, _ = self.env.step(action)
 
           r = np.clip(r, -1, 1)
@@ -617,7 +617,7 @@ class EigenOCAgent(Visualizer):
         tf.logging.info("Ep {} finished in {} steps with reward {}".format(i, episode_length, episode_reward))
       images = np.array(episode_frames)
       make_gif(images, os.path.join(self.test_path, 'test_episodes.gif'),
-               duration=len(images) * 0.1, true_image=True)
+               duration=len(images) * 1.0, true_image=True)
       tf.logging.info("Won {} episodes of {}".format(ep_rewards.count(1), self.config.nb_test_ep))
 
   def init_or_load_SR(self):
