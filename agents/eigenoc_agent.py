@@ -278,14 +278,21 @@ class EigenOCAgent(Visualizer):
         options, value, q_value, o_term, eigen_q_value = results
         if not self.primitive_action:
           self.eigen_q_value = eigen_q_value[0, self.option]
+          pi = options[0, self.option]
+          self.action = np.random.choice(pi, p=pi)
+          self.action = np.argmax(pi == self.action)
+        else:
+          self.action = self.option - self.nb_options
       else:
         options, value, q_value, o_term = results
+        pi = options[0, self.option]
+        self.action = np.random.choice(pi, p=pi)
+        self.action = np.argmax(pi == self.action)
+
       self.o_term = o_term[0, self.option] > np.random.uniform()
       self.q_value = q_value[0, self.option]
       self.value = value[0]
-      pi = options[0, self.option]
-      self.action = np.random.choice(pi, p=pi)
-      self.action = np.argmax(pi == self.action)
+
     else:
       self.action = np.random.choice(range(self.action_size))
     self.episode_actions.append(self.action)
