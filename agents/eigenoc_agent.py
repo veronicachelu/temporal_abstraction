@@ -20,6 +20,7 @@ import scipy.stats
 import seaborn as sns
 from auxilary.visualizer import Visualizer
 import pickle
+
 sns.set()
 import random
 import matplotlib.pyplot as plt
@@ -67,6 +68,7 @@ class EigenOCAgent(Visualizer):
     self.increment_total_steps_tensor = self.total_steps_tensor.assign_add(1)
     self.total_steps = 0
     self.action_size = game.action_space.n
+    self.nb_options = config.nb_options
     self.nb_states = game.nb_states
     self.summary_writer = tf.summary.FileWriter(self.summary_path + "/worker_" + str(self.thread_id))
     self.summary = tf.Summary()
@@ -156,7 +158,8 @@ class EigenOCAgent(Visualizer):
               bootstrap_sf = np.zeros_like(sf) if d else sf
               ms_sf, sf_loss = self.train_sf(bootstrap_sf)
               if self.name == "worker_0":
-                tf.logging.info("Episode {} >> Step {} >>> SF_loss {}".format(self.episode_count, self.total_steps, sf_loss))
+                tf.logging.info(
+                  "Episode {} >> Step {} >>> SF_loss {}".format(self.episode_count, self.total_steps, sf_loss))
               self.episode_buffer_sf = []
               t_counter_sf = 0
 
@@ -192,9 +195,8 @@ class EigenOCAgent(Visualizer):
                 self.episode_buffer_option = []
                 t_counter_option = 0
 
-              if not d:
-                if self.o_term:
-                  self.option_evaluation(s1)
+              if not d and (self.o_term or self.primitive_action):
+                self.option_evaluation(s1)
 
             if self.total_steps % self.config.steps_checkpoint_interval == 0 and self.name == 'worker_0':
               self.save_model()
@@ -222,7 +224,7 @@ class EigenOCAgent(Visualizer):
         if len(self.episode_q_values) != 0:
           self.episode_mean_q_values.append(np.mean(self.episode_q_values))
         if self.config.eigen and len(self.episode_eigen_q_values) != 0:
-            self.episode_mean_eigen_q_values.append(np.mean(self.episode_eigen_q_values))
+          self.episode_mean_eigen_q_values.append(np.mean(self.episode_eigen_q_values))
         if len(self.episode_oterm) != 0:
           self.episode_mean_oterms.append(np.mean(self.episode_oterm))
         if len(self.episode_options) != 0:
@@ -247,19 +249,28 @@ class EigenOCAgent(Visualizer):
           self.episode_count += 1
 
   def option_evaluation(self, s):
-    if random.random() <= self.config.final_random_action_prob:
-      self.option = np.random.choice(range(self.config.nb_options))
-    else:
-      feed_dict = {self.local_network.observation: np.stack([s])}
-      q_values = self.sess.run(self.local_network.q_val, feed_dict=feed_dict)[0]
-      self.option = np.argmax(q_values)
+    # if random.random() <= self.config.final_random_action_prob:
+    #   self.option = np.random.choice(range(self.config.nb_options))
+    # else:
+    #   feed_dict = {self.local_network.observation: np.stack([s])}
+    #   q_values = self.sess.run(self.local_network.q_val, feed_dict=feed_dict)[0]
+    #   self.option = np.argmax(q_values)
+    #   if self.option >= self.nb_options:
+    #     self.chose_primitive_action = True
+    # self.episode_options.append(self.option)
+    # self.episode_option_histogram[self.option] += 1
+    feed_dict = {self.local_network.observation: np.stack([s])}
+    self.option, self.primitive_action = self.sess.run(
+      [self.local_network.current_option, self.local_network.primitive_action], feed_dict=feed_dict)
+    self.option, self.primitive_action = self.option[0], self.primitive_action[0]
     self.episode_options.append(self.option)
     self.episode_option_histogram[self.option] += 1
 
   def policy_evaluation(self, s):
     if self.total_steps > self.config.eigen_exploration_steps:
       feed_dict = {self.local_network.observation: np.stack([s])}
-      to_run = [self.local_network.options, self.local_network.v, self.local_network.q_val, self.local_network.termination]
+      to_run = [self.local_network.options, self.local_network.v, self.local_network.q_val,
+                self.local_network.termination]
       if self.config.eigen:
         to_run.append(self.local_network.eigen_q_val)
       results = self.sess.run(to_run, feed_dict=feed_dict)
@@ -286,7 +297,8 @@ class EigenOCAgent(Visualizer):
     self.episode_reward += r
 
   def store_option_info(self, s, s1, a, r):
-    if self.sr_matrix_buffer.full:
+    if self.sr_matrix_buffer.full and (
+          self.total_steps % self.config.recompute_eigenvect_every == 0 or self.should_consider_eigenvectors == False):
       self.recompute_eigenvectors()
 
     if self.config.eigen and self.should_consider_eigenvectors:
@@ -402,6 +414,7 @@ class EigenOCAgent(Visualizer):
       # u, s, v = np.linalg.svd(self.sr_matrix_buffer.get(), full_matrices=False)
       eigenvalues = eigenval[1:self.config.nb_options + 1]
       self.eigenvectors = eigenvect[1:self.config.nb_options + 1]
+      tf.logging.info("EIGENVALUES {}".format(eigenvalues))
     else:
       self.should_consider_eigenvectors = False
 
@@ -469,12 +482,12 @@ class EigenOCAgent(Visualizer):
                  self.local_network.options_placeholder: options}
 
     to_run = [self.local_network.apply_grads_option,
-     self.local_network.merged_summary_option,
-     self.local_network.option_loss,
-     self.local_network.policy_loss,
-     self.local_network.entropy_loss,
-     self.local_network.critic_loss,
-     self.local_network.term_loss]
+              self.local_network.merged_summary_option,
+              self.local_network.option_loss,
+              self.local_network.policy_loss,
+              self.local_network.entropy_loss,
+              self.local_network.critic_loss,
+              self.local_network.term_loss]
 
     if self.config.eigen:
       eigen_rewards_plus = np.asarray(eigen_rewards.tolist() + [bootstrap_value])
@@ -503,7 +516,7 @@ class EigenOCAgent(Visualizer):
     while not d:
       feed_dict = {self.local_network.observation: np.stack([s])}
       options, o_term = self.sess.run([self.local_network.options, self.local_network.termination],
-                                                      feed_dict=feed_dict)
+                                      feed_dict=feed_dict)
       o_term = o_term[0, option] > np.random.uniform()
       pi = options[0, option]
       action = np.random.choice(pi, p=pi)
@@ -558,7 +571,7 @@ class EigenOCAgent(Visualizer):
         while not d:
           feed_dict = {self.local_network.observation: np.stack([s])}
           options, o_term = self.sess.run([self.local_network.options, self.local_network.termination],
-                                                          feed_dict=feed_dict)
+                                          feed_dict=feed_dict)
           o_term = o_term[0, option] > np.random.uniform()
           pi = options[0, option]
           action = np.random.choice(pi, p=pi)
