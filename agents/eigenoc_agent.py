@@ -305,9 +305,9 @@ class EigenOCAgent(Visualizer):
     self.episode_reward += r
 
   def store_option_info(self, s, s1, a, r):
-    if self.sr_matrix_buffer.full and (
-          self.total_steps % self.config.recompute_eigenvect_every == 0 or self.should_consider_eigenvectors == False):
-      self.recompute_eigenvectors()
+    # if self.sr_matrix_buffer.full and (
+    if self.total_steps % self.config.recompute_eigenvect_every == 0 or self.should_consider_eigenvectors == False:
+      self.recompute_eigenvectors_classic()
 
     if self.config.eigen and self.should_consider_eigenvectors and not self.primitive_action:
       feed_dict = {self.local_network.observation: np.stack([s, s1])}
@@ -424,6 +424,25 @@ class EigenOCAgent(Visualizer):
       eigenvalues = eigenval[1:self.config.nb_options + 1]
       self.eigenvectors = eigenvect[1:self.config.nb_options + 1]
       tf.logging.info("EIGENVALUES {}".format(eigenvalues))
+    else:
+      self.should_consider_eigenvectors = False
+
+  def recompute_eigenvectors_classic(self):
+    if self.config.eigen:
+      self.should_consider_eigenvectors = True
+      matrix_sf = np.zeros((self.nb_states, self.config.sf_layers[-1]))
+      for idx in range(self.nb_states):
+        s, ii, jj = self.env.get_state(idx)
+        if self.env.not_wall(ii, jj):
+          feed_dict = {self.local_network.observation: [s]}
+          sf = self.sess.run(self.local_network.sf, feed_dict=feed_dict)[0]
+          matrix_sf[idx] = sf
+      feed_dict = {self.local_network.matrix_sf: matrix_sf}
+      eigenval, eigenvect = self.sess.run([self.local_network.eigenvalues, self.local_network.eigenvectors],
+                                          feed_dict=feed_dict)
+      # u, s, v = np.linalg.svd(self.sr_matrix_buffer.get(), full_matrices=False)
+      eigenvalues = eigenval[1:self.config.nb_options + 1]
+      self.eigenvectors = eigenvect[1:self.config.nb_options + 1]
     else:
       self.should_consider_eigenvectors = False
 

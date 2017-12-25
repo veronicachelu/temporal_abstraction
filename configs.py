@@ -562,6 +562,6 @@ def eigenoc():
   clip_option_grad_by_value = True
   clip_by_value = 1
   nb_test_ep = 100
-  recompute_eigenvect_every = 1000
+  recompute_eigenvect_every = 100
 
   return locals()
