@@ -309,7 +309,7 @@ class EigenOCAgent(Visualizer):
           self.total_steps % self.config.recompute_eigenvect_every == 0 or self.should_consider_eigenvectors == False):
       self.recompute_eigenvectors()
 
-    if self.config.eigen and self.should_consider_eigenvectors:
+    if self.config.eigen and self.should_consider_eigenvectors and not self.primitive_action:
       feed_dict = {self.local_network.observation: np.stack([s, s1])}
       fi = self.sess.run(self.local_network.fi,
                          feed_dict=feed_dict)

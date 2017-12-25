@@ -1030,7 +1030,8 @@ class EignOCNetwork():
       if self.config.eigen:
         with tf.variable_scope("eigen_option_q_val"):
           out = tf.stop_gradient(tf.nn.relu(self.fi))
-          self.eigen_q_val = layers.fully_connected(out, num_outputs=self.nb_options,
+          self.eigen_q_val = layers.fully_connected(out, num_outputs=(
+          self.nb_options + self.action_size) if self.config.eigen else self.nb_options,
                                                     activation_fn=None,
                                                     variables_collections=tf.get_collection("variables"),
                                                     outputs_collections="activations", scope="fc_q_val")
@@ -1118,19 +1119,16 @@ class EignOCNetwork():
         if self.config.eigen:
           with tf.name_scope('eigen_critic_loss'):
             eigen_td_error = self.target_eigen_return - eigen_q_val
-            self.eigen_critic_loss = tf.reduce_mean(0.5 * self.config.eigen_critic_coef * tf.square(eigen_td_error))
+            self.eigen_critic_loss = tf.reduce_mean(0.5 * self.config.eigen_critic_coef * ignore_loss * tf.square(eigen_td_error))
 
         with tf.name_scope('critic_loss'):
           td_error = self.target_return - q_val
         self.critic_loss = tf.reduce_mean(0.5 * self.config.critic_coef * tf.square(td_error))
 
         with tf.name_scope('termination_loss'):
-          if self.config.eigen:
-            self.term_loss = tf.reduce_mean(
-              o_term * ignore_loss * (
-              tf.stop_gradient(q_val) - tf.stop_gradient(self.v) + 0.01))
-          else:
-            self.term_loss = tf.reduce_mean(o_term * (tf.stop_gradient(q_val) - tf.stop_gradient(self.v) + 0.01))
+          self.term_loss = tf.reduce_mean(
+            o_term * ignore_loss * (
+            tf.stop_gradient(q_val) - tf.stop_gradient(self.v) + 0.01))
 
         with tf.name_scope('entropy_loss'):
           self.entropy_loss = -self.entropy_coef * tf.reduce_mean(tf.reduce_sum(self.policies *
@@ -1200,7 +1198,9 @@ class EignOCNetwork():
     return responsible_actions
 
   def get_eigen_q(self, o):
-    options_taken_one_hot = tf.one_hot(o, self.config.nb_options, name="options_one_hot")
+    options_taken_one_hot = tf.one_hot(o, (
+      self.config.nb_options + self.action_size) if self.config.eigen else self.config.nb_options,
+                                       name="options_one_hot")
     eigen_q_values_o = tf.reduce_sum(tf.multiply(self.eigen_q_val, options_taken_one_hot),
                                      reduction_indices=1, name="eigen_values_Q")
     return eigen_q_values_o
