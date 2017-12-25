@@ -1104,7 +1104,9 @@ class EignOCNetwork():
         self.image_summaries.append(
           tf.summary.image('next', tf.concat([self.next_obs, self.target_next_obs], 2), max_outputs=30))
 
-        self.matrix_sf = tf.placeholder(shape=[self.config.sf_matrix_size, self.sf_layers[-1]],
+        # self.matrix_sf = tf.placeholder(shape=[self.config.sf_matrix_size, self.sf_layers[-1]],
+        #                                 dtype=tf.float32, name="matrix_sf")
+        self.matrix_sf = tf.placeholder(shape=[self.nb_states, self.sf_layers[-1]],
                                         dtype=tf.float32, name="matrix_sf")
         self.eigenvalues, _, self.eigenvectors = tf.svd(self.matrix_sf)
 
