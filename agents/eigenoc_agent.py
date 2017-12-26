@@ -598,13 +598,15 @@ class EigenOCAgent(Visualizer):
       feed_dict = {self.local_network.observation: np.stack([s])}
       options, o_term = self.sess.run([self.local_network.options, self.local_network.termination],
                                       feed_dict=feed_dict)
-      o_term = o_term[0, option] > np.random.uniform()
+
       if primitive_action:
         action = option - self.nb_options
+        o_term = True
       else:
         pi = options[0, option]
         action = np.random.choice(pi, p=pi)
         action = np.argmax(pi == action)
+        o_term = o_term[0, option] > np.random.uniform()
 
       episode_frames.append(set_image(s, option, action, episode_length, primitive_action))
       s1, r, d, _ = self.env.step(action)
