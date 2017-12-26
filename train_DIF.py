@@ -32,6 +32,8 @@ def train(config, env_processes, logdir):
           agent = config.dif_agent(envs[0], 0, global_step, config)
         elif FLAGS.task == "option":
           agent = config.dif_agent(envs[0], 0, global_step, config)
+        elif FLAGS.task == "eigenoption":
+          agent = config.dif_agent(envs[0], 0, global_step, config)
         elif FLAGS.task == "eval":
           agent = config.dif_agent(envs[0], 0, global_step, config)
         else:
@@ -56,6 +58,10 @@ def train(config, env_processes, logdir):
         agent_threads.append(thread)
       elif FLAGS.task == "option":
         thread = threading.Thread(target=(lambda: agent.plot_options(sess, coord, saver)))
+        thread.start()
+        agent_threads.append(thread)
+      elif FLAGS.task == "eigenoption":
+        thread = threading.Thread(target=(lambda: agent.viz_options(sess, coord, saver)))
         thread.start()
         agent_threads.append(thread)
       elif FLAGS.task == "eval":
@@ -118,8 +124,8 @@ if __name__ == '__main__':
     'train', True,
     'Training.')
   tf.app.flags.DEFINE_boolean(
-    # 'resume', False,
-    'resume', True,
+    'resume', False,
+    # 'resume', True,
     'Resume.')
   tf.app.flags.DEFINE_boolean(
     'show_training', False,
@@ -128,7 +134,7 @@ if __name__ == '__main__':
     'task', "sf",
     'Task nature')
   tf.app.flags.DEFINE_string(
-    # 'load_from', None,
-    'load_from', "./logdir/15-eigenoc",
+    'load_from', None,
+    # 'load_from', "./logdir/21-eigenoc",
     'Load directory to load models from.')
   tf.app.run()

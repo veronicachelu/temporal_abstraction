@@ -213,7 +213,7 @@ class GridWorld:
     #   res = -1
     # elif res > 0:
     #   res = 1
-    return
+    return res
 
   def fake_get_state(self, idx):
     orig_agentX, orig_agentY = self.agentX, self.agentY
