@@ -953,11 +953,12 @@ class EignOCNetwork():
 
     # self._exploration_options = TFLinearSchedule(self._config.explore_steps, self._config.final_random_action_prob,
     #                                              self._config.initial_random_action_prob)
-    if total_steps_tensor is not None:
-      self.entropy_coef = tf.train.polynomial_decay(self.config.initial_random_action_prob, total_steps_tensor,
-                                                    self.config.entropy_decay_steps,
-                                                    self.config.final_random_action_prob,
-                                                    power=0.5)
+    # if total_steps_tensor is not None:
+    #   self.entropy_coef = tf.train.polynomial_decay(self.config.initial_random_action_prob, total_steps_tensor,
+    #                                                 self.config.entropy_decay_steps,
+    #                                                 self.config.final_random_action_prob,
+    #                                                 power=0.5)
+    self.entropy_coef = self.config.final_random_action_prob
 
     with tf.variable_scope(scope):
       self.observation = tf.placeholder(shape=[None, config.input_size[0], config.input_size[1], config.history_size],

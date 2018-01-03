@@ -721,39 +721,68 @@ class EigenOCAgent(Visualizer):
       matrix_path = os.path.join(os.path.join(self.config.stage_logdir, "models"), "matrix.npy")
       self.matrix_sf = np.load(matrix_path)
       u, s, v = np.linalg.svd(self.matrix_sf)
-      eigenvalues = s
-      eigenvectors = v
+      eigenvalues = s[1:1+self.nb_options]
+      eigenvectors = v[1:1+self.nb_options]
 
-      s = self.env.reset()
-      feed_dict = {self.local_network.observation: np.stack([s])}
-      option, primitive_action = self.sess.run([self.local_network.current_option, self.local_network.primitive_action],
-                                               feed_dict=feed_dict)
-      option, primitive_action = option[0], primitive_action[0]
-      d = False
-      episode_length = 0
-      episode_reward = 0
-      while not d:
-        feed_dict = {self.local_network.observation: np.stack([s])}
-        options, o_term = self.sess.run([self.local_network.options, self.local_network.termination],
-                                        feed_dict=feed_dict)
-        o_term = o_term[0, option] > np.random.uniform()
-        if primitive_action:
-          action = option - self.nb_options
-        else:
-          pi = options[0, option]
-          action = np.random.choice(pi, p=pi)
-          action = np.argmax(pi == action)
+      for option in range(len(eigenvalues)):
+        prefix = str(option) + '_'
+        plt.clf()
 
-        s1, r, d, _ = self.env.step(action)
+        with sess.as_default(), sess.graph.as_default():
+          for idx in range(self.nb_states):
+            dx = 0
+            dy = 0
+            d = False
+            s, i, j = self.env.get_state(idx)
+            if not self.env.not_wall(i, j):
+              plt.gca().add_patch(
+                patches.Rectangle(
+                  (j, self.config.input_size[0] - i - 1),  # (x,y)
+                  1.0,  # width
+                  1.0,  # height
+                  facecolor="gray"
+                )
+              )
+              continue
 
-        r = np.clip(r, -1, 1)
-        episode_reward += r
-        episode_length += 1
+            feed_dict = {self.local_network.observation: np.stack([s])}
+            fi, options, o_term = sess.run([self.local_network.fi, self.local_network.options, self.local_network.termination],
+                          feed_dict=feed_dict)
+            fi, options, o_term = fi[0], options[0], o_term[0]
+            pi = options[option]
+            action = np.random.choice(pi, p=pi)
+            a = np.argmax(pi == action)
+            o_term = o_term[option] > np.random.uniform()
+            if a == 0: # up
+              dy = 0.35
+            elif a == 1:  # right
+              dx = 0.35
+            elif a == 2:  # down
+              dy = -0.35
+            elif a == 3:  # left
+              dx = -0.35
 
-        if not d and (o_term or primitive_action):
-          feed_dict = {self.local_network.observation: np.stack([s1])}
-          option, primitive_action = self.sess.run(
-            [self.local_network.current_option, self.local_network.primitive_action], feed_dict=feed_dict)
-          option, primitive_action = option[0], primitive_action[0]
+            if o_term: # termination
+              circle = plt.Circle(
+                (j + 0.5, self.config.input_size[0] - i + 0.5 - 1), 0.025, color='k')
+              plt.gca().add_artist(circle)
+              continue
 
-        s = s1
+            plt.arrow(j + 0.5, self.config.input_size[0] - i + 0.5 - 1, dx, dy,
+                      head_width=0.05, head_length=0.05, fc='k', ec='k')
+
+          plt.xlim([0, self.config.input_size[1]])
+          plt.ylim([0, self.config.input_size[0]])
+
+          for i in range(self.config.input_size[1]):
+            plt.axvline(i, color='k', linestyle=':')
+          plt.axvline(self.config.input_size[1], color='k', linestyle=':')
+
+          for j in range(self.config.input_size[0]):
+            plt.axhline(j, color='k', linestyle=':')
+          plt.axhline(self.config.input_size[0], color='k', linestyle=':')
+
+          plt.savefig(os.path.join(self.summary_path, "Option_" + prefix + 'policy.png'))
+          plt.close()
+
+
