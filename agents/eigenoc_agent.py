@@ -233,8 +233,8 @@ class EigenOCAgent(Visualizer):
 
         if self.episode_count % self.config.episode_eval_interval == 0 and \
                 self.name == 'worker_0' and self.episode_count != 0:
-          eval_reward, eval_length = self.evaluate_agent()
-          self.write_eval_summary(eval_reward, eval_length)
+          eval_episodes_won = self.evaluate_agent()
+          self.write_eval_summary(eval_episodes_won)
 
         if self.episode_count % self.config.episode_checkpoint_interval == 0 and self.name == 'worker_0' and \
                 self.episode_count != 0:
@@ -446,8 +446,8 @@ class EigenOCAgent(Visualizer):
       eigenval, eigenvect = self.sess.run([self.local_network.eigenvalues, self.local_network.eigenvectors],
                                           feed_dict=feed_dict)
       # u, s, v = np.linalg.svd(self.sr_matrix_buffer.get(), full_matrices=False)
-      eigenvalues = eigenval[1:self.config.nb_options + 1]
-      self.eigenvectors = eigenvect[1:self.config.nb_options + 1]
+      eigenvalues = eigenval[self.config.first_eigenoption:self.config.nb_options + self.config.first_eigenoption]
+      self.eigenvectors = eigenvect[self.config.first_eigenoption:self.config.nb_options + self.config.first_eigenoption]
     else:
       self.should_consider_eigenvectors = False
 
@@ -585,55 +585,62 @@ class EigenOCAgent(Visualizer):
     return results[1:]
 
   def evaluate_agent(self):
-    episode_reward = 0
-    s = self.env.reset()
-    feed_dict = {self.local_network.observation: np.stack([s])}
-    option, primitive_action = self.sess.run([self.local_network.current_option, self.local_network.primitive_action],
-                                             feed_dict=feed_dict)
-    option, primitive_action = option[0], primitive_action[0]
-    d = False
-    episode_length = 0
-    episode_frames = []
-    while not d:
+    episodes_won = 0
+    for i in range(self.config.nb_test_ep):
+      episode_reward = 0
+      s = self.env.reset()
       feed_dict = {self.local_network.observation: np.stack([s])}
-      options, o_term = self.sess.run([self.local_network.options, self.local_network.termination],
-                                      feed_dict=feed_dict)
+      option, primitive_action = self.sess.run([self.local_network.max_options, self.local_network.primitive_action],
+                                               feed_dict=feed_dict)
+      option, primitive_action = option[0], primitive_action[0]
+      primitive_action = option >= self.config.nb_options
+      d = False
+      episode_length = 0
+      if i == 0:
+        episode_frames = []
+      while not d:
+        feed_dict = {self.local_network.observation: np.stack([s])}
+        options, o_term = self.sess.run([self.local_network.options, self.local_network.termination],
+                                        feed_dict=feed_dict)
 
-      if primitive_action:
-        action = option - self.nb_options
-        o_term = True
-      else:
-        pi = options[0, option]
-        action = np.random.choice(pi, p=pi)
-        action = np.argmax(pi == action)
-        o_term = o_term[0, option] > np.random.uniform()
+        if primitive_action:
+          action = option - self.nb_options
+          o_term = True
+        else:
+          pi = options[0, option]
+          action = np.random.choice(pi, p=pi)
+          action = np.argmax(pi == action)
+          o_term = o_term[0, option] > np.random.uniform()
 
-      episode_frames.append(set_image(s, option, action, episode_length, primitive_action))
-      s1, r, d, _ = self.env.step(action)
+        if i == 0:
+          episode_frames.append(set_image(s, option, action, episode_length, primitive_action))
+        s1, r, d, _ = self.env.step(action)
 
-      r = np.clip(r, -1, 1)
-      episode_reward += r
-      episode_length += 1
+        r = np.clip(r, -1, 1)
+        episode_reward += r
+        episode_length += 1
 
-      if not d and (o_term or primitive_action):
-        feed_dict = {self.local_network.observation: np.stack([s1])}
-        option, primitive_action = self.sess.run(
-          [self.local_network.current_option, self.local_network.primitive_action], feed_dict=feed_dict)
-        option, primitive_action = option[0], primitive_action[0]
+        if not d and (o_term or primitive_action):
+          feed_dict = {self.local_network.observation: np.stack([s1])}
+          option, primitive_action = self.sess.run(
+            [self.local_network.max_options, self.local_network.primitive_action], feed_dict=feed_dict)
+          option, primitive_action = option[0], primitive_action[0]
+          primitive_action = option >= self.config.nb_options
+        s = s1
+        if episode_length > 100:
+          break
 
-      s = s1
-      if episode_length > 100:
-        break
+        if i == 0:
+          images = np.array(episode_frames)
+          make_gif(images, os.path.join(self.test_path, 'eval_episode_{}.gif'.format(self.episode_count)),
+                   duration=len(images) * 0.1, true_image=True)
 
-      images = np.array(episode_frames)
-      make_gif(images, os.path.join(self.test_path, 'eval_episode_{}.gif'.format(self.episode_count)),
-               duration=len(images) * 0.1, true_image=True)
+      episodes_won += episode_reward
 
-    return episode_reward, episode_length
+    return episodes_won
 
-  def write_eval_summary(self, eval_reward, eval_length):
-    self.summary.value.add(tag='Eval/EvalReward', simple_value=float(eval_reward))
-    self.summary.value.add(tag='Eval/EvalLength', simple_value=float(eval_length))
+  def write_eval_summary(self, eval_episodes_won):
+    self.summary.value.add(tag='Eval/Episodes_won(of 100)', simple_value=float(eval_episodes_won))
     self.summary_writer.add_summary(self.summary, self.total_steps)
     self.summary_writer.flush()
 
@@ -653,8 +660,9 @@ class EigenOCAgent(Visualizer):
         s = self.env.reset()
         feed_dict = {self.local_network.observation: np.stack([s])}
         option, primitive_action = self.sess.run(
-          [self.local_network.current_option, self.local_network.primitive_action], feed_dict=feed_dict)
+          [self.local_network.max_options, self.local_network.primitive_action], feed_dict=feed_dict)
         option, primitive_action = option[0], primitive_action[0]
+        primitive_action = option >= self.config.nb_options
         d = False
         episode_length = 0
         while not d:
@@ -681,9 +689,9 @@ class EigenOCAgent(Visualizer):
           if not d and (o_term or primitive_action):
             feed_dict = {self.local_network.observation: np.stack([s1])}
             option, primitive_action = self.sess.run(
-              [self.local_network.current_option, self.local_network.primitive_action], feed_dict=feed_dict)
+              [self.local_network.max_options, self.local_network.primitive_action], feed_dict=feed_dict)
             option, primitive_action = option[0], primitive_action[0]
-
+            primitive_action = option >= self.config.nb_options
           s = s1
           if episode_length > 100:
             break
@@ -723,6 +731,89 @@ class EigenOCAgent(Visualizer):
       u, s, v = np.linalg.svd(self.matrix_sf)
       eigenvalues = s[1:1+self.nb_options]
       eigenvectors = v[1:1+self.nb_options]
+      plt.clf()
+
+      with sess.as_default(), sess.graph.as_default():
+        for idx in range(self.nb_states):
+          dx = 0
+          dy = 0
+          d = False
+          s, i, j = self.env.get_state(idx)
+          if not self.env.not_wall(i, j):
+            plt.gca().add_patch(
+              patches.Rectangle(
+                (j, self.config.input_size[0] - i - 1),  # (x,y)
+                1.0,  # width
+                1.0,  # height
+                facecolor="gray"
+              )
+            )
+            continue
+
+          feed_dict = {self.local_network.observation: np.stack([s])}
+          max_q_val, q_vals, option, primitive_action, options, o_term = self.sess.run(
+            [self.local_network.max_q_val, self.local_network.q_val, self.local_network.max_options, self.local_network.primitive_action, self.local_network.options, self.local_network.termination],
+            feed_dict=feed_dict)
+          max_q_val = max_q_val[0]
+          # q_vals = q_vals[0]
+
+          o, primitive_action = option[0], primitive_action[0]
+          # q_val = q_vals[o]
+          primitive_action = o >= self.config.nb_options
+          if primitive_action:
+            a = o - self.nb_options
+            o_term = True
+          else:
+            pi = options[0, o]
+            action = np.random.choice(pi, p=pi)
+            a = np.argmax(pi == action)
+            o_term = o_term[0, o] > np.random.uniform()
+
+          if a == 0:    # up
+            dy = 0.35
+          elif a == 1:  # right
+            dx = 0.35
+          elif a == 2:  # down
+            dy = -0.35
+          elif a == 3:  # left
+            dx = -0.35
+
+          if o_term and not primitive_action: # termination
+            circle = plt.Circle(
+              (j + 0.5, self.config.input_size[0] - i + 0.5 - 1), 0.025, color='r' if primitive_action else 'k')
+            plt.gca().add_artist(circle)
+            continue
+          plt.text(j, self.config.input_size[0] - i - 1, str(o), color='r' if primitive_action else 'b', fontsize=8)
+          plt.text(j + 0.5, self.config.input_size[0] - i - 1, '{0:.2f}'.format(max_q_val), fontsize=8)
+
+          plt.arrow(j + 0.5, self.config.input_size[0] - i + 0.5 - 1, dx, dy,
+                    head_width=0.05, head_length=0.05, fc='r' if primitive_action else 'k', ec='r' if primitive_action else 'k')
+
+        plt.xlim([0, self.config.input_size[1]])
+        plt.ylim([0, self.config.input_size[0]])
+
+        for i in range(self.config.input_size[1]):
+          plt.axvline(i, color='k', linestyle=':')
+        plt.axvline(self.config.input_size[1], color='k', linestyle=':')
+
+        for j in range(self.config.input_size[0]):
+          plt.axhline(j, color='k', linestyle=':')
+        plt.axhline(self.config.input_size[0], color='k', linestyle=':')
+
+        plt.savefig(os.path.join(self.summary_path, 'Training_policy.png'))
+        plt.close()
+
+  def viz_options2(self, sess, coord, saver):
+    with sess.as_default(), sess.graph.as_default():
+      self.sess = sess
+      self.saver = saver
+      folder_path = os.path.join(os.path.join(self.config.stage_logdir, "summaries"), "policies")
+      tf.gfile.MakeDirs(folder_path)
+      matrix_path = os.path.join(os.path.join(self.config.stage_logdir, "models"), "matrix.npy")
+      self.matrix_sf = np.load(matrix_path)
+      u, s, v = np.linalg.svd(self.matrix_sf)
+      eigenvalues = s[1:1 + self.nb_options]
+      eigenvectors = v[1:1 + self.nb_options]
 
       for option in range(len(eigenvalues)):
         prefix = str(option) + '_'
@@ -746,14 +837,15 @@ class EigenOCAgent(Visualizer):
               continue
 
             feed_dict = {self.local_network.observation: np.stack([s])}
-            fi, options, o_term = sess.run([self.local_network.fi, self.local_network.options, self.local_network.termination],
-                          feed_dict=feed_dict)
+            fi, options, o_term = sess.run(
+              [self.local_network.fi, self.local_network.options, self.local_network.termination],
+              feed_dict=feed_dict)
             fi, options, o_term = fi[0], options[0], o_term[0]
             pi = options[option]
             action = np.random.choice(pi, p=pi)
             a = np.argmax(pi == action)
             o_term = o_term[option] > np.random.uniform()
-            if a == 0: # up
+            if a == 0:  # up
               dy = 0.35
             elif a == 1:  # right
               dx = 0.35
@@ -762,7 +854,7 @@ class EigenOCAgent(Visualizer):
             elif a == 3:  # left
               dx = -0.35
 
-            if o_term: # termination
+            if o_term:  # termination
               circle = plt.Circle(
                 (j + 0.5, self.config.input_size[0] - i + 0.5 - 1), 0.025, color='k')
               plt.gca().add_artist(circle)
@@ -784,5 +876,4 @@ class EigenOCAgent(Visualizer):
 
           plt.savefig(os.path.join(self.summary_path, "Option_" + prefix + 'policy.png'))
           plt.close()
-
 

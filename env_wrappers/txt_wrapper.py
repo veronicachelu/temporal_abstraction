@@ -118,8 +118,8 @@ class GridWorld:
     return start_inx, startX, startY
 
   def get_initial_state(self):
-    # agent_state_index = self.get_state_index(self.startX, self.startY)
-    agent_state_index, self.startX, self.startY = self.get_start()
+    agent_state_index = self.get_state_index(self.startX, self.startY)
+    # agent_state_index, self.startX, self.startY = self.get_start()
     self.agentX, self.agentY = self.startX, self.startY
     return agent_state_index
 

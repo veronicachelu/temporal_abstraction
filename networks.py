@@ -1005,7 +1005,7 @@ class EignOCNetwork():
                                             variables_collections=tf.get_collection("variables"),
                                             outputs_collections="activations", scope="fc_q_val")
         self.summaries_option.append(tf.contrib.layers.summarize_activation(self.q_val))
-
+        self.max_q_val = tf.reduce_max(self.q_val, 1)
         self.max_options = tf.cast(tf.argmax(self.q_val, 1), dtype=tf.int32)
         self.exp_options = tf.random_uniform(shape=[tf.shape(self.q_val)[0]], minval=0, maxval=(
           self.nb_options + self.action_size) if self.config.eigen else self.nb_options,
