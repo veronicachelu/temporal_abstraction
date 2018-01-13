@@ -625,7 +625,7 @@ class EigenOCAgent(Visualizer):
           option, primitive_action = option[0], primitive_action[0]
           primitive_action = option >= self.config.nb_options
         s = s1
-        if episode_length > self.config.max_length:
+        if episode_length > self.config.max_length_eval:
           break
 
         if i == 0 and self.episode_count > 500:
@@ -693,7 +693,7 @@ class EigenOCAgent(Visualizer):
             option, primitive_action = option[0], primitive_action[0]
             primitive_action = option >= self.config.nb_options
           s = s1
-          if episode_length > self.config.max_length:
+          if episode_length > self.config.max_length_eval:
             break
 
         ep_rewards.append(episode_reward)
