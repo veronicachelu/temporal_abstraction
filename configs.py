@@ -565,7 +565,6 @@ def eigenoc():
   clip_option_grad_by_value = False
   clip_by_value = 5
   nb_test_ep = 100
-  recompute_eigenvect_every = 1000
   first_eigenoption = 20
   include_primitive_options = True
 
