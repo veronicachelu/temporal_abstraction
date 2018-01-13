@@ -373,6 +373,7 @@ class EigenOCAgent(Visualizer):
     self.summary_writer.flush()
 
   def write_episode_summary(self, ms_sf, ms_aux, ms_option, r):
+    self.summary = tf.Summary()
     if len(self.episode_rewards) != 0:
       last_reward = self.episode_rewards[-1]
       self.summary.value.add(tag='Perf/Reward', simple_value=float(last_reward))
@@ -420,7 +421,7 @@ class EigenOCAgent(Visualizer):
     self.summary_writer.add_summary(self.summary, self.episode_count)
     self.summary_writer.flush()
     self.write_step_summary(ms_sf, ms_aux, ms_option, r)
-    self.summary_writer.flush()
+
 
   def add_current_state_SR(self, s):
     feed_dict = {self.local_network.observation: np.stack([s])}
