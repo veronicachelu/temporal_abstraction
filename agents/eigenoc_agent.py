@@ -610,7 +610,7 @@ class EigenOCAgent(Visualizer):
           action = np.argmax(pi == action)
           o_term = o_term[0, option] > np.random.uniform()
 
-        if i == 0:
+        if i == 0 and self.episode_count > 500:
           episode_frames.append(set_image(s, option, action, episode_length, primitive_action))
         s1, r, d, _ = self.env.step(action)
 
@@ -628,7 +628,7 @@ class EigenOCAgent(Visualizer):
         if episode_length > self.config.max_length:
           break
 
-        if i == 0:
+        if i == 0 and self.episode_count > 500:
           images = np.array(episode_frames)
           make_gif(images, os.path.join(self.test_path, 'eval_episode_{}.gif'.format(self.episode_count)),
                    duration=len(images) * 0.1, true_image=True)
