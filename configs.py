@@ -472,13 +472,13 @@ def oc():
   memory_size = 100000
   sf_matrix_size = 5000
   # sf_matrix_size = 100
-  observation_steps = 1000
+  observation_steps = 16*4
   # observation_steps = 16
   aux_update_freq = 1
   alpha_r = 0.5
   steps = 100000  # 1M
   episodes = 1e6  # 1M
-  eigen_exploration_steps = 5000
+  eigen_exploration_steps = 1000
   # eigen_exploration_steps = 16
   explore_steps = 1
   final_random_option_prob = 0.1
@@ -497,8 +497,9 @@ def oc():
   clip_option_grad_by_value = False
   clip_by_value = 5
   nb_test_ep = 100
-  recompute_eigenvect_every = 5000
+  recompute_eigenvect_every = 1000
   first_eigenoption = 20
+  include_primitive_options = True
 
   return locals()
 
@@ -558,14 +559,15 @@ def eigenoc():
   steps_checkpoint_interval = 1000
   # steps_checkpoint_interval = 10
   episode_checkpoint_interval = 1
-  episode_eval_interval = 10
+  episode_eval_interval = 1
   max_length = 72000
   entropy_decay_steps = 10000
   clip_option_grad_by_value = False
   clip_by_value = 5
   nb_test_ep = 100
   recompute_eigenvect_every = 1000
-  first_eigenoption = 18
+  first_eigenoption = 20
   move_goal_nb_of_ep = 1000
+  include_primitive_options = True
 
   return locals()
