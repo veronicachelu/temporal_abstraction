@@ -71,7 +71,7 @@ class EigenOCAgent(Visualizer):
     self.nb_options = config.nb_options
     self.nb_states = game.nb_states
     self.summary_writer = tf.summary.FileWriter(self.summary_path + "/worker_" + str(self.thread_id))
-    self.summary = tf.Summary()
+
 
     self.local_network = config.network(self.name, config, self.action_size, self.nb_states, self.total_steps_tensor)
 
@@ -133,32 +133,32 @@ class EigenOCAgent(Visualizer):
           if d:
             s1 = s
           self.store_general_info(s, s1, self.action, r)
-          if self.total_steps > self.config.eigen_exploration_steps:
-            if self.name == "worker_0":
-              tf.logging.warning(
-                "Option {} >> Action {} >> Q {} >>> V {} >> Term {} >> Reward: {} >> Done {}".format(self.option,
-                                                                                                     self.action,
-                                                                                                     self.q_value,
-                                                                                                     self.value,
-                                                                                                     self.o_term, r, d))
-              tf.logging.info("Episode {} >> Step {} >> Length: {}".format(self.episode_count, self.total_steps, t))
+          # if self.total_steps > self.config.eigen_exploration_steps:
+          #   if self.name == "worker_0":
+          #     tf.logging.warning(
+          #       "Option {} >> Action {} >> Q {} >>> V {} >> Term {} >> Reward: {} >> Done {}".format(self.option,
+          #                                                                                            self.action,
+          #                                                                                            self.q_value,
+          #                                                                                            self.value,
+          #                                                                                            self.o_term, r, d))
+          #     tf.logging.info("Episode {} >> Step {} >> Length: {}".format(self.episode_count, self.total_steps, t))
           if self.total_steps > self.config.observation_steps:
             t_counter_sf += 1
             if len(self.aux_episode_buffer) > self.config.observation_steps and \
                         self.total_steps % self.config.aux_update_freq == 0:
               ms_aux, aux_loss = self.train_aux()
-              if self.name == "worker_0":
-                tf.logging.info(
-                  "Episode {} >> Step {} >>> AUX_loss {} ".format(self.episode_count, self.total_steps, aux_loss))
+              # if self.name == "worker_0":
+              #   tf.logging.info(
+              #     "Episode {} >> Step {} >>> AUX_loss {} ".format(self.episode_count, self.total_steps, aux_loss))
             if t_counter_sf == self.config.max_update_freq or d:
               feed_dict = {self.local_network.observation: np.stack([s1])}
               sf = sess.run(self.local_network.sf,
                             feed_dict=feed_dict)[0]
               bootstrap_sf = np.zeros_like(sf) if d else sf
               ms_sf, sf_loss = self.train_sf(bootstrap_sf)
-              if self.name == "worker_0":
-                tf.logging.info(
-                  "Episode {} >> Step {} >>> SF_loss {}".format(self.episode_count, self.total_steps, sf_loss))
+              # if self.name == "worker_0":
+              #   tf.logging.info(
+              #     "Episode {} >> Step {} >>> SF_loss {}".format(self.episode_count, self.total_steps, sf_loss))
               self.episode_buffer_sf = []
               t_counter_sf = 0
 
@@ -189,10 +189,10 @@ class EigenOCAgent(Visualizer):
                   else:
                     ms_option, option_loss, policy_loss, entropy_loss, critic_loss, term_loss, self.R = results
 
-                  if self.name == "worker_0":
-                    tf.logging.info(
-                      "Episode {} >> Step {} >>> option_loss {}".format(self.episode_count, self.total_steps,
-                                                                        option_loss))
+                  # if self.name == "worker_0":
+                  #   tf.logging.info(
+                  #     "Episode {} >> Step {} >>> option_loss {}".format(self.episode_count, self.total_steps,
+                  #                                                       option_loss))
 
                 self.episode_buffer_option = []
                 t_counter_option = 0
@@ -233,8 +233,12 @@ class EigenOCAgent(Visualizer):
 
         if self.episode_count % self.config.episode_eval_interval == 0 and \
                 self.name == 'worker_0' and self.episode_count != 0:
-          eval_episodes_won = self.evaluate_agent()
-          self.write_eval_summary(eval_episodes_won)
+          eval_episodes_won, mean_ep_length = self.evaluate_agent()
+          self.write_eval_summary(eval_episodes_won, mean_ep_length)
+
+        if self.episode_count % self.config.move_goal_nb_of_ep == 0 and \
+                self.name == 'worker_0' and self.episode_count != 0:
+          self.env.move_goal()
 
         if self.episode_count % self.config.episode_checkpoint_interval == 0 and self.name == 'worker_0' and \
                 self.episode_count != 0:
@@ -246,7 +250,7 @@ class EigenOCAgent(Visualizer):
 
         if self.name == 'worker_0':
           sess.run(self.increment_global_step)
-          self.episode_count += 1
+        self.episode_count += 1
 
   def option_evaluation(self, s):
     # if random.random() <= self.config.final_random_action_prob:
@@ -341,6 +345,7 @@ class EigenOCAgent(Visualizer):
     tf.logging.info("Saved SR_matrix at {}".format(matrix_path))
 
   def write_step_summary(self, ms_sf, ms_aux, ms_option, r):
+    self.summary = tf.Summary()
     if ms_sf is not None:
       self.summary_writer.add_summary(ms_sf, self.total_steps)
     if ms_aux is not None:
@@ -360,8 +365,8 @@ class EigenOCAgent(Visualizer):
       self.summary.value.add(tag='Step/R', simple_value=self.R)
       if self.config.eigen:
         self.summary.value.add(tag='Step/EigenR', simple_value=self.eigen_R)
-      self.summary_writer.add_summary(self.summary, self.total_steps)
 
+    self.summary_writer.add_summary(self.summary, self.total_steps)
     self.summary_writer.flush()
 
   def write_episode_summary(self, ms_sf, ms_aux, ms_option, r):
@@ -409,7 +414,8 @@ class EigenOCAgent(Visualizer):
     #
     #   self.summary.value.add(tag='Perf/OptionsHist', histo=hist)
     #   self.summary_writer.add_summary(self.summary, self.total_steps)
-
+    self.summary_writer.add_summary(self.summary, self.episode_count)
+    self.summary_writer.flush()
     self.write_step_summary(ms_sf, ms_aux, ms_option, r)
     self.summary_writer.flush()
 
@@ -447,7 +453,9 @@ class EigenOCAgent(Visualizer):
                                           feed_dict=feed_dict)
       # u, s, v = np.linalg.svd(self.sr_matrix_buffer.get(), full_matrices=False)
       eigenvalues = eigenval[self.config.first_eigenoption:self.config.nb_options + self.config.first_eigenoption]
-      self.eigenvectors = eigenvect[self.config.first_eigenoption:self.config.nb_options + self.config.first_eigenoption]
+      new_eigenvectors = eigenvect[self.config.first_eigenoption:self.config.nb_options + self.config.first_eigenoption]
+      tf.logging.warning("Mean difference eigenvectors is {}".format(np.mean(self.eigenvectors - new_eigenvectors)))
+
     else:
       self.should_consider_eigenvectors = False
 
@@ -586,6 +594,7 @@ class EigenOCAgent(Visualizer):
 
   def evaluate_agent(self):
     episodes_won = 0
+    episode_lengths = []
     for i in range(self.config.nb_test_ep):
       episode_reward = 0
       s = self.env.reset()
@@ -627,7 +636,7 @@ class EigenOCAgent(Visualizer):
           option, primitive_action = option[0], primitive_action[0]
           primitive_action = option >= self.config.nb_options
         s = s1
-        if episode_length > 100:
+        if episode_length > self.config.max_length:
           break
 
         if i == 0:
@@ -636,12 +645,14 @@ class EigenOCAgent(Visualizer):
                    duration=len(images) * 0.1, true_image=True)
 
       episodes_won += episode_reward
+      episode_lengths.append(episode_length)
 
-    return episodes_won
+    return episodes_won, np.mean(episode_lengths)
 
-  def write_eval_summary(self, eval_episodes_won):
+  def write_eval_summary(self, eval_episodes_won, mean_ep_length):
     self.summary.value.add(tag='Eval/Episodes_won(of 100)', simple_value=float(eval_episodes_won))
-    self.summary_writer.add_summary(self.summary, self.total_steps)
+    self.summary.value.add(tag='Eval/Mean eval episodes length', simple_value=float(mean_ep_length))
+    self.summary_writer.add_summary(self.summary, self.episode_count)
     self.summary_writer.flush()
 
   def eval(self, sess, coord, saver):
@@ -693,7 +704,7 @@ class EigenOCAgent(Visualizer):
             option, primitive_action = option[0], primitive_action[0]
             primitive_action = option >= self.config.nb_options
           s = s1
-          if episode_length > 100:
+          if episode_length > self.config.max_length:
             break
 
         ep_rewards.append(episode_reward)

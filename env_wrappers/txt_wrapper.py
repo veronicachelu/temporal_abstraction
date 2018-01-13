@@ -123,6 +123,17 @@ class GridWorld:
     self.agentX, self.agentY = self.startX, self.startY
     return agent_state_index
 
+  def move_goal(self):
+    while True:
+      goalX = random.randrange(0, self.nb_rows, 1)
+      goalY = random.randrange(0, self.nb_cols, 1)
+      if self.MDP[goalX][goalY] != -1 and (goalX != self.startX or goalY != self.startY):
+        break
+
+    goal_indx = self.get_state_index(goalX, goalY)
+    self.goalX = goalX
+    self.goalY = goalY
+
   def get_next_state(self, a):
     action = ["up", "right", "down", "left", 'terminate']
     nextX, nextY = self.agentX, self.agentY
