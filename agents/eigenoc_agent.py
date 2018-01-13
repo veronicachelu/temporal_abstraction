@@ -290,11 +290,14 @@ class EigenOCAgent(Visualizer):
         self.value = value[0]
       else:
         options, value, q_value, o_term = results
-        pi = options[0, self.option]
-        self.action = np.random.choice(pi, p=pi)
-        self.action = np.argmax(pi == self.action)
-
-        self.o_term = o_term[0, self.option] > np.random.uniform()
+        if self.config.include_primitive_options and self.primitive_action:
+          self.action = self.option - self.nb_options
+          self.o_term = True
+        else:
+          pi = options[0, self.option]
+          self.action = np.random.choice(pi, p=pi)
+          self.action = np.argmax(pi == self.action)
+          self.o_term = o_term[0, self.option] > np.random.uniform()
         self.q_value = q_value[0, self.option]
         self.value = value[0]
     else:
@@ -507,69 +510,47 @@ class EigenOCAgent(Visualizer):
     eigen_rewards = rollout[:, 4]
     primitive_actions = rollout[:, 5]
 
-    if self.config.eigen:
-      rewards_plus = np.asarray(rewards.tolist() + [bootstrap_value])
-      discounted_returns = reward_discount(rewards_plus, self.config.discount)[:-1]
+    rewards_plus = np.asarray(rewards.tolist() + [bootstrap_value])
+    discounted_returns = reward_discount(rewards_plus, self.config.discount)[:-1]
 
+    options1, options2, actions1, actions2, discounted_returns1, discounted_returns2, \
+    observations1, observations2 = [], [], [], [], [], [], [], []
+
+    if self.config.eigen:
       eigen_rewards_plus = np.asarray(eigen_rewards.tolist() + [bootstrap_value])
       discounted_eigen_returns = discount(eigen_rewards_plus, self.config.discount)[:-1]
+      discounted_eigen_returns1, discounted_eigen_returns2 = [], []
 
-      options1, options2, actions1, actions2, discounted_returns1, discounted_returns2, discounted_eigen_returns1, \
-      discounted_eigen_returns2, observations1, observations2 = [], [], [], [], [], [], [], [], [], []
-
-      for i, primitive in enumerate(primitive_actions):
-        if primitive:
-          options1.append(options[i])
-          actions1.append(actions[i])
-          discounted_returns1.append(discounted_returns[i])
+    for i, primitive in enumerate(primitive_actions):
+      if primitive:
+        options1.append(options[i])
+        actions1.append(actions[i])
+        discounted_returns1.append(discounted_returns[i])
+        if self.config.eigen:
           discounted_eigen_returns1.append(discounted_eigen_returns[i])
-          observations1.append(observations[i])
-        else:
-          options2.append(options[i])
-          actions2.append(actions[i])
-          discounted_returns2.append(discounted_returns[i])
-          discounted_eigen_returns2.append(discounted_eigen_returns[i])
-          observations2.append(observations[i])
-
-      if len(observations1) > 0:
-        feed_dict = {self.local_network.target_return: discounted_returns1,
-                     self.local_network.observation: np.stack(observations1, axis=0),
-                     self.local_network.options_placeholder: options1}
-        to_run = [self.local_network.apply_grads_primitive_option]
-
-        _ = self.sess.run(to_run, feed_dict=feed_dict)
-
-      if len(observations2) > 0:
-
-        feed_dict = {self.local_network.target_return: discounted_returns2,
-                     self.local_network.observation: np.stack(observations2, axis=0),
-                     self.local_network.actions_placeholder: actions2,
-                     self.local_network.options_placeholder: options2,
-                     self.local_network.target_eigen_return: discounted_eigen_returns2}
-
-        to_run = [self.local_network.apply_grads_option,
-                  self.local_network.merged_summary_option,
-                  self.local_network.option_loss,
-                  self.local_network.policy_loss,
-                  self.local_network.entropy_loss,
-                  self.local_network.critic_loss,
-                  self.local_network.term_loss,
-                  self.local_network.eigen_critic_loss]
-        results = self.sess.run(to_run, feed_dict=feed_dict)
-        results.append(discounted_returns[-1])
-        results.append(discounted_eigen_returns[-1])
+        observations1.append(observations[i])
       else:
-        return None
+        options2.append(options[i])
+        actions2.append(actions[i])
+        discounted_returns2.append(discounted_returns[i])
+        if self.config.eigen:
+          discounted_eigen_returns2.append(discounted_eigen_returns[i])
+        observations2.append(observations[i])
 
-    else:
-      rewards_plus = np.asarray(rewards.tolist() + [bootstrap_value])
-      discounted_returns = reward_discount(rewards_plus, self.config.discount)[:-1]
+    if len(observations1) > 0:
+      feed_dict = {self.local_network.target_return: discounted_returns1,
+                   self.local_network.observation: np.stack(observations1, axis=0),
+                   self.local_network.options_placeholder: options1}
+      to_run = [self.local_network.apply_grads_primitive_option]
 
-      feed_dict = {self.local_network.target_return: discounted_returns,
-                   self.local_network.observation: np.stack(observations, axis=0),
-                   self.local_network.actions_placeholder: actions,
-                   self.local_network.options_placeholder: options}
+      _ = self.sess.run(to_run, feed_dict=feed_dict)
 
+    if len(observations2) > 0:
+
+      feed_dict = {self.local_network.target_return: discounted_returns2,
+                   self.local_network.observation: np.stack(observations2, axis=0),
+                   self.local_network.actions_placeholder: actions2,
+                   self.local_network.options_placeholder: options2}
       to_run = [self.local_network.apply_grads_option,
                 self.local_network.merged_summary_option,
                 self.local_network.option_loss,
@@ -578,9 +559,16 @@ class EigenOCAgent(Visualizer):
                 self.local_network.critic_loss,
                 self.local_network.term_loss]
 
-      results = self.sess.run(to_run, feed_dict=feed_dict)
+      if self.config.eigen:
+        feed_dict[self.local_network.target_eigen_return] = discounted_eigen_returns2
+        to_run.append(self.local_network.eigen_critic_loss)
 
+      results = self.sess.run(to_run, feed_dict=feed_dict)
       results.append(discounted_returns[-1])
+      if self.config.eigen:
+        results.append(discounted_eigen_returns[-1])
+    else:
+      return None
 
     return results[1:]
 

@@ -499,6 +499,7 @@ def oc():
   nb_test_ep = 100
   recompute_eigenvect_every = 5000
   first_eigenoption = 20
+  include_primitive_options = True
 
   return locals()
 
@@ -558,7 +559,7 @@ def eigenoc():
   steps_checkpoint_interval = 1000
   # steps_checkpoint_interval = 10
   episode_checkpoint_interval = 1
-  episode_eval_interval = 10
+  episode_eval_interval = 1
   max_length = 72000
   entropy_decay_steps = 10000
   clip_option_grad_by_value = False
@@ -566,5 +567,6 @@ def eigenoc():
   nb_test_ep = 100
   recompute_eigenvect_every = 1000
   first_eigenoption = 20
+  include_primitive_options = True
 
   return locals()
