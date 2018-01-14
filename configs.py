@@ -500,6 +500,7 @@ def oc():
   recompute_eigenvect_every = 1000
   first_eigenoption = 20
   include_primitive_options = True
+  move_goal_nb_of_ep = 1000
 
   return locals()
 
