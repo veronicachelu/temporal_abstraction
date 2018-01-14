@@ -493,6 +493,7 @@ def oc():
   episode_checkpoint_interval = 1
   episode_eval_interval = 1
   max_length = 72000
+  max_length_eval = 1000
   entropy_decay_steps = 10000
   clip_option_grad_by_value = False
   clip_by_value = 5
