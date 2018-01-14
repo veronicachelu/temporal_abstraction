@@ -133,32 +133,32 @@ class EigenOCAgent(Visualizer):
           if d:
             s1 = s
           self.store_general_info(s, s1, self.action, r)
-          # if self.total_steps > self.config.eigen_exploration_steps:
-          #   if self.name == "worker_0":
-          #     tf.logging.warning(
-          #       "Option {} >> Action {} >> Q {} >>> V {} >> Term {} >> Reward: {} >> Done {}".format(self.option,
-          #                                                                                            self.action,
-          #                                                                                            self.q_value,
-          #                                                                                            self.value,
-          #                                                                                            self.o_term, r, d))
-          #     tf.logging.info("Episode {} >> Step {} >> Length: {}".format(self.episode_count, self.total_steps, t))
+          if self.total_steps > self.config.eigen_exploration_steps:
+            if self.name == "worker_0":
+              # tf.logging.warning(
+              #   "Option {} >> Action {} >> Q {} >>> V {} >> Term {} >> Reward: {} >> Done {}".format(self.option,
+              #                                                                                        self.action,
+              #                                                                                        self.q_value,
+              #                                                                                        self.value,
+              #                                                                                        self.o_term, r, d))
+              tf.logging.info("Episode {} >> Step {} >> Length: {}".format(self.episode_count, self.total_steps, t))
           if self.total_steps > self.config.observation_steps:
             t_counter_sf += 1
             if len(self.aux_episode_buffer) > self.config.observation_steps and \
                         self.total_steps % self.config.aux_update_freq == 0:
               ms_aux, aux_loss = self.train_aux()
-              # if self.name == "worker_0":
-              #   tf.logging.info(
-              #     "Episode {} >> Step {} >>> AUX_loss {} ".format(self.episode_count, self.total_steps, aux_loss))
+              if self.name == "worker_0":
+                tf.logging.info(
+                  "Episode {} >> Step {} >>> AUX_loss {} ".format(self.episode_count, self.total_steps, aux_loss))
             if t_counter_sf == self.config.max_update_freq or d:
               feed_dict = {self.local_network.observation: np.stack([s1])}
               sf = sess.run(self.local_network.sf,
                             feed_dict=feed_dict)[0]
               bootstrap_sf = np.zeros_like(sf) if d else sf
               ms_sf, sf_loss = self.train_sf(bootstrap_sf)
-              # if self.name == "worker_0":
-              #   tf.logging.info(
-              #     "Episode {} >> Step {} >>> SF_loss {}".format(self.episode_count, self.total_steps, sf_loss))
+              if self.name == "worker_0":
+                tf.logging.info(
+                  "Episode {} >> Step {} >>> SF_loss {}".format(self.episode_count, self.total_steps, sf_loss))
               self.episode_buffer_sf = []
               t_counter_sf = 0
 
@@ -189,10 +189,10 @@ class EigenOCAgent(Visualizer):
                   else:
                     ms_option, option_loss, policy_loss, entropy_loss, critic_loss, term_loss, self.R = results
 
-                  # if self.name == "worker_0":
-                  #   tf.logging.info(
-                  #     "Episode {} >> Step {} >>> option_loss {}".format(self.episode_count, self.total_steps,
-                  #                                                       option_loss))
+                  if self.name == "worker_0":
+                    tf.logging.info(
+                      "Episode {} >> Step {} >>> option_loss {}".format(self.episode_count, self.total_steps,
+                                                                        option_loss))
 
                 self.episode_buffer_option = []
                 t_counter_option = 0
@@ -371,6 +371,7 @@ class EigenOCAgent(Visualizer):
 
     self.summary_writer.add_summary(self.summary, self.total_steps)
     self.summary_writer.flush()
+    tf.logging.warning("Writing step summary....")
 
   def write_episode_summary(self, ms_sf, ms_aux, ms_option, r):
     self.summary = tf.Summary()
@@ -458,7 +459,7 @@ class EigenOCAgent(Visualizer):
       # u, s, v = np.linalg.svd(self.sr_matrix_buffer.get(), full_matrices=False)
       eigenvalues = eigenval[self.config.first_eigenoption:self.config.nb_options + self.config.first_eigenoption]
       new_eigenvectors = eigenvect[self.config.first_eigenoption:self.config.nb_options + self.config.first_eigenoption]
-      tf.logging.warning("Mean difference eigenvectors is {}".format(np.mean(self.eigenvectors - new_eigenvectors)))
+      # tf.logging.warning("Mean difference eigenvectors is {}".format(np.mean(self.eigenvectors - new_eigenvectors)))
 
     else:
       self.should_consider_eigenvectors = False
