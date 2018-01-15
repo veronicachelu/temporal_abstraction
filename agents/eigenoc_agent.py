@@ -317,7 +317,8 @@ class EigenOCAgent(Visualizer):
 
   def store_option_info(self, s, s1, a, r):
     # if self.sr_matrix_buffer.full and (
-    if self.total_steps % self.config.recompute_eigenvect_every == 0 or self.should_consider_eigenvectors == False:
+    if (self.total_steps % self.config.recompute_eigenvect_every == 0 or self.should_consider_eigenvectors == False) and \
+      self.total_steps < self.config.stop_recompute_eigenvect_every:
       self.recompute_eigenvectors_classic()
 
     if self.config.eigen and self.should_consider_eigenvectors and not self.primitive_action:
@@ -640,6 +641,7 @@ class EigenOCAgent(Visualizer):
     return episodes_won, np.mean(episode_lengths)
 
   def write_eval_summary(self, eval_episodes_won, mean_ep_length):
+    self.summary = tf.Summary()
     self.summary.value.add(tag='Eval/Episodes_won(of 100)', simple_value=float(eval_episodes_won))
     self.summary.value.add(tag='Eval/Mean eval episodes length', simple_value=float(mean_ep_length))
     self.summary_writer.add_summary(self.summary, self.episode_count)

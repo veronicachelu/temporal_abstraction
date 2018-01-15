@@ -499,6 +499,7 @@ def oc():
   clip_by_value = 5
   nb_test_ep = 100
   recompute_eigenvect_every = 1000
+  stop_recompute_eigenvect_every = 5000
   first_eigenoption = 20
   include_primitive_options = True
   move_goal_nb_of_ep = 1000
@@ -569,6 +570,7 @@ def eigenoc():
   clip_by_value = 5
   nb_test_ep = 100
   recompute_eigenvect_every = 1000
+  stop_recompute_eigenvect_every = 5000
   first_eigenoption = 20
   move_goal_nb_of_ep = 1000
   include_primitive_options = True
