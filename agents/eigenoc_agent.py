@@ -172,15 +172,20 @@ class EigenOCAgent(Visualizer):
                     self.o_term and t_counter_option >= self.config.min_update_freq):
                 if d:
                   R = 0
+                  R_mix = 0
                 else:
                   feed_dict = {self.local_network.observation: np.stack([s1])}
-                  value, q_value = sess.run([self.local_network.v, self.local_network.q_val],
+                  value, q_value, eigen_q_value = sess.run([self.local_network.v, self.local_network.q_val, self.local_network.eigen_q_val],
                                             feed_dict=feed_dict)
-                  q_value = q_value[0, self.option]
-                  value = value[0]
+                  if self.primitive_action:
+                    q_value = q_value[0, self.option]
+                    value = value[0]
 
-                  R = value if self.o_term else q_value
-                results = self.train_option(R)
+                    R_mix = R = value if self.o_term else q_value
+                  else:
+                    eigen_q_value = eigen_q_value[0, self.option]
+                    R_mix = value if self.o_term else eigen_q_value
+                results = self.train_option(R, R_mix)
                 if results == None:
                   tf.logging.info("ALL PRIMITIVE OPTIONS")
                 else:
@@ -512,7 +517,7 @@ class EigenOCAgent(Visualizer):
                     feed_dict=feed_dict)
     return ms, aux_loss
 
-  def train_option(self, bootstrap_value):
+  def train_option(self, bootstrap_value, bootstrap_value_mix):
     rollout = np.array(self.episode_buffer_option)  # s, self.option, self.action, r, r_i
     observations = rollout[:, 0]
     options = rollout[:, 1]
@@ -528,7 +533,7 @@ class EigenOCAgent(Visualizer):
     observations1, observations2 = [], [], [], [], [], [], [], []
 
     if self.config.eigen:
-      eigen_rewards_plus = np.asarray(eigen_rewards.tolist() + [bootstrap_value])
+      eigen_rewards_plus = np.asarray(eigen_rewards.tolist() + [bootstrap_value_mix])
       discounted_eigen_returns = discount(eigen_rewards_plus, self.config.discount)[:-1]
       discounted_eigen_returns1, discounted_eigen_returns2 = [], []
 
