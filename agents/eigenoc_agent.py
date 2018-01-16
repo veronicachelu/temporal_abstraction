@@ -331,6 +331,7 @@ class EigenOCAgent(Visualizer):
       fi = self.sess.run(self.local_network.fi,
                          feed_dict=feed_dict)
       eigen_r = self.cosine_similarity((fi[1] - fi[0]), self.eigenvectors[self.option])
+      tf.logging.warning("INTRINSIC REWARD is {}".format(eigen_r))
       r_i = self.config.alpha_r * eigen_r + (1 - self.config.alpha_r) * r
       self.episode_eigen_q_values.append(self.eigen_q_value)
       self.episode_buffer_option.append(
