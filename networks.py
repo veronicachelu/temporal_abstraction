@@ -1032,7 +1032,7 @@ class EignOCNetwork():
                                                     outputs_collections="activations", scope="fc_q_val")
           self.summaries_option.append(tf.contrib.layers.summarize_activation(self.eigen_q_val))
         if self.config.include_primitive_options:
-          concatenated_eigen_q = tf.concat([self.q_val[self.config.nb_options:], self.eigen_q_val], 1)
+          concatenated_eigen_q = tf.concat([self.q_val[:, self.config.nb_options:], self.eigen_q_val], 1)
         else:
           concatenated_eigen_q = self.eigen_q_val
         self.eigenv = tf.reduce_max(concatenated_eigen_q, axis=1) * \
