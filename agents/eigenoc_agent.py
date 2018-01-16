@@ -175,16 +175,16 @@ class EigenOCAgent(Visualizer):
                   R_mix = 0
                 else:
                   feed_dict = {self.local_network.observation: np.stack([s1])}
-                  value, q_value, eigen_qvalue = sess.run([self.local_network.v, self.local_network.q_val, self.local_network.eigen_q_val],
+                  value, q_value, value_eigen = sess.run([self.local_network.v, self.local_network.q_val, self.local_network.eigen_q_val],
                                             feed_dict=feed_dict)
+                  q_value = q_value[0, self.option]
+                  value = value[0]
                   if self.primitive_action:
-                    q_value = q_value[0, self.option]
-                    value = value[0]
-
-                    R_mix = R = value if self.o_term else q_value
+                    R_mix = value if self.o_term else q_value
                   else:
-                    eigen_qvalue = eigen_qvalue[0, self.option]
-                    R_mix = value if self.o_term else eigen_qvalue
+                    value_eigen = value_eigen[0, self.option]
+                    R_mix = value if self.o_term else value_eigen
+                  R = value if self.o_term else q_value
                 results = self.train_option(R, R_mix)
                 if results == None:
                   tf.logging.info("ALL PRIMITIVE OPTIONS")
