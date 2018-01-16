@@ -1031,6 +1031,14 @@ class EignOCNetwork():
                                                     variables_collections=tf.get_collection("variables"),
                                                     outputs_collections="activations", scope="fc_q_val")
           self.summaries_option.append(tf.contrib.layers.summarize_activation(self.eigen_q_val))
+        if self.config.include_primitive_options:
+          concatenated_eigen_q = tf.concat([self.q_val[self.config.nb_options:], self.eigen_q_val], 1)
+        else:
+          concatenated_eigen_q = self.eigen_q_val
+        self.eigenv = tf.reduce_max(concatenated_eigen_q, axis=1) * \
+                      (1 - self.config.final_random_option_prob) + \
+                      self.config.final_random_option_prob * tf.reduce_mean(concatenated_eigen_q, axis=1)
+        self.summaries_option.append(tf.contrib.layers.summarize_activation(self.eigenv))
 
       with tf.variable_scope("eigen_option_i_o_policies"):
         out = tf.stop_gradient(tf.nn.relu(self.fi))
