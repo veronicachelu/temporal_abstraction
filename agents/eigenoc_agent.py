@@ -328,7 +328,7 @@ class EigenOCAgent(Visualizer):
     # if self.sr_matrix_buffer.full and (
     if (self.total_steps % self.config.recompute_eigenvect_every == 0 or self.should_consider_eigenvectors == False) and \
       self.total_steps < self.config.stop_recompute_eigenvect_every:
-      tf.logging.warning("RECOMPUTING EIGENVECTORS")
+      # tf.logging.warning("RECOMPUTING EIGENVECTORS")
       self.recompute_eigenvectors_classic()
 
     if self.config.eigen and self.should_consider_eigenvectors and not self.primitive_action:
@@ -336,7 +336,7 @@ class EigenOCAgent(Visualizer):
       fi = self.sess.run(self.local_network.fi,
                          feed_dict=feed_dict)
       eigen_r = self.cosine_similarity((fi[1] - fi[0]), self.eigenvectors[self.option])
-      tf.logging.warning("INTRINSIC REWARD is {}".format(eigen_r))
+      # tf.logging.warning("INTRINSIC REWARD is {}".format(eigen_r))
       r_i = self.config.alpha_r * eigen_r + (1 - self.config.alpha_r) * r
       self.episode_eigen_q_values.append(self.eigen_q_value)
       self.episode_buffer_option.append(
@@ -472,7 +472,9 @@ class EigenOCAgent(Visualizer):
       # u, s, v = np.linalg.svd(self.sr_matrix_buffer.get(), full_matrices=False)
       eigenvalues = eigenval[self.config.first_eigenoption:self.config.nb_options + self.config.first_eigenoption]
       new_eigenvectors = eigenvect[self.config.first_eigenoption:self.config.nb_options + self.config.first_eigenoption]
-      # tf.logging.warning("Mean difference eigenvectors is {}".format(np.mean(self.eigenvectors - new_eigenvectors)))
+      min_similarity = np.min([self.cosine_similarity(a, b) for a, b in zip(self.eigenvectors, new_eigenvectors)])
+      tf.logging.warning("Min cosine similarity between old eigenvectors and recomputed onesis {}".format(min_similarity))
+      self.eigenvectors = new_eigenvectors
 
     else:
       self.should_consider_eigenvectors = False
