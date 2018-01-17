@@ -175,16 +175,25 @@ class EigenOCAgent(Visualizer):
                   R_mix = 0
                 else:
                   feed_dict = {self.local_network.observation: np.stack([s1])}
-                  value, q_value, value_eigen = sess.run([self.local_network.v, self.local_network.q_val, self.local_network.eigen_q_val],
-                                            feed_dict=feed_dict)
-                  q_value = q_value[0, self.option]
-                  value = value[0]
-                  if self.primitive_action:
-                    R_mix = value if self.o_term else q_value
+                  if self.config.eigen:
+                    value, q_value, value_eigen = sess.run([self.local_network.v, self.local_network.q_val, self.local_network.eigen_q_val],
+                                              feed_dict=feed_dict)
+                    q_value = q_value[0, self.option]
+                    value = value[0]
+                    if self.primitive_action:
+                      R_mix = value if self.o_term else q_value
+                    else:
+                      value_eigen = value_eigen[0, self.option]
+                      R_mix = value if self.o_term else value_eigen
                   else:
-                    value_eigen = value_eigen[0, self.option]
-                    R_mix = value if self.o_term else value_eigen
+                    value, q_value = sess.run(
+                      [self.local_network.v, self.local_network.q_val],
+                      feed_dict=feed_dict)
+                    q_value = q_value[0, self.option]
+                    value = value[0]
                   R = value if self.o_term else q_value
+                  if not self.config.eigen:
+                    R_mix = R
                 results = self.train_option(R, R_mix)
                 if results == None:
                   tf.logging.info("ALL PRIMITIVE OPTIONS")
@@ -644,8 +653,8 @@ class EigenOCAgent(Visualizer):
 
         if i == 0 and self.episode_count > 500:
           images = np.array(episode_frames)
-          make_gif(images, os.path.join(self.test_path, 'eval_episode_{}.gif'.format(self.episode_count)),
-                   duration=len(images) * 0.1, true_image=True)
+          make_gif(images[:100], os.path.join(self.test_path, 'eval_episode_{}.gif'.format(self.episode_count)),
+                   duration=len(images[:100]) * 0.1, true_image=True)
 
       episodes_won += episode_reward
       episode_lengths.append(episode_length)
