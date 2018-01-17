@@ -295,7 +295,7 @@ class EigenOCAgent(Visualizer):
           self.action = np.random.choice(pi, p=pi)
           self.action = np.argmax(pi == self.action)
           self.o_term = o_term[0, self.option] > np.random.uniform()
-          self.evalue = evalue[0, self.option]
+          self.evalue = evalue[0]
         else:
           self.action = self.option - self.nb_options
           self.o_term = True
