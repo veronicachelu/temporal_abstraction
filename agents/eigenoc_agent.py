@@ -285,6 +285,7 @@ class EigenOCAgent(Visualizer):
                 self.local_network.termination]
       if self.config.eigen:
         to_run.append(self.local_network.eigen_q_val)
+        to_run.append(self.local_network.eigenv)
       results = self.sess.run(to_run, feed_dict=feed_dict)
       if self.config.eigen:
         options, value, q_value, o_term, eigen_q_value, evalue = results
