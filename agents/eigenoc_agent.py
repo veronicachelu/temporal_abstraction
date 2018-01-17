@@ -327,8 +327,7 @@ class EigenOCAgent(Visualizer):
 
   def store_option_info(self, s, s1, a, r):
     # if self.sr_matrix_buffer.full and (
-    if (self.total_steps % self.config.recompute_eigenvect_every == 0 or self.should_consider_eigenvectors == False) and \
-      self.total_steps < self.config.stop_recompute_eigenvect_every:
+    if (self.total_steps % self.config.recompute_eigenvect_every == 0 or self.should_consider_eigenvectors == False):
       # tf.logging.warning("RECOMPUTING EIGENVECTORS")
       self.recompute_eigenvectors_classic()
 
