@@ -646,8 +646,8 @@ class EigenOCAgent(Visualizer):
 
         if i == 0 and self.episode_count > 500:
           images = np.array(episode_frames)
-          make_gif(images, os.path.join(self.test_path, 'eval_episode_{}.gif'.format(self.episode_count)),
-                   duration=len(images) * 0.1, true_image=True)
+          make_gif(images[:100], os.path.join(self.test_path, 'eval_episode_{}.gif'.format(self.episode_count)),
+                   duration=len(images[:100]) * 0.1, true_image=True)
 
       episodes_won += episode_reward
       episode_lengths.append(episode_length)
