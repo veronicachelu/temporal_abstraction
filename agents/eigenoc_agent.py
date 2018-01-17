@@ -176,15 +176,16 @@ class EigenOCAgent(Visualizer):
                 else:
                   feed_dict = {self.local_network.observation: np.stack([s1])}
                   if self.config.eigen:
-                    value, q_value, value_eigen = sess.run([self.local_network.v, self.local_network.q_val, self.local_network.eigen_q_val],
+                    value, evalue, q_value, q_eigen = sess.run([self.local_network.v, self.local_network.eigenv, self.local_network.q_val, self.local_network.eigen_q_val],
                                               feed_dict=feed_dict)
                     q_value = q_value[0, self.option]
                     value = value[0]
+                    evalue = evalue[0]
                     if self.primitive_action:
                       R_mix = value if self.o_term else q_value
                     else:
-                      value_eigen = value_eigen[0, self.option]
-                      R_mix = value if self.o_term else value_eigen
+                      q_eigen = q_eigen[0, self.option]
+                      R_mix = evalue if self.o_term else q_eigen
                   else:
                     value, q_value = sess.run(
                       [self.local_network.v, self.local_network.q_val],
@@ -291,15 +292,17 @@ class EigenOCAgent(Visualizer):
                 self.local_network.termination]
       if self.config.eigen:
         to_run.append(self.local_network.eigen_q_val)
+        to_run.append(self.local_network.eigenv)
       results = self.sess.run(to_run, feed_dict=feed_dict)
       if self.config.eigen:
-        options, value, q_value, o_term, eigen_q_value = results
+        options, value, q_value, o_term, eigen_q_value, evalue = results
         if not self.primitive_action:
           self.eigen_q_value = eigen_q_value[0, self.option]
           pi = options[0, self.option]
           self.action = np.random.choice(pi, p=pi)
           self.action = np.argmax(pi == self.action)
           self.o_term = o_term[0, self.option] > np.random.uniform()
+          self.evalue = evalue[0]
         else:
           self.action = self.option - self.nb_options
           self.o_term = True
@@ -331,8 +334,7 @@ class EigenOCAgent(Visualizer):
 
   def store_option_info(self, s, s1, a, r):
     # if self.sr_matrix_buffer.full and (
-    if (self.total_steps % self.config.recompute_eigenvect_every == 0 or self.should_consider_eigenvectors == False) and \
-      self.total_steps < self.config.stop_recompute_eigenvect_every:
+    if (self.total_steps % self.config.recompute_eigenvect_every == 0 or self.should_consider_eigenvectors == False):
       # tf.logging.warning("RECOMPUTING EIGENVECTORS")
       self.recompute_eigenvectors_classic()
 
@@ -379,10 +381,8 @@ class EigenOCAgent(Visualizer):
       self.summary.value.add(tag='Step/Option', simple_value=self.option)
       self.summary.value.add(tag='Step/Q', simple_value=self.q_value)
       if self.config.eigen and not self.primitive_action:
-        try:
-          self.summary.value.add(tag='Step/EigenQ', simple_value=self.eigen_q_value)
-        except:
-          print("dd")
+        self.summary.value.add(tag='Step/EigenQ', simple_value=self.eigen_q_value)
+        self.summary.value.add(tag='Step/EigenV', simple_value=self.evalue)
       self.summary.value.add(tag='Step/V', simple_value=self.value)
       self.summary.value.add(tag='Step/Term', simple_value=int(self.o_term))
       self.summary.value.add(tag='Step/R', simple_value=self.R)
