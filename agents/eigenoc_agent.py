@@ -175,19 +175,26 @@ class EigenOCAgent(Visualizer):
                   R_mix = 0
                 else:
                   feed_dict = {self.local_network.observation: np.stack([s1])}
-                  value, evalue, q_value, q_eigen = sess.run([self.local_network.v, self.local_network.eigenv,
-                                                                  self.local_network.q_val,
-                                                                  self.local_network.eigen_q_val],
-                                            feed_dict=feed_dict)
-                  q_value = q_value[0, self.option]
-                  value = value[0]
-                  evalue = evalue[0]
-                  if self.primitive_action:
-                    R_mix = value if self.o_term else q_value
+                  if self.config.eigen:
+                    value, evalue, q_value, q_eigen = sess.run([self.local_network.v, self.local_network.eigenv, self.local_network.q_val, self.local_network.eigen_q_val],
+                                              feed_dict=feed_dict)
+                    q_value = q_value[0, self.option]
+                    value = value[0]
+                    evalue = evalue[0]
+                    if self.primitive_action:
+                      R_mix = value if self.o_term else q_value
+                    else:
+                      q_eigen = q_eigen[0, self.option]
+                      R_mix = evalue if self.o_term else q_eigen
                   else:
-                    q_eigen = q_eigen[0, self.option]
-                    R_mix = evalue if self.o_term else q_eigen
+                    value, q_value = sess.run(
+                      [self.local_network.v, self.local_network.q_val],
+                      feed_dict=feed_dict)
+                    q_value = q_value[0, self.option]
+                    value = value[0]
                   R = value if self.o_term else q_value
+                  if not self.config.eigen:
+                    R_mix = R
                 results = self.train_option(R, R_mix)
                 if results == None:
                   tf.logging.info("ALL PRIMITIVE OPTIONS")
