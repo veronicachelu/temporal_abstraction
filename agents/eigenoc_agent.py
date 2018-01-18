@@ -380,7 +380,7 @@ class EigenOCAgent(Visualizer):
       self.summary.value.add(tag='Step/Action', simple_value=self.action)
       self.summary.value.add(tag='Step/Option', simple_value=self.option)
       self.summary.value.add(tag='Step/Q', simple_value=self.q_value)
-      if self.config.eigen and not self.primitive_action:
+      if self.config.eigen and not self.primitive_action and self.eigen_q_value is not None and self.evalue is not None:
         self.summary.value.add(tag='Step/EigenQ', simple_value=self.eigen_q_value)
         self.summary.value.add(tag='Step/EigenV', simple_value=self.evalue)
       self.summary.value.add(tag='Step/V', simple_value=self.value)
