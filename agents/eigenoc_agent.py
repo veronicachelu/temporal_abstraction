@@ -88,9 +88,12 @@ class EigenOCAgent(Visualizer):
       self.saver = saver
       self.episode_count = sess.run(self.global_step)
       self.total_steps = sess.run(self.total_steps_tensor)
+      self.eigen_q_value = None
+      self.evalue = None
 
       ms_aux = ms_sf = ms_option = None
-      tf.logging.info("Starting worker " + str(self.thread_id))
+      tf.logging.info("Starting worker " +
+                      str(self.thread_id))
       self.aux_episode_buffer = deque()
 
       while not coord.should_stop():
