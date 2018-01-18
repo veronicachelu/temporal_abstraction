@@ -479,8 +479,8 @@ class EigenOCAgent(Visualizer):
       # u, s, v = np.linalg.svd(self.sr_matrix_buffer.get(), full_matrices=False)
       eigenvalues = eigenval[self.config.first_eigenoption:self.config.nb_options + self.config.first_eigenoption]
       new_eigenvectors = eigenvect[self.config.first_eigenoption:self.config.nb_options + self.config.first_eigenoption]
-      min_similarity = np.min([self.cosine_similarity(a, b) for a, b in zip(self.eigenvectors, new_eigenvectors)])
-      tf.logging.warning("Min cosine similarity between old eigenvectors and recomputed onesis {}".format(min_similarity))
+      # min_similarity = np.min([self.cosine_similarity(a, b) for a, b in zip(self.eigenvectors, new_eigenvectors)])
+      # tf.logging.warning("Min cosine similarity between old eigenvectors and recomputed onesis {}".format(min_similarity))
       self.eigenvectors = new_eigenvectors
 
     else:
