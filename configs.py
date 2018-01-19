@@ -496,7 +496,7 @@ def oc():
   entropy_decay_steps = 10000
   clip_option_grad_by_value = False
   clip_by_value = 5
-  nb_test_ep = 1000
+  nb_test_ep = 100
   recompute_eigenvect_every = 1000
   stop_recompute_eigenvect_every = 10000
   first_eigenoption = 20
@@ -567,7 +567,7 @@ def eigenoc():
   entropy_decay_steps = 10000
   clip_option_grad_by_value = False
   clip_by_value = 5
-  nb_test_ep = 1000
+  nb_test_ep = 100
   recompute_eigenvect_every = 1000
   stop_recompute_eigenvect_every = 10000
   first_eigenoption = 20
