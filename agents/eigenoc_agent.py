@@ -39,7 +39,7 @@ def get_mode(arr):
 
 
 class EigenOCAgent(Visualizer):
-  def __init__(self, game, thread_id, global_step, config):
+  def __init__(self, game, thread_id, global_step, config, global_network):
     self.name = "worker_" + str(thread_id)
     self.thread_id = thread_id
     self.optimizer = config.network_optimizer
@@ -50,6 +50,8 @@ class EigenOCAgent(Visualizer):
     tf.gfile.MakeDirs(self.test_path)
     tf.gfile.MakeDirs(self.model_path)
     tf.gfile.MakeDirs(self.summary_path)
+    self.global_network = global_network
+    self.directions = self.global_network.directions
 
     self.increment_global_step = self.global_step.assign_add(1)
     self.episode_rewards = []
@@ -72,7 +74,6 @@ class EigenOCAgent(Visualizer):
     self.nb_states = game.nb_states
     self.summary_writer = tf.summary.FileWriter(self.summary_path + "/worker_" + str(self.thread_id))
 
-
     self.local_network = config.network(self.name, config, self.action_size, self.nb_states, self.total_steps_tensor)
 
     self.update_local_vars_aux = update_target_graph_aux('global', self.name)
@@ -80,7 +81,10 @@ class EigenOCAgent(Visualizer):
     self.update_local_vars_option = update_target_graph_option('global', self.name)
     self.env = game
     self.nb_states = game.nb_states
-    self.init_or_load_SR()
+    # self.init_or_load_SR()
+
+  def load_directions(self):
+    self.directions = self.global_network.directions
 
   def play(self, sess, coord, saver):
     with sess.as_default(), sess.graph.as_default():
@@ -102,6 +106,11 @@ class EigenOCAgent(Visualizer):
         sess.run(self.update_local_vars_aux)
         sess.run(self.update_local_vars_sf)
         sess.run(self.update_local_vars_option)
+
+        if self.name == "worker_0" and self.episode_count > 0:
+          self.recompute_eigenvectors_classic()
+
+        self.load_directions()
 
         self.episode_buffer_sf = []
         self.episode_buffer_option = []
@@ -337,15 +346,11 @@ class EigenOCAgent(Visualizer):
 
   def store_option_info(self, s, s1, a, r):
     # if self.sr_matrix_buffer.full and (
-    if (self.total_steps % self.config.recompute_eigenvect_every == 0 or self.should_consider_eigenvectors == False):
-      # tf.logging.warning("RECOMPUTING EIGENVECTORS")
-      self.recompute_eigenvectors_classic()
-
-    if self.config.eigen and self.should_consider_eigenvectors and not self.primitive_action:
+    if self.config.eigen and not self.primitive_action:
       feed_dict = {self.local_network.observation: np.stack([s, s1])}
       fi = self.sess.run(self.local_network.fi,
                          feed_dict=feed_dict)
-      eigen_r = self.cosine_similarity((fi[1] - fi[0]), self.eigenvectors[self.option])
+      eigen_r = self.cosine_similarity((fi[1] - fi[0]), self.directions[self.option])
       # tf.logging.warning("INTRINSIC REWARD is {}".format(eigen_r))
       r_i = self.config.alpha_r * eigen_r + (1 - self.config.alpha_r) * r
       self.episode_eigen_q_values.append(self.eigen_q_value)
@@ -434,22 +439,22 @@ class EigenOCAgent(Visualizer):
                        feed_dict=feed_dict)[0]
     self.sr_matrix_buffer.append(sf)
 
-  def recompute_eigenvectors(self):
-    if self.config.eigen:
-      self.should_consider_eigenvectors = True
-      feed_dict = {self.local_network.matrix_sf: self.sr_matrix_buffer.get()}
-      eigenval, eigenvect = self.sess.run([self.local_network.eigenvalues, self.local_network.eigenvectors],
-                                          feed_dict=feed_dict)
-      # u, s, v = np.linalg.svd(self.sr_matrix_buffer.get(), full_matrices=False)
-      eigenvalues = eigenval[1:self.config.nb_options + 1]
-      self.eigenvectors = eigenvect[1:self.config.nb_options + 1]
-      tf.logging.info("EIGENVALUES {}".format(eigenvalues))
-    else:
-      self.should_consider_eigenvectors = False
+  # def recompute_eigenvectors(self):
+  #   if self.config.eigen:
+  #     self.should_consider_eigenvectors = True
+  #     feed_dict = {self.local_network.matrix_sf: self.sr_matrix_buffer.get()}
+  #     eigenval, eigenvect = self.sess.run([self.local_network.eigenvalues, self.local_network.eigenvectors],
+  #                                         feed_dict=feed_dict)
+  #     # u, s, v = np.linalg.svd(self.sr_matrix_buffer.get(), full_matrices=False)
+  #     eigenvalues = eigenval[1:self.config.nb_options + 1]
+  #     self.eigenvectors = eigenvect[1:self.config.nb_options + 1]
+  #     tf.logging.info("EIGENVALUES {}".format(eigenvalues))
+  #   else:
+  #     self.should_consider_eigenvectors = False
 
   def recompute_eigenvectors_classic(self):
     if self.config.eigen:
-      self.should_consider_eigenvectors = True
+      # self.should_consider_eigenvectors = True
       matrix_sf = np.zeros((self.nb_states, self.config.sf_layers[-1]))
       for idx in range(self.nb_states):
         s, ii, jj = self.env.fake_get_state(idx)
@@ -463,15 +468,18 @@ class EigenOCAgent(Visualizer):
       # u, s, v = np.linalg.svd(self.sr_matrix_buffer.get(), full_matrices=False)
       eigenvalues = eigenval[self.config.first_eigenoption:self.config.nb_options + self.config.first_eigenoption]
       new_eigenvectors = eigenvect[self.config.first_eigenoption:self.config.nb_options + self.config.first_eigenoption]
-      min_similarity = np.min([self.cosine_similarity(a, b) for a, b in zip(self.eigenvectors, new_eigenvectors)])
+      min_similarity = np.min([self.cosine_similarity(a, b) for a, b in zip(self.global_network.directions, new_eigenvectors)])
+      max_similarity = np.max([self.cosine_similarity(a, b) for a, b in zip(self.global_network.directions, new_eigenvectors)])
+      mean_similarity = np.mean([self.cosine_similarity(a, b) for a, b in zip(self.global_network.directions, new_eigenvectors)])
       self.summary = tf.Summary()
       self.summary.value.add(tag='Eigenvectors/Min similarity', simple_value=float(min_similarity))
+      self.summary.value.add(tag='Eigenvectors/Max similarity', simple_value=float(max_similarity))
+      self.summary.value.add(tag='Eigenvectors/Mean similarity', simple_value=float(mean_similarity))
       self.summary_writer.add_summary(self.summary, self.total_steps)
       self.summary_writer.flush()
       # tf.logging.warning("Min cosine similarity between old eigenvectors and recomputed onesis {}".format(min_similarity))
-      self.eigenvectors = new_eigenvectors
-    else:
-      self.should_consider_eigenvectors = False
+      self.global_network.directions = new_eigenvectors
+
 
   def cosine_similarity(self, next_sf, evect):
     state_dif_norm = np.linalg.norm(next_sf)
@@ -715,16 +723,6 @@ class EigenOCAgent(Visualizer):
                duration=len(images) * 1.0, true_image=True)
       tf.logging.info("Won {} episodes of {}".format(ep_rewards.count(1), self.config.nb_test_ep))
 
-  def init_or_load_SR(self):
-    matrix_path = os.path.join(self.model_path, "sr_matrix.pkl")
-    if os.path.exists(matrix_path):
-      with open(matrix_path, 'rb') as f:
-        self.sr_matrix_buffer = pickle.load(f)
-    else:
-      self.sr_matrix_buffer = RingBuffer((self.config.sf_matrix_size, self.config.sf_layers[-1]))
-
-    self.eigenvectors = np.zeros((self.config.nb_options, self.config.sf_layers[-1]))
-    self.should_consider_eigenvectors = False
 
   def save_SR(self):
     matrix_path = os.path.join(self.model_path, "sr_matrix.pkl")

@@ -346,6 +346,7 @@ class EignOCNetwork():
     self.config = config
     self.network_optimizer = config.network_optimizer(
       self.config.lr, name='network_optimizer')
+    self.directions = np.zeros((config.nb_options, config.sf_layers[-1]))
 
     # self._exploration_options = TFLinearSchedule(self._config.explore_steps, self._config.final_random_action_prob,
     #                                              self._config.initial_random_action_prob)

@@ -10,7 +10,9 @@ import utility
 from tools import wrappers
 import configs
 from env_wrappers import _create_environment
-
+import numpy as np
+import pickle
+from tools.ring_buffer import RingBuffer
 
 def train(config, env_processes, logdir):
   tf.reset_default_graph()
@@ -28,6 +30,7 @@ def train(config, env_processes, logdir):
         action_size = envs[0].action_space.n
         nb_states = envs[0].nb_states
         global_network = config.network("global", config, action_size, nb_states)
+
         if FLAGS.task == "matrix":
           agent = config.dif_agent(envs[0], 0, global_step, config)
         elif FLAGS.task == "option":
@@ -37,7 +40,7 @@ def train(config, env_processes, logdir):
         elif FLAGS.task == "eval":
           agent = config.dif_agent(envs[0], 0, global_step, config)
         else:
-          agents = [config.dif_agent(envs[i], i, global_step, config) for i in range(config.num_agents)]
+          agents = [config.dif_agent(envs[i], i, global_step, config, global_network) for i in range(config.num_agents)]
 
       saver = loader = utility.define_saver(exclude=(r'.*_temporary/.*',))
       if FLAGS.resume:
