@@ -254,7 +254,8 @@ class DIFNetwork_FC():
         self.fi = out
 
       with tf.variable_scope("sf"):
-        out = tf.stop_gradient(tf.nn.relu(self.fi))
+        out = layer_norm_fn(self.fi, relu=True)
+        out = tf.stop_gradient(out)
         for i, nb_filt in enumerate(self.sf_layers):
           out = layers.fully_connected(out, num_outputs=nb_filt,
                                        activation_fn=None,
