@@ -176,7 +176,7 @@ class EigenOCAgent(Visualizer):
 
             if self.total_steps > self.config.eigen_exploration_steps:
               t_counter_option += 1
-              self.add_current_state_SR(s)
+              # self.add_current_state_SR(s)
 
               self.store_option_info(s, s1, self.action, r)
 
@@ -370,7 +370,7 @@ class EigenOCAgent(Visualizer):
     tf.logging.info(
       "Saved Model at {}".format(self.model_path + '/model-{}.{}.cptk'.format(self.episode_count, self.total_steps)))
 
-    self.save_SR()
+    # self.save_SR()
     matrix_path = os.path.join(self.model_path, "sr_matrix.pkl")
     tf.logging.info("Saved SR_matrix at {}".format(matrix_path))
 
@@ -433,11 +433,11 @@ class EigenOCAgent(Visualizer):
     self.write_step_summary(ms_sf, ms_aux, ms_option, r)
 
 
-  def add_current_state_SR(self, s):
-    feed_dict = {self.local_network.observation: np.stack([s])}
-    sf = self.sess.run(self.local_network.sf,
-                       feed_dict=feed_dict)[0]
-    self.sr_matrix_buffer.append(sf)
+  # def add_current_state_SR(self, s):
+  #   feed_dict = {self.local_network.observation: np.stack([s])}
+  #   sf = self.sess.run(self.local_network.sf,
+  #                      feed_dict=feed_dict)[0]
+  #   self.sr_matrix_buffer.append(sf)
 
   # def recompute_eigenvectors(self):
   #   if self.config.eigen:
@@ -724,10 +724,10 @@ class EigenOCAgent(Visualizer):
       tf.logging.info("Won {} episodes of {}".format(ep_rewards.count(1), self.config.nb_test_ep))
 
 
-  def save_SR(self):
-    matrix_path = os.path.join(self.model_path, "sr_matrix.pkl")
-    with open(matrix_path, 'wb') as f:
-      pickle.dump(self.sr_matrix_buffer, f, pickle.HIGHEST_PROTOCOL)
+  # def save_SR(self):
+  #   matrix_path = os.path.join(self.model_path, "sr_matrix.pkl")
+  #   with open(matrix_path, 'wb') as f:
+  #     pickle.dump(self.sr_matrix_buffer, f, pickle.HIGHEST_PROTOCOL)
 
   def viz_options(self, sess, coord, saver):
     with sess.as_default(), sess.graph.as_default():
