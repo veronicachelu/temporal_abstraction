@@ -423,25 +423,6 @@ class EigenOCAgent(Visualizer):
       last_frequent_action = self.episode_mean_actions[-1]
       self.summary.value.add(tag='Perf/FreqActions', simple_value=last_frequent_action)
 
-    # if len(self.episode_options) != 0:
-    #   counts, bin_edges = np.histogram(self.episode_options,
-    #                                    bins=list(range(self.config.nb_options)) + [self.config.nb_options])
-    #
-    #   hist = tf.HistogramProto(min=np.min(self.episode_options),
-    #                            max=np.max(self.episode_options),
-    #                            num=len(self.episode_options),
-    #                            sum=np.sum(self.episode_options),
-    #                            sum_squares=np.sum([e ** 2 for e in self.episode_options])
-    #                            )
-    #   bin_edges = bin_edges[1:]
-    #   # Add bin edges and counts
-    #   for edge in bin_edges:
-    #     hist.bucket_limit.append(edge)
-    #   for c in counts:
-    #     hist.bucket.append(c)
-    #
-    #   self.summary.value.add(tag='Perf/OptionsHist', histo=hist)
-    #   self.summary_writer.add_summary(self.summary, self.total_steps)
     self.summary_writer.add_summary(self.summary, self.episode_count)
     self.summary_writer.flush()
     self.write_step_summary(ms_sf, ms_aux, ms_option, r)
@@ -482,10 +463,13 @@ class EigenOCAgent(Visualizer):
       # u, s, v = np.linalg.svd(self.sr_matrix_buffer.get(), full_matrices=False)
       eigenvalues = eigenval[self.config.first_eigenoption:self.config.nb_options + self.config.first_eigenoption]
       new_eigenvectors = eigenvect[self.config.first_eigenoption:self.config.nb_options + self.config.first_eigenoption]
-      # min_similarity = np.min([self.cosine_similarity(a, b) for a, b in zip(self.eigenvectors, new_eigenvectors)])
+      min_similarity = np.min([self.cosine_similarity(a, b) for a, b in zip(self.eigenvectors, new_eigenvectors)])
+      self.summary = tf.Summary()
+      self.summary.value.add(tag='Eigenvectors/Min similarity', simple_value=float(min_similarity))
+      self.summary_writer.add_summary(self.summary, self.total_steps)
+      self.summary_writer.flush()
       # tf.logging.warning("Min cosine similarity between old eigenvectors and recomputed onesis {}".format(min_similarity))
       self.eigenvectors = new_eigenvectors
-
     else:
       self.should_consider_eigenvectors = False
 

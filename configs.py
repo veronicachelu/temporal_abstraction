@@ -330,7 +330,6 @@ def linear_4rooms():
 
   return locals()
 
-
 def dif_4rooms():
   locals().update(default())
   dif_agent = DIFAgent
