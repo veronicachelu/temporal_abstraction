@@ -454,6 +454,7 @@ class EignOCNetwork():
         for i, nb_filt in enumerate(self.sf_layers):
           out = layers.fully_connected(out, num_outputs=nb_filt,
                                        activation_fn=None,
+                                       biases_initializer=None,
                                        variables_collections=tf.get_collection("variables"),
                                        outputs_collections="activations", scope="sf_{}".format(i))
           if i < len(self.sf_layers) - 1:
