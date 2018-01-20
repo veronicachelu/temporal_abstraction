@@ -492,7 +492,7 @@ def oc():
   # steps_checkpoint_interval = 10
   episode_checkpoint_interval = 1
   episode_eval_interval = 10
-  max_length = 72000
+  max_length = 1000
   max_length_eval = 1000
   entropy_decay_steps = 10000
   clip_option_grad_by_value = False
@@ -564,7 +564,7 @@ def eigenoc():
   # steps_checkpoint_interval = 10
   episode_checkpoint_interval = 1
   episode_eval_interval = 10
-  max_length = 72000
+  max_length = 1000
   max_length_eval = 1000
   entropy_decay_steps = 10000
   clip_option_grad_by_value = False
