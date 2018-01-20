@@ -260,11 +260,13 @@ class EigenOCAgent(Visualizer):
 
         if self.episode_count % self.config.episode_eval_interval == 0 and \
                 self.name == 'worker_0' and self.episode_count != 0:
+          tf.logging.info("Evaluating agent....")
           eval_episodes_won, mean_ep_length = self.evaluate_agent()
           self.write_eval_summary(eval_episodes_won, mean_ep_length)
 
         if self.episode_count % self.config.move_goal_nb_of_ep == 0 and \
                 self.name == 'worker_0' and self.episode_count != 0:
+          tf.logging.info("Moving GOAL....")
           self.env.move_goal()
 
         if self.episode_count % self.config.episode_checkpoint_interval == 0 and self.name == 'worker_0' and \
@@ -371,8 +373,8 @@ class EigenOCAgent(Visualizer):
       "Saved Model at {}".format(self.model_path + '/model-{}.{}.cptk'.format(self.episode_count, self.total_steps)))
 
     # self.save_SR()
-    matrix_path = os.path.join(self.model_path, "sr_matrix.pkl")
-    tf.logging.info("Saved SR_matrix at {}".format(matrix_path))
+    # matrix_path = os.path.join(self.model_path, "sr_matrix.pkl")
+    # tf.logging.info("Saved SR_matrix at {}".format(matrix_path))
 
   def write_step_summary(self, ms_sf, ms_aux, ms_option, r):
     self.summary = tf.Summary()
