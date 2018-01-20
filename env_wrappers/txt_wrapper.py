@@ -39,10 +39,13 @@ class GridWorld:
     self.win.title("Gridworld")
 
   def set_goal_locations(self, goal_locations):
-    self.goal_location = goal_locations
+    self.goal_locations = goal_locations
+    print(self.goal_locations)
 
   def set_goal(self, episode_nb):
-    goal_pair = self.goal_location[episode_nb % 1000]
+    print(episode_nb)
+    print(episode_nb % 1000)
+    goal_pair = self.goal_locations[episode_nb % 1000]
     self.goalX = goal_pair[0]
     self.goalY = goal_pair[1]
 
