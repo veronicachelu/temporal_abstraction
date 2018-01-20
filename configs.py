@@ -462,9 +462,10 @@ def oc():
   target_update_iter_aux = 1
   target_update_iter_sf = 30
   target_update_iter_option = 30
+  goal_locations = [(1, 11), (3, 2), (6, 2), (1, 4), (1, 1), (8, 1), (2, 5), (11, 10)]
 
   env = functools.partial(
-    GridWorld, "./mdps/4rooms.mdp")
+    GridWorld, goal_locations, "./mdps/4rooms.mdp")
   max_update_freq = 30
   min_update_freq = 5
   batch_size = 16
@@ -533,9 +534,10 @@ def eigenoc():
   target_update_iter_aux = 1
   target_update_iter_sf = 30
   target_update_iter_option = 30
+  goal_locations = [(1, 11), (3, 2), (6, 2), (1, 4), (1, 1), (8, 1), (2, 5), (11, 10)]
 
   env = functools.partial(
-    GridWorld, "./mdps/4rooms.mdp")
+    GridWorld, goal_locations, "./mdps/4rooms.mdp")
   max_update_freq = 30
   min_update_freq = 5
   batch_size = 16
@@ -573,5 +575,6 @@ def eigenoc():
   first_eigenoption = 20
   move_goal_nb_of_ep = 1000
   include_primitive_options = True
+  goal_location = ()
 
   return locals()

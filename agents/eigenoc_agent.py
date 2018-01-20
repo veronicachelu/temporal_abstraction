@@ -91,6 +91,7 @@ class EigenOCAgent(Visualizer):
       self.sess = sess
       self.saver = saver
       self.episode_count = sess.run(self.global_step)
+      self.env.set_goal(self.episode_count)
       self.total_steps = sess.run(self.total_steps_tensor)
       self.eigen_q_value = None
       self.evalue = None
@@ -267,7 +268,7 @@ class EigenOCAgent(Visualizer):
         if self.episode_count % self.config.move_goal_nb_of_ep == 0 and \
                 self.name == 'worker_0' and self.episode_count != 0:
           tf.logging.info("Moving GOAL....")
-          self.env.move_goal()
+          self.env.set_goal(self.episode_count)
 
         if self.episode_count % self.config.episode_checkpoint_interval == 0 and self.name == 'worker_0' and \
                 self.episode_count != 0:

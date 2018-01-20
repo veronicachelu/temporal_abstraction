@@ -10,13 +10,14 @@ import random
 from gym import spaces
 
 class GridWorld:
-  def __init__(self, load_path=None):
+  def __init__(self, goal_locations, load_path=None):
     self.action_space = spaces.Discrete(4)
 
     self.rewardFunction = None
     self.nb_actions = 4
     if load_path != None:
       self.read_file(load_path)
+      self.set_goal_locations(goal_locations)
 
     self.observation_space = spaces.Box(low=0,
                                         high=255,
@@ -36,6 +37,14 @@ class GridWorld:
     self.w = self.MDP.shape[1] * 42
     self.win.geometry('%sx%s+%s+%s' % (self.w, self.h, x, y))
     self.win.title("Gridworld")
+
+  def set_goal_locations(self, goal_locations):
+    self.goal_location = goal_locations
+
+  def set_goal(self, episode_nb):
+    goal_pair = self.goal_location[episode_nb % 1000]
+    self.goalX = goal_pair[0]
+    self.goalY = goal_pair[1]
 
   def render(self, s):
     # time.sleep(0.1)
