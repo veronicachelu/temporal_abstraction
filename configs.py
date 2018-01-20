@@ -475,7 +475,7 @@ def oc():
   # observation_steps = 16
   aux_update_freq = 1
   alpha_r = 0.5
-  steps = 100000  # 1M
+  steps = 1000000  # 1M
   episodes = 1e6  # 1M
   eigen_exploration_steps = 1000
   # eigen_exploration_steps = 16
@@ -546,7 +546,7 @@ def eigenoc():
   # observation_steps = 16
   aux_update_freq = 1
   alpha_r = 0.5
-  steps = 100000  # 1M
+  steps = 1000000  # 1M
   episodes = 1e6  # 1M
   eigen_exploration_steps = 1000
   # eigen_exploration_steps = 16
