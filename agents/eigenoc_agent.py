@@ -157,7 +157,7 @@ class EigenOCAgent():
                         self.total_steps % self.config.aux_update_freq == 0:
               ms_aux, aux_loss = self.train_aux()
 
-            if t_counter_sf == self.config.max_update_freq or d:
+            if self.config.eigen and (t_counter_sf == self.config.max_update_freq or d):
               feed_dict = {self.local_network.observation: np.stack([s1])}
               sf = sess.run(self.local_network.sf,
                             feed_dict=feed_dict)[0]
@@ -459,7 +459,11 @@ class EigenOCAgent():
 
   def train_sf(self, bootstrap_sf):
     rollout = np.array(self.episode_buffer_sf)
-    observations = rollout[:, 0]
+
+    try:
+      observations = rollout[:, 0]
+    except:
+      print("Dasdas")
 
     feed_dict = {self.local_network.observation: np.stack(observations, axis=0)}
     fi = self.sess.run(self.local_network.fi,
