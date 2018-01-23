@@ -93,7 +93,7 @@ class EigenOCAgent():
       self.sess = sess
       self.saver = saver
       self.episode_count = sess.run(self.global_step)
-      self.env.set_goal(self.episode_count)
+      self.env.set_goal(self.episode_count, self.config.move_goal_nb_of_ep)
       self.total_steps = sess.run(self.total_steps_tensor)
       self.eigen_q_value = None
       self.evalue = None
