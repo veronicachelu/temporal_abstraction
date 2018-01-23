@@ -491,7 +491,7 @@ def oc():
   clip_by_value = 5
   nb_test_ep = 100
   include_primitive_options = True
-  move_goal_nb_of_ep = 1000
+  move_goal_nb_of_ep = 300
 
   return locals()
 
@@ -554,8 +554,8 @@ def eigenoc():
   nb_test_ep = 100
   # recompute_eigenvect_every = 1000
   # stop_recompute_eigenvect_every = 10000
-  first_eigenoption = 2
-  move_goal_nb_of_ep = 700
+  first_eigenoption = 1
+  move_goal_nb_of_ep = 300
   include_primitive_options = True
 
   return locals()
