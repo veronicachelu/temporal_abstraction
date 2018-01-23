@@ -200,9 +200,7 @@ class EigenOCAgent():
                   if not self.config.eigen:
                     R_mix = R
                 results = self.train_option(R, R_mix)
-                if results == None:
-                  tf.logging.info("ALL PRIMITIVE OPTIONS")
-                else:
+                if results is not None:
                   if self.config.eigen:
                     ms_option, option_loss, policy_loss, entropy_loss, critic_loss, term_loss, eigen_critic_loss, self.R, self.eigen_R = results
                   else:
@@ -418,25 +416,6 @@ class EigenOCAgent():
     self.summary_writer.add_summary(self.summary, self.episode_count)
     self.summary_writer.flush()
     self.write_step_summary(ms_sf, ms_aux, ms_option, r)
-
-  # def add_current_state_SR(self, s):
-  #   feed_dict = {self.local_network.observation: np.stack([s])}
-  #   sf = self.sess.run(self.local_network.sf,
-  #                      feed_dict=feed_dict)[0]
-  #   self.sr_matrix_buffer.append(sf)
-
-  # def recompute_eigenvectors(self):
-  #   if self.config.eigen:
-  #     self.should_consider_eigenvectors = True
-  #     feed_dict = {self.local_network.matrix_sf: self.sr_matrix_buffer.get()}
-  #     eigenval, eigenvect = self.sess.run([self.local_network.eigenvalues, self.local_network.eigenvectors],
-  #                                         feed_dict=feed_dict)
-  #     # u, s, v = np.linalg.svd(self.sr_matrix_buffer.get(), full_matrices=False)
-  #     eigenvalues = eigenval[1:self.config.nb_options + 1]
-  #     self.eigenvectors = eigenvect[1:self.config.nb_options + 1]
-  #     tf.logging.info("EIGENVALUES {}".format(eigenvalues))
-  #   else:
-  #     self.should_consider_eigenvectors = False
 
   def recompute_eigenvectors_classic(self):
     if self.config.eigen:
