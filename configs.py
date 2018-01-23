@@ -555,7 +555,7 @@ def eigenoc():
   # recompute_eigenvect_every = 1000
   # stop_recompute_eigenvect_every = 10000
   first_eigenoption = 2
-  move_goal_nb_of_ep = 300
+  move_goal_nb_of_ep = 700
   include_primitive_options = True
 
   return locals()
