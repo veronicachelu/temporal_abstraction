@@ -260,7 +260,7 @@ class EigenOCAgent():
         if self.episode_count % self.config.move_goal_nb_of_ep == 0 and \
                 self.name == 'worker_0' and self.episode_count != 0:
           tf.logging.info("Moving GOAL....")
-          self.env.set_goal(self.episode_count)
+          self.env.set_goal(self.episode_count, self.config.move_goal_nb_of_ep)
 
         if self.episode_count % self.config.episode_checkpoint_interval == 0 and self.name == 'worker_0' and \
                 self.episode_count != 0:
