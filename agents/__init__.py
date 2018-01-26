@@ -15,3 +15,4 @@ from .tabular_sf_agent import TabSFAgent
 from .linear_sf_agent import LinearSFAgent
 from .dif_agent import DIFAgent
 from .eigenoc_agent import EigenOCAgent
+from .eigenoc_agent_dynamic import EigenOCAgentDyn

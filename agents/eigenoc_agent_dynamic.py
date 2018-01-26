@@ -38,7 +38,7 @@ def get_mode(arr):
     return -1
 
 
-class EigenOCAgent():
+class EigenOCAgentDyn():
   def __init__(self, game, thread_id, global_step, config, global_network):
     self.name = "worker_" + str(thread_id)
     self.config = config
@@ -46,6 +46,7 @@ class EigenOCAgent():
     self.optimizer = config.network_optimizer
     self.global_step = global_step
     self.model_path = os.path.join(config.stage_logdir, "models")
+    self.sf_matrix_path = os.path.join(config.stage_logdir, "sf_matrix.npy")
     self.summary_path = os.path.join(config.stage_logdir, "summaries")
     self.test_path = os.path.join(config.stage_logdir, "test")
     tf.gfile.MakeDirs(self.test_path)
@@ -83,7 +84,6 @@ class EigenOCAgent():
     self.update_local_vars_option = update_target_graph_option('global', self.name)
     self.env = game
     self.nb_states = game.nb_states
-    # self.init_or_load_SR()
 
   def load_directions(self):
     self.directions = self.global_network.directions
@@ -111,7 +111,8 @@ class EigenOCAgent():
         sess.run(self.update_local_vars_option)
 
         if self.name == "worker_0" and self.episode_count > 0:
-          self.recompute_eigenvectors_classic()
+          # self.recompute_eigenvectors_classic()
+          self.recompute_eigenvectors_dynamic()
 
         self.load_directions()
 
@@ -144,10 +145,13 @@ class EigenOCAgent():
             sess.run(self.update_local_vars_option)
 
           self.policy_evaluation(s)
+
           s1, r, d, _ = self.env.step(self.action)
+
           r = np.clip(r, -1, 1)
           if d:
             s1 = s
+
           self.store_general_info(s, s1, self.action, r)
           if self.name == "worker_0":
             tf.logging.info("Episode {} >> Step {} >> Length: {}".format(self.episode_count, self.total_steps, t))
@@ -272,6 +276,10 @@ class EigenOCAgent():
           sess.run(self.increment_global_step)
         self.episode_count += 1
 
+  def add_SF(self, sf):
+    self.global_network.sf_matrix_buffer[0] = sf
+    np.roll(self.global_network.sf_matrix_buffer, 1, 0)
+
   def option_evaluation(self, s):
     feed_dict = {self.local_network.observation: np.stack([s])}
     self.option, self.primitive_action = self.sess.run(
@@ -289,9 +297,10 @@ class EigenOCAgent():
       if self.config.eigen:
         to_run.append(self.local_network.eigen_q_val)
         to_run.append(self.local_network.eigenv)
+        to_run.append(self.local_network.sf)
       results = self.sess.run(to_run, feed_dict=feed_dict)
       if self.config.eigen:
-        options, value, q_value, o_term, eigen_q_value, evalue = results
+        options, value, q_value, o_term, eigen_q_value, evalue, sf = results
         if not self.primitive_action:
           self.eigen_q_value = eigen_q_value[0, self.option]
           pi = options[0, self.option]
@@ -305,6 +314,8 @@ class EigenOCAgent():
 
         self.q_value = q_value[0, self.option]
         self.value = value[0]
+        sf = sf[0]
+        self.add_SF(sf)
       else:
         options, value, q_value, o_term = results
         if self.config.include_primitive_options and self.primitive_action:
@@ -353,9 +364,8 @@ class EigenOCAgent():
     tf.logging.info(
       "Saved Model at {}".format(self.model_path + '/model-{}.{}.cptk'.format(self.episode_count, self.total_steps)))
 
-    # self.save_SR()
-    # matrix_path = os.path.join(self.model_path, "sr_matrix.pkl")
-    # tf.logging.info("Saved SR_matrix at {}".format(matrix_path))
+    self.save_SF_matrix()
+
 
   def write_step_summary(self, ms_sf, ms_aux, ms_option, r):
     self.summary = tf.Summary()
@@ -430,7 +440,7 @@ class EigenOCAgent():
       feed_dict = {self.local_network.matrix_sf: matrix_sf}
       eigenval, eigenvect = self.sess.run([self.local_network.eigenvalues, self.local_network.eigenvectors],
                                           feed_dict=feed_dict)
-      # u, s, v = np.linalg.svd(self.sr_matrix_buffer.get(), full_matrices=False)
+
       eigenvalues = eigenval[self.config.first_eigenoption:self.config.nb_options + self.config.first_eigenoption]
       new_eigenvectors = eigenvect[self.config.first_eigenoption:self.config.nb_options + self.config.first_eigenoption]
       min_similarity = np.min(
@@ -445,7 +455,29 @@ class EigenOCAgent():
       self.summary.value.add(tag='Eigenvectors/Mean similarity', simple_value=float(mean_similarity))
       self.summary_writer.add_summary(self.summary, self.episode_count)
       self.summary_writer.flush()
-      # tf.logging.warning("Min cosine similarity between old eigenvectors and recomputed onesis {}".format(min_similarity))
+      self.global_network.directions = new_eigenvectors
+      self.directions = self.global_network.directions
+      
+  def recompute_eigenvectors_dynamic(self):
+    if self.config.eigen:
+      feed_dict = {self.local_network.matrix_sf: self.global_network.sf_matrix_buffer}
+      eigenval, eigenvect = self.sess.run([self.local_network.eigenvalues, self.local_network.eigenvectors],
+                                          feed_dict=feed_dict)
+
+      eigenvalues = eigenval[self.config.first_eigenoption:self.config.nb_options + self.config.first_eigenoption]
+      new_eigenvectors = eigenvect[self.config.first_eigenoption:self.config.nb_options + self.config.first_eigenoption]
+      min_similarity = np.min(
+        [self.cosine_similarity(a, b) for a, b in zip(self.global_network.directions, new_eigenvectors)])
+      max_similarity = np.max(
+        [self.cosine_similarity(a, b) for a, b in zip(self.global_network.directions, new_eigenvectors)])
+      mean_similarity = np.mean(
+        [self.cosine_similarity(a, b) for a, b in zip(self.global_network.directions, new_eigenvectors)])
+      self.summary = tf.Summary()
+      self.summary.value.add(tag='Eigenvectors/Min similarity', simple_value=float(min_similarity))
+      self.summary.value.add(tag='Eigenvectors/Max similarity', simple_value=float(max_similarity))
+      self.summary.value.add(tag='Eigenvectors/Mean similarity', simple_value=float(mean_similarity))
+      self.summary_writer.add_summary(self.summary, self.episode_count)
+      self.summary_writer.flush()
       self.global_network.directions = new_eigenvectors
       self.directions = self.global_network.directions
 
@@ -460,10 +492,7 @@ class EigenOCAgent():
   def train_sf(self, bootstrap_sf):
     rollout = np.array(self.episode_buffer_sf)
 
-    try:
-      observations = rollout[:, 0]
-    except:
-      print("Dasdas")
+    observations = rollout[:, 0]
 
     feed_dict = {self.local_network.observation: np.stack(observations, axis=0)}
     fi = self.sess.run(self.local_network.fi,
@@ -584,8 +613,8 @@ class EigenOCAgent():
       primitive_action = option >= self.config.nb_options
       d = False
       episode_length = 0
-      if i == 0:
-        episode_frames = []
+      # if i == 0:
+      #   episode_frames = []
       while not d:
         feed_dict = {self.local_network.observation: np.stack([s])}
         options, o_term = self.sess.run([self.local_network.options, self.local_network.termination],
@@ -600,8 +629,8 @@ class EigenOCAgent():
           action = np.argmax(pi == action)
           o_term = o_term[0, option] > np.random.uniform()
 
-        if i == 0 and self.episode_count > 500:
-          episode_frames.append(set_image(s, option, action, episode_length, primitive_action))
+        # if i == 0 and self.episode_count > 500:
+        #   episode_frames.append(set_image(s, option, action, episode_length, primitive_action))
         s1, r, d, _ = self.env.step(action)
 
         r = np.clip(r, -1, 1)
@@ -618,10 +647,10 @@ class EigenOCAgent():
         if episode_length > self.config.max_length_eval:
           break
 
-        if i == 0 and self.episode_count > 500:
-          images = np.array(episode_frames)
-          make_gif(images[:100], os.path.join(self.test_path, 'eval_episode_{}.gif'.format(self.episode_count)),
-                   duration=len(images[:100]) * 0.1, true_image=True)
+        # if i == 0 and self.episode_count > 500:
+        #   images = np.array(episode_frames)
+        #   make_gif(images[:100], os.path.join(self.test_path, 'eval_episode_{}.gif'.format(self.episode_count)),
+        #            duration=len(images[:100]) * 0.1, true_image=True)
 
       episodes_won += episode_reward
       episode_lengths.append(episode_length)
@@ -695,10 +724,8 @@ class EigenOCAgent():
                duration=len(images) * 1.0, true_image=True)
       tf.logging.info("Won {} episodes of {}".format(ep_rewards.count(1), self.config.nb_test_ep))
 
-  # def save_SR(self):
-  #   matrix_path = os.path.join(self.model_path, "sr_matrix.pkl")
-  #   with open(matrix_path, 'wb') as f:
-  #     pickle.dump(self.sr_matrix_buffer, f, pickle.HIGHEST_PROTOCOL)
+  def save_SF_matrix(self):
+    np.save(self.sf_matrix_path, self.global_network.sf_matrix_buffer)
 
   def viz_options(self, sess, coord, saver):
     with sess.as_default(), sess.graph.as_default():

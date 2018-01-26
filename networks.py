@@ -7,6 +7,7 @@ import tensorflow.contrib.layers as layers
 from utility import gradient_summaries, huber_loss
 import numpy as np
 from agents.schedules import LinearSchedule, TFLinearSchedule
+import os
 
 class LinearSFNetwork():
   def __init__(self, scope, config, action_size, nb_states):
@@ -346,7 +347,13 @@ class EignOCNetwork():
     self.config = config
     self.network_optimizer = config.network_optimizer(
       self.config.lr, name='network_optimizer')
-    self.directions = np.zeros((config.nb_options, config.sf_layers[-1]))
+    if scope == 'global':
+      self.sf_matrix_path = os.path.join(config.stage_logdir, "sf_matrix.npy")
+      self.directions = np.zeros((config.nb_options, config.sf_layers[-1]))
+      if os.path.exists(self.sf_matrix_path):
+        self.sf_matrix_buffer = np.load(self.sf_matrix_path)
+      else:
+        self.sf_matrix_buffer = np.zeros(shape=(self.config.sf_matrix_size, self.config.sf_layers[-1]), dtype=np.float32)
 
     # self._exploration_options = TFLinearSchedule(self._config.explore_steps, self._config.final_random_action_prob,
     #                                              self._config.initial_random_action_prob)
@@ -507,7 +514,9 @@ class EignOCNetwork():
 
         # self.matrix_sf = tf.placeholder(shape=[self.config.sf_matrix_size, self.sf_layers[-1]],
         #                                 dtype=tf.float32, name="matrix_sf")
-        self.matrix_sf = tf.placeholder(shape=[self.nb_states, self.sf_layers[-1]],
+        if self.config.sf_matrix_size is None:
+          self.config.sf_matrix_size = self.nb_states
+        self.matrix_sf = tf.placeholder(shape=[self.config.sf_matrix_size, self.sf_layers[-1]],
                                         dtype=tf.float32, name="matrix_sf")
         self.eigenvalues, _, self.eigenvectors = tf.svd(self.matrix_sf)
 

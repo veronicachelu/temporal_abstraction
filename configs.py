@@ -29,6 +29,7 @@ from agents import ACMatrixAgent
 from agents import LinearSFAgent
 from agents import DIFAgent
 from agents import EigenOCAgent
+from agents import EigenOCAgentDyn
 from agents import SFAgent
 from env_wrappers import GridWorld
 from env_wrappers import Gridworld_NonMatching
@@ -439,7 +440,7 @@ def oc():
   dif_agent = EigenOCAgent
   num_agents = 12
   use_gpu = False
-  nb_options = 6
+  nb_options = 4
   eigen = False
   # Network
   network = networks.EignOCNetwork
@@ -468,7 +469,7 @@ def oc():
     GridWorld, goal_locations, "./mdps/4rooms.mdp")
   max_update_freq = 30
   min_update_freq = 5
-  batch_size = 16
+  batch_size = 32
   memory_size = 100000
   observation_steps = 16*4
   aux_update_freq = 1
@@ -491,7 +492,8 @@ def oc():
   clip_by_value = 5
   nb_test_ep = 100
   include_primitive_options = True
-  move_goal_nb_of_ep = 300
+  move_goal_nb_of_ep = 1000
+  sr_matrix_size = 169
 
   return locals()
 
@@ -500,7 +502,7 @@ def eigenoc():
   dif_agent = EigenOCAgent
   num_agents = 12
   use_gpu = False
-  nb_options = 6
+  nb_options = 4
   eigen = True
   # Network
   network = networks.EignOCNetwork
@@ -529,7 +531,7 @@ def eigenoc():
     GridWorld, goal_locations, "./mdps/4rooms.mdp")
   max_update_freq = 30
   min_update_freq = 5
-  batch_size = 16
+  batch_size = 32
   memory_size = 100000
   observation_steps = 16*4
   aux_update_freq = 1
@@ -546,7 +548,7 @@ def eigenoc():
   episode_summary_interval = 1
   steps_checkpoint_interval = 1000
   episode_checkpoint_interval = 1
-  episode_eval_interval = 10
+  episode_eval_interval = 100
   max_length = 1000
   max_length_eval = 1000
   clip_option_grad_by_value = False
@@ -555,7 +557,18 @@ def eigenoc():
   # recompute_eigenvect_every = 1000
   # stop_recompute_eigenvect_every = 10000
   first_eigenoption = 1
-  move_goal_nb_of_ep = 300
+  move_goal_nb_of_ep = 1000
   include_primitive_options = True
+  sr_matrix_size = 169
+
+  return locals()
+
+def eigenoc_dyn():
+  locals().update(eigenoc())
+  dif_agent = EigenOCAgentDyn
+
+  goal_locations = [(1, 11), (3, 2), (6, 2), (1, 4), (11, 10)]
+
+  sf_matrix_size = 10000
 
   return locals()

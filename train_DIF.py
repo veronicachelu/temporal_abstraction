@@ -118,7 +118,7 @@ if __name__ == '__main__':
     'timestamp', datetime.datetime.now().strftime('%Y%m%dT%H%M%S'),
     'Sub directory to store logs.')
   tf.app.flags.DEFINE_string(
-    'config', "eigenoc",
+    'config', "eigenoc_dyn",
     'Configuration to execute.')
   tf.app.flags.DEFINE_boolean(
     'env_processes', True,
