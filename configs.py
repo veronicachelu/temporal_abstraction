@@ -572,3 +572,13 @@ def eigenoc_dyn():
   sf_matrix_size = 10000
 
   return locals()
+
+def oc_dyn():
+  locals().update(oc())
+  dif_agent = EigenOCAgentDyn
+
+  goal_locations = [(1, 11), (3, 2), (6, 2), (1, 4), (11, 10)]
+
+  sf_matrix_size = 10000
+
+  return locals()
