@@ -570,5 +570,6 @@ def eigenoc_dyn():
   goal_locations = [(1, 11), (3, 2), (6, 2), (1, 4), (11, 10)]
 
   sf_matrix_size = 10000
+  steps = 10000000  # 10M
 
   return locals()
