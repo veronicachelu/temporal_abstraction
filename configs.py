@@ -573,3 +573,69 @@ def eigenoc_dyn():
   steps = 10000000  # 10M
 
   return locals()
+
+def eigenoc_dyn():
+  locals().update(default())
+  dif_agent = EigenOCAgentDyn
+  num_agents = 12
+  use_gpu = False
+  nb_options = 4
+  eigen = True
+  # Network
+  network = networks.EignOCNetwork
+  weight_summaries = dict(
+      all=r'.*')
+
+  input_size = (13, 13)
+  history_size = 3
+  fc_layers = 128,
+  sf_layers = 128,
+  aux_fc_layers = 507,
+  network_optimizer = 'AdamOptimizer'
+  lr = 0.0001
+  discount = 0.99
+  sf_coef = 1
+  aux_coef = 1
+  entropy_coef = 0.01
+  critic_coef = 1
+  eigen_critic_coef = 1
+  target_update_iter_aux = 1
+  target_update_iter_sf = 30
+  target_update_iter_option = 30
+  goal_locations = [(1, 11), (3, 2), (6, 2), (1, 4), (1, 1), (8, 1), (2, 5), (11, 10)]
+
+  env = functools.partial(
+    GridWorld, goal_locations, "./mdps/4rooms.mdp")
+  max_update_freq = 30
+  min_update_freq = 5
+  batch_size = 32
+  memory_size = 100000
+  observation_steps = 16*4
+  aux_update_freq = 1
+  alpha_r = 0.75
+  steps = 10000000  # 10M
+  episodes = 1e6  # 1M
+  eigen_exploration_steps = 16*4
+  # explore_steps = 1
+  final_random_option_prob = 0.1
+  final_random_action_prob = 0.01
+  # initial_random_action_prob = 1.0
+  gradient_clip_norm_value = 40
+  steps_summary_interval = 1000
+  episode_summary_interval = 1
+  steps_checkpoint_interval = 1000
+  episode_checkpoint_interval = 1
+  episode_eval_interval = 100
+  max_length = 1000
+  max_length_eval = 1000
+  clip_option_grad_by_value = False
+  clip_by_value = 5
+  nb_test_ep = 100
+  # recompute_eigenvect_every = 1000
+  # stop_recompute_eigenvect_every = 10000
+  first_eigenoption = 1
+  move_goal_nb_of_ep = 1000
+  include_primitive_options = True
+  sf_matrix_size = 10000
+
+  return locals()
