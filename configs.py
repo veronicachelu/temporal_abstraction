@@ -574,7 +574,7 @@ def eigenoc_dyn():
 
   return locals()
 
-def eigenoc_dyn():
+def eigenoc_montezuma():
   locals().update(default())
   dif_agent = EigenOCAgentDyn
   num_agents = 12
@@ -637,5 +637,14 @@ def eigenoc_dyn():
   move_goal_nb_of_ep = 1000
   include_primitive_options = True
   sf_matrix_size = 10000
+
+def oc_dyn():
+  locals().update(oc())
+  dif_agent = EigenOCAgentDyn
+
+  goal_locations = [(1, 11), (3, 2), (6, 2), (1, 4), (11, 10)]
+
+  sf_matrix_size = 10000
+  steps = 10000000  # 10M
 
   return locals()
