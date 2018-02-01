@@ -1,4 +1,21 @@
-# EigenOption Critic (EOC)
+# EigenOption Critic with Successor Representations (EOC-SR)
+
+Temporal abstraction is key to learning goal-directed behavior in the framework of reinforcement learning (RL) in terms of an unstructured and very sparse signal from the environment. Automatic option discovery and subgoal identification using function approximation is still a challenge in high dimensional MDPs with unstructured reward signals. Recently, eigenoptions have been proposed as a solution to finding useful bottleneck states by using a low-dimensional eigendecomposition of the successor representations of states [[Eigenoption Discovery through the Deep Successor Representation - Marlos C. Machado, Clemens Rosenbaum, Xiaoxiao Guo, Miao Liu, Gerald Tesauro, Murray Campbell]](https://arxiv.org/abs/1710.11089)
+
+### Brief
+
+The idea of using the successor feature representation as a predictive model for encoding trajectories of information flow  is even more challenging in the presence of function approximation. Real world environments are very large in nature and their states cannot be enumerated or represented uniquely. As a result, this requires distributed feature representations using neural networks. To be able to correctly construct successor features representations, the network also needs to model a reconstruction loss of the next frame prediction as an auxiliary task. Finally, being able to find interesting options is not enough, since the agent's goal will usual be specified by a sparse reward structure which it must use correspondingly by optimizing the option sequence to achieve the goal.
+
+This is a potential strategy for using the geometry of the environment for exploration with temporally abstracted actions while at the same time optimizing for the extrinsic reward signal received from the environment. I ran some some experiments with one-hot states and non-linear functional approximation in the 4-Rooms environment illustrating the properties of the low level decomposition of the SR matrix. The features are learned by next frame prediction from pixels and the SR by TD-learning multi-threaded asyncronous and also with a buffer.
+
+Then there are experiments using the Option-Critic framework in the same environment in comparison with the EigenOption-Criti-SR aagent. The EigenOption-Critic with SR architecture which uses exploration by means of the low-level decomposition of the SR matrix into useful traversal directions over the state manifold. 
+
+Every 1000 episodes the goal position is changed. The figures illustrate the learning curves of both agents in comparison.
+
+### Results
+
+![Alt text](images/1.png?raw=true "Agent training" )
+![Alt text](images/2.png?raw=true "Agent training")
 
 ### System requirements
 
@@ -9,15 +26,15 @@
 
 * To train EOC use:
 
-        python train_DIF.py --logdir=./logdir --config=eigenoc --task=sf --resume=False
+        python train_DIF.py --logdir=./logdir --config=eigenoc_dyn --task=sf --resume=False
 
 * To resume training EOC use:
 
-        python train_DIF.py --logdir=./logdir --config=eigenoc --task=sf --resume=True --load_from=<dir_to_load_from>
+        python train_DIF.py --logdir=./logdir --config=eigenoc_dyn --task=sf --resume=True --load_from=<dir_to_load_from>
         
 * To eval EOC use:
                 
-        python train_DIF.py --logdir=./logdir --config=eigenoc --task=eval --resume=True --load_from=<dir_to_load_from>
+        python train_DIF.py --logdir=./logdir --config=eigenoc_dyn --task=eval --resume=True --load_from=<dir_to_load_from>
         
 * To see training progress run tensorboard from the ```logdir/<logdir_oc_dir>/dif/summaries``` directory:
        
@@ -25,15 +42,6 @@
        
 * To see clips of the agent's performance in each episode and the results of all the eval episodes go to ```logdir/<logdir_oc_dir>/dif/test``` directory
        
-
-
-### Evaluation Results```````````````````````````````````````````````````````
-
-* Goal changes location every 1000 episodes
-
-![Alt text](images/1.png?raw=true "Agent training" )
-![Alt text](images/2.png?raw=true "Agent training")
-
 
 # Option Critic (OC)
 
@@ -46,15 +54,15 @@
 
 * To train OC use:
 
-        python train_DIF.py --logdir=./logdir --config=oc --task=sf --resume=False
+        python train_DIF.py --logdir=./logdir --config=oc_dyn --task=sf --resume=False
 
 * To resume training OC use:
 
-        python train_DIF.py --logdir=./logdir --config=oc --task=sf --resume=True --load_from=<dir_to_load_from>
+        python train_DIF.py --logdir=./logdir --config=oc_dyn --task=sf --resume=True --load_from=<dir_to_load_from>
         
 * To eval OC use:
                 
-        python train_DIF.py --logdir=./logdir --config=oc --task=eval --resume=True --load_from=<dir_to_load_from>
+        python train_DIF.py --logdir=./logdir --config=oc_dyn --task=eval --resume=True --load_from=<dir_to_load_from>
         
 * To see training progress run tensorboard from the ```logdir/<logdir_oc_dir>/dif/summaries``` directory:
        
@@ -62,8 +70,6 @@
        
 * To see clips of the agent's performance in each episode and the results of all the eval episodes go to ```logdir/<logdir_oc_dir>/dif/test``` directory
        
-
-Trained model: loading...
 
 # SR respresentation matrix eigendecomposition with NN and Asyncronous training (A3C)
 
