@@ -582,15 +582,19 @@ def eigenoc_montezuma():
   nb_options = 4
   eigen = True
   # Network
-  network = networks.EignOCNetwork
+  network = networks.EignOCMontezumaNetwork
   weight_summaries = dict(
       all=r'.*')
 
-  input_size = (13, 13)
-  history_size = 3
-  fc_layers = 128,
-  sf_layers = 128,
-  aux_fc_layers = 507,
+  input_size = (84, 84)
+  history_size = 4
+  channel_size = 1
+  conv_layers = (6, 2, 0, 64), (6, 2, 2, 64), (6, 2, 2, 64),
+  upconv_layers = (6, 2, 2, 64), (6, 2, 2, 64), (6, 2, 0, 1)
+  fc_layers = 1024, 2048
+  sf_layers = 2048, 1024, 2048
+  aux_fc_layers = 2048, 1024, 10*10*64
+  aux_upconv_reshape = (10, 10, 64)
   network_optimizer = 'AdamOptimizer'
   lr = 0.0001
   discount = 0.99
@@ -602,18 +606,16 @@ def eigenoc_montezuma():
   target_update_iter_aux = 1
   target_update_iter_sf = 30
   target_update_iter_option = 30
-  goal_locations = [(1, 11), (3, 2), (6, 2), (1, 4), (1, 1), (8, 1), (2, 5), (11, 10)]
 
-  env = functools.partial(
-    GridWorld, goal_locations, "./mdps/4rooms.mdp")
+  env = "MontezumaRevenge-v0"
   max_update_freq = 30
   min_update_freq = 5
-  batch_size = 32
+  batch_size = 1
   memory_size = 100000
   observation_steps = 16*4
   aux_update_freq = 1
   alpha_r = 0.75
-  steps = 10000000  # 10M
+  steps = -1  # 10M
   episodes = 1e6  # 1M
   eigen_exploration_steps = 16*4
   # explore_steps = 1
@@ -621,22 +623,20 @@ def eigenoc_montezuma():
   final_random_action_prob = 0.01
   # initial_random_action_prob = 1.0
   gradient_clip_norm_value = 40
-  steps_summary_interval = 1000
+  steps_summary_interval = 10
   episode_summary_interval = 1
-  steps_checkpoint_interval = 1000
+  steps_checkpoint_interval = 10
   episode_checkpoint_interval = 1
-  episode_eval_interval = 100
-  max_length = 1000
-  max_length_eval = 1000
+  episode_eval_interval = 1
+  max_length_eval = 100000000000
   clip_option_grad_by_value = False
   clip_by_value = 5
-  nb_test_ep = 100
-  # recompute_eigenvect_every = 1000
-  # stop_recompute_eigenvect_every = 10000
+  nb_test_ep = 1
   first_eigenoption = 1
-  move_goal_nb_of_ep = 1000
   include_primitive_options = True
   sf_matrix_size = 10000
+
+  return locals()
 
 def oc_dyn():
   locals().update(oc())

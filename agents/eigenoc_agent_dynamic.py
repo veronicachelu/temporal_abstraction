@@ -74,16 +74,15 @@ class EigenOCAgentDyn():
     self.total_steps = 0
     self.action_size = game.action_space.n
     self.nb_options = config.nb_options
-    self.nb_states = game.nb_states
+    self.nb_states = config.input_size[0] * config.input_size[1]
     self.summary_writer = tf.summary.FileWriter(self.summary_path + "/worker_" + str(self.thread_id))
 
-    self.local_network = config.network(self.name, config, self.action_size, self.nb_states, self.total_steps_tensor)
+    self.local_network = config.network(self.name, config, self.action_size, self.total_steps_tensor)
 
     self.update_local_vars_aux = update_target_graph_aux('global', self.name)
     self.update_local_vars_sf = update_target_graph_sf('global', self.name)
     self.update_local_vars_option = update_target_graph_option('global', self.name)
     self.env = game
-    self.nb_states = game.nb_states
 
   def load_directions(self):
     self.directions = self.global_network.directions
@@ -93,7 +92,8 @@ class EigenOCAgentDyn():
       self.sess = sess
       self.saver = saver
       self.episode_count = sess.run(self.global_step)
-      self.env.set_goal(self.episode_count, self.config.move_goal_nb_of_ep)
+      # if self.config.move_goal_nb_of_ep:
+      #   self.env.set_goal(self.episode_count, self.config.move_goal_nb_of_ep)
       self.total_steps = sess.run(self.total_steps_tensor)
       self.eigen_q_value = None
       self.evalue = None
@@ -259,10 +259,10 @@ class EigenOCAgentDyn():
           eval_episodes_won, mean_ep_length = self.evaluate_agent()
           self.write_eval_summary(eval_episodes_won, mean_ep_length)
 
-        if self.episode_count % self.config.move_goal_nb_of_ep == 0 and \
-                self.name == 'worker_0' and self.episode_count != 0:
-          tf.logging.info("Moving GOAL....")
-          self.env.set_goal(self.episode_count, self.config.move_goal_nb_of_ep)
+        # if self.episode_count % self.config.move_goal_nb_of_ep == 0 and \
+        #         self.name == 'worker_0' and self.episode_count != 0:
+        #   tf.logging.info("Moving GOAL....")
+        #   self.env.set_goal(self.episode_count, self.config.move_goal_nb_of_ep)
 
         if self.episode_count % self.config.episode_checkpoint_interval == 0 and self.name == 'worker_0' and \
                 self.episode_count != 0:
@@ -337,7 +337,7 @@ class EigenOCAgentDyn():
       self.episode_buffer_sf.append([s, s1, a])
     if len(self.aux_episode_buffer) == self.config.memory_size:
       self.aux_episode_buffer.popleft()
-    self.aux_episode_buffer.append([s, s1, a])
+    self.aux_episode_buffer.append([s, s1[:, :, -2:-1], a])
     self.episode_reward += r
 
   def store_option_info(self, s, s1, a, r):

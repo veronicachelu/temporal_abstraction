@@ -28,8 +28,8 @@ def train(config, env_processes, logdir):
         global_step = tf.Variable(0, dtype=tf.int32, name='global_step', trainable=False)
         envs = [_create_environment(config) for _ in range(config.num_agents)]
         action_size = envs[0].action_space.n
-        nb_states = envs[0].nb_states
-        global_network = config.network("global", config, action_size, nb_states)
+        # nb_states = envs[0].nb_states
+        global_network = config.network("global", config, action_size)
 
         if FLAGS.task == "matrix":
           agent = config.dif_agent(envs[0], 0, global_step, config)
@@ -118,7 +118,7 @@ if __name__ == '__main__':
     'timestamp', datetime.datetime.now().strftime('%Y%m%dT%H%M%S'),
     'Sub directory to store logs.')
   tf.app.flags.DEFINE_string(
-    'config', "eigenoc_dyn",
+    'config', "eigenoc_montezuma",
     'Configuration to execute.')
   tf.app.flags.DEFINE_boolean(
     'env_processes', True,

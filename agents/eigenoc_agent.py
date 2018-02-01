@@ -104,7 +104,7 @@ class EigenOCAgent():
       self.aux_episode_buffer = deque()
 
       while not coord.should_stop():
-        if self.total_steps > self.config.steps and self.name == "worker_0":
+        if self.config.steps != -1 and (self.total_steps > self.config.steps and self.name == "worker_0"):
           return 0
         sess.run(self.update_local_vars_aux)
         sess.run(self.update_local_vars_sf)

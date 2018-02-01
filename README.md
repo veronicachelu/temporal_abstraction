@@ -29,7 +29,11 @@
 
 ### Evaluation Results```````````````````````````````````````````````````````
 
-loading...
+* Goal changes location every 1000 episodes
+
+![Alt text](https://github.com/ioanachelu/EigenOption-Critic_SR/tree/master/images/1.png?raw=true "Agent training")
+![Alt text](https://github.com/ioanachelu/EigenOption-Critic_SR/tree/master/images/2.png?raw=true "Agent training")
+
 
 # Option Critic (OC)
 
@@ -58,12 +62,6 @@ loading...
        
 * To see clips of the agent's performance in each episode and the results of all the eval episodes go to ```logdir/<logdir_oc_dir>/dif/test``` directory
        
-
-### Evaluation Results```````````````````````````````````````````````````````
-
-![Alt text](https://github.com/ioanachelu/EigenOption-Critic_SR/tree/master/images/oc.png?raw=true "Agent training")
-![Alt text](https://github.com/ioanachelu/EigenOption-Critic_SR/tree/master/images/oc1.png?raw=true "Agent training")
-
 
 Trained model: loading...
 
