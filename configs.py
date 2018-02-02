@@ -341,7 +341,7 @@ def eigenoc_montezuma():
   dif_agent = EigenOCAgentDyn
   num_agents = 12
   use_gpu = False
-  nb_options = 4
+  nb_options = 8
   eigen = True
   # Network
   network = networks.EignOCMontezumaNetwork
@@ -372,8 +372,8 @@ def eigenoc_montezuma():
   env = "MontezumaRevenge-v0"
   max_update_freq = 30
   min_update_freq = 5
-  batch_size = 1
-  memory_size = 100000
+  batch_size = 32
+  memory_size = 500000
   observation_steps = 16*4
   aux_update_freq = 1
   alpha_r = 0.75
@@ -386,17 +386,17 @@ def eigenoc_montezuma():
   # initial_random_action_prob = 1.0
   gradient_clip_norm_value = 40
   steps_summary_interval = 1000
-  episode_summary_interval = 1
-  steps_checkpoint_interval = 1000
-  episode_checkpoint_interval = 1
-  episode_eval_interval = 1
-  max_length_eval = 100000000000
+  episode_summary_interval = 10
+  steps_checkpoint_interval = 10000
+  episode_checkpoint_interval = 10
+  episode_eval_interval = 10
+  max_length_eval = 1000
   clip_option_grad_by_value = False
   clip_by_value = 5
   nb_test_ep = 1
   first_eigenoption = 1
   include_primitive_options = True
-  sf_matrix_size = 10000
+  sf_matrix_size = 50000
 
   return locals()
 
