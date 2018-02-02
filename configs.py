@@ -24,9 +24,7 @@ from agents import LinearSFAgent
 from agents import DIFAgent
 from agents import EigenOCAgent
 from agents import EigenOCAgentDyn
-from agents import SFAgent
 from env_wrappers import GridWorld
-from env_wrappers import Gridworld_NonMatching
 import functools
 import networks
 
