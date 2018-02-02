@@ -22,17 +22,38 @@ Every 1000 episodes the goal position is changed. The figures illustrate the lea
 * Python3.6
 * Tensorflow 1.4
 
+        pip install -r requirements.txt 
+
 ### Training, resuming & plotting
 
-* To train EOC use:
+* To train EOC-SR for Montezuma's Revenge use:
+
+        python train_DIF.py --logdir=./logdir --config=eigenoc_montezuma --task=sf --resume=False --num_agents=32 --nb_options=8
+
+* To resume training EOC-SR use:
+
+        python train_DIF.py --logdir=./logdir --config=eigenoc_montezuma --task=sf --resume=True --load_from=<dir_to_load_from> --num_agents=32 --nb_options=8
+        
+* To eval EOC-SR use:
+                
+        python train_DIF.py --logdir=./logdir --config=eigenoc_montezuma --task=eval --resume=True --load_from=<dir_to_load_from> --num_agents=32 --nb_options=8
+        
+* To see training progress run tensorboard from the ```logdir/<logdir_oc_dir>/dif/summaries``` directory:
+       
+       tenorboard --logdir=.
+       
+* To see clips of the agent's performance in each episode and the results of all the eval episodes go to ```logdir/<logdir_oc_dir>/dif/test``` directory
+       
+
+* To train EOC-SR use:
 
         python train_DIF.py --logdir=./logdir --config=eigenoc_dyn --task=sf --resume=False
 
-* To resume training EOC use:
+* To resume training EOC-SR use:
 
         python train_DIF.py --logdir=./logdir --config=eigenoc_dyn --task=sf --resume=True --load_from=<dir_to_load_from>
         
-* To eval EOC use:
+* To eval EOC-SR use:
                 
         python train_DIF.py --logdir=./logdir --config=eigenoc_dyn --task=eval --resume=True --load_from=<dir_to_load_from>
         

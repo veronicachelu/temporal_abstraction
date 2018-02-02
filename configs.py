@@ -34,7 +34,6 @@ def default():
   num_agents = 8
   eval_episodes = 1
   use_gpu = False
-  max_length = 100
   return locals()
 
 def linear_4rooms():
@@ -385,11 +384,11 @@ def eigenoc_montezuma():
   final_random_action_prob = 0.01
   # initial_random_action_prob = 1.0
   gradient_clip_norm_value = 40
-  steps_summary_interval = 1000
+  steps_summary_interval = 100000
   episode_summary_interval = 10
-  steps_checkpoint_interval = 10000
+  steps_checkpoint_interval = 100000
   episode_checkpoint_interval = 10
-  episode_eval_interval = 10
+  episode_eval_interval = 100
   max_length_eval = 1000
   clip_option_grad_by_value = False
   clip_by_value = 5

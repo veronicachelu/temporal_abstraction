@@ -32,9 +32,6 @@ class LinearSFNetwork():
                                        variables_collections=tf.get_collection("variables"),
                                        outputs_collections="activations", scope="sf")
       if scope != 'global':
-        # self.actions_placeholder = tf.placeholder(shape=[None], dtype=tf.int32, name="Actions")
-        # self.actions_onehot = tf.one_hot(self.actions_placeholder, self._action_size, dtype=tf.float32,
-        #                                  name="Actions_Onehot")
         self.target_sf = tf.placeholder(shape=[None, nb_states], dtype=tf.float32, name="target_SF")
 
         with tf.name_scope('sf_loss'):
@@ -683,17 +680,14 @@ class EignOCMontezumaNetwork():
     with tf.variable_scope(scope):
       self.observation = tf.placeholder(shape=[None, config.input_size[0], config.input_size[1], config.history_size],
                                         dtype=tf.float32, name="Inputs")
-      # self.steps = tf.placeholder(shape=[], dtype=tf.int32, name="steps")
 
       self.image_summaries = []
-      # self.image_summaries.append(tf.summary.image('input', self.observation, max_outputs=30))
 
       self.summaries_sf = []
       self.summaries_aux = []
       self.summaries_option = []
 
       out = self.observation
-      # out = layers.flatten(out, scope="flatten")
 
       with tf.variable_scope("fi"):
         for i, (kernel_size, stride, pad, nb_kernels) in enumerate(self.config.conv_layers):
