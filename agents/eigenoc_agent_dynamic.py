@@ -104,7 +104,7 @@ class EigenOCAgentDyn():
       self.aux_episode_buffer = deque()
 
       while not coord.should_stop():
-        if self.total_steps > self.config.steps and self.name == "worker_0":
+        if self.config.steps != -1 and (self.total_steps > self.config.steps and self.name == "worker_0"):
           return 0
         sess.run(self.update_local_vars_aux)
         sess.run(self.update_local_vars_sf)
@@ -253,11 +253,11 @@ class EigenOCAgentDyn():
           if len(option_lengths) != 0:
             self.episode_mean_options_lengths[op] = np.mean(option_lengths)
 
-        if self.episode_count % self.config.episode_eval_interval == 0 and \
-                self.name == 'worker_0' and self.episode_count != 0:
-          tf.logging.info("Evaluating agent....")
-          eval_episodes_won, mean_ep_length = self.evaluate_agent()
-          self.write_eval_summary(eval_episodes_won, mean_ep_length)
+        #if self.episode_count % self.config.episode_eval_interval == 0 and \
+        #        self.name == 'worker_0' and self.episode_count != 0:
+        #  tf.logging.info("Evaluating agent....")
+        #  eval_episodes_won, mean_ep_length = self.evaluate_agent()
+        #  self.write_eval_summary(eval_episodes_won, mean_ep_length)
 
         # if self.episode_count % self.config.move_goal_nb_of_ep == 0 and \
         #         self.name == 'worker_0' and self.episode_count != 0:

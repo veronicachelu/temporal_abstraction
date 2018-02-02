@@ -623,9 +623,9 @@ def eigenoc_montezuma():
   final_random_action_prob = 0.01
   # initial_random_action_prob = 1.0
   gradient_clip_norm_value = 40
-  steps_summary_interval = 10
+  steps_summary_interval = 1000
   episode_summary_interval = 1
-  steps_checkpoint_interval = 10
+  steps_checkpoint_interval = 1000
   episode_checkpoint_interval = 1
   episode_eval_interval = 1
   max_length_eval = 100000000000
