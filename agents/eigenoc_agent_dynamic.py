@@ -337,7 +337,12 @@ class EigenOCAgentDyn():
       self.episode_buffer_sf.append([s, s1, a])
     if len(self.aux_episode_buffer) == self.config.memory_size:
       self.aux_episode_buffer.popleft()
-    self.aux_episode_buffer.append([s, s1[:, :, -2:-1], a])
+    if len(self.aux_episode_buffer) == self.config.memory_size:
+      self.aux_episode_buffer.popleft()
+    if self.config.history_size == 3:
+      self.aux_episode_buffer.append([s, s1, a])
+    else:
+      self.aux_episode_buffer.append([s, s1[:, :, -2:-1], a])
     self.episode_reward += r
 
   def store_option_info(self, s, s1, a, r):
