@@ -278,7 +278,7 @@ class EigenOCAgentDyn():
 
   def add_SF(self, sf):
     self.global_network.sf_matrix_buffer[0] = sf
-    np.roll(self.global_network.sf_matrix_buffer, 1, 0)
+    self.global_network.sf_matrix_buffer = np.roll(self.global_network.sf_matrix_buffer, 1, 0)
 
   def option_evaluation(self, s):
     feed_dict = {self.local_network.observation: np.stack([s])}

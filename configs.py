@@ -25,6 +25,7 @@ from agents import DIFAgent
 from agents import EigenOCAgent
 from agents import EigenOCAgentDyn
 from env_wrappers import GridWorld
+from env_wrappers import Gridworld_NonMatching
 import functools
 import networks
 
@@ -34,6 +35,7 @@ def default():
   num_agents = 8
   eval_episodes = 1
   use_gpu = False
+  max_length = 100
   return locals()
 
 def linear_4rooms():
@@ -135,9 +137,6 @@ def dif_4rooms():
   training_steps = 5e5
   explore_steps = 1e5
   final_random_action_prob = 0.1
-  initial_random_action_prob = 1.0
-  delib_cost = 0
-  margin_cost = 0
   gradient_clip_value = 40
   summary_interval = 10
   checkpoint_interval = 10
@@ -288,6 +287,9 @@ def eigenoc():
   target_update_iter_option = 30
   goal_locations = [(1, 11), (3, 2), (6, 2), (1, 4), (1, 1), (8, 1), (2, 5), (11, 10)]
 
+  target_update_iter_option = 30
+  goal_locations = [(1, 11), (3, 2), (6, 2), (1, 4), (1, 1), (8, 1), (2, 5), (11, 10)]
+
   env = functools.partial(
     GridWorld, goal_locations, "./mdps/4rooms.mdp")
   max_update_freq = 30
@@ -384,10 +386,10 @@ def eigenoc_montezuma():
   final_random_action_prob = 0.01
   # initial_random_action_prob = 1.0
   gradient_clip_norm_value = 40
-  steps_summary_interval = 100000
-  episode_summary_interval = 10
-  steps_checkpoint_interval = 100000
-  episode_checkpoint_interval = 10
+  steps_summary_interval = 1000
+  episode_summary_interval = 1
+  steps_checkpoint_interval = 1000
+  episode_checkpoint_interval = 1
   episode_eval_interval = 100
   max_length_eval = 1000
   clip_option_grad_by_value = False
