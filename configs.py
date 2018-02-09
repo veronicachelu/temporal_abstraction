@@ -287,9 +287,6 @@ def eigenoc():
   target_update_iter_option = 30
   goal_locations = [(1, 11), (3, 2), (6, 2), (1, 4), (1, 1), (8, 1), (2, 5), (11, 10)]
 
-  target_update_iter_option = 30
-  goal_locations = [(1, 11), (3, 2), (6, 2), (1, 4), (1, 1), (8, 1), (2, 5), (11, 10)]
-
   env = functools.partial(
     GridWorld, goal_locations, "./mdps/4rooms.mdp")
   max_update_freq = 30
@@ -311,7 +308,7 @@ def eigenoc():
   episode_summary_interval = 1
   steps_checkpoint_interval = 1000
   episode_checkpoint_interval = 1
-  episode_eval_interval = 100
+  episode_eval_interval = 10
   max_length = 1000
   max_length_eval = 1000
   clip_option_grad_by_value = False

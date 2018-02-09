@@ -92,8 +92,8 @@ class EigenOCAgentDyn():
       self.sess = sess
       self.saver = saver
       self.episode_count = sess.run(self.global_step)
-      # if self.config.move_goal_nb_of_ep:
-      #   self.env.set_goal(self.episode_count, self.config.move_goal_nb_of_ep)
+      if self.config.move_goal_nb_of_ep:
+        self.env.set_goal(self.episode_count, self.config.move_goal_nb_of_ep)
       self.total_steps = sess.run(self.total_steps_tensor)
       self.eigen_q_value = None
       self.evalue = None
@@ -113,7 +113,6 @@ class EigenOCAgentDyn():
         if self.name == "worker_0" and self.episode_count > 0:
           # self.recompute_eigenvectors_classic()
           self.recompute_eigenvectors_dynamic()
-
         self.load_directions()
 
         self.episode_buffer_sf = []
@@ -253,16 +252,16 @@ class EigenOCAgentDyn():
           if len(option_lengths) != 0:
             self.episode_mean_options_lengths[op] = np.mean(option_lengths)
 
-        #if self.episode_count % self.config.episode_eval_interval == 0 and \
-        #        self.name == 'worker_0' and self.episode_count != 0:
-        #  tf.logging.info("Evaluating agent....")
-        #  eval_episodes_won, mean_ep_length = self.evaluate_agent()
-        #  self.write_eval_summary(eval_episodes_won, mean_ep_length)
+        if self.episode_count % self.config.episode_eval_interval == 0 and \
+               self.name == 'worker_0' and self.episode_count != 0:
+         tf.logging.info("Evaluating agent....")
+         eval_episodes_won, mean_ep_length = self.evaluate_agent()
+         self.write_eval_summary(eval_episodes_won, mean_ep_length)
 
-        # if self.episode_count % self.config.move_goal_nb_of_ep == 0 and \
-        #         self.name == 'worker_0' and self.episode_count != 0:
-        #   tf.logging.info("Moving GOAL....")
-        #   self.env.set_goal(self.episode_count, self.config.move_goal_nb_of_ep)
+        if self.episode_count % self.config.move_goal_nb_of_ep == 0 and \
+                self.name == 'worker_0' and self.episode_count != 0:
+          tf.logging.info("Moving GOAL....")
+          self.env.set_goal(self.episode_count, self.config.move_goal_nb_of_ep)
 
         if self.episode_count % self.config.episode_checkpoint_interval == 0 and self.name == 'worker_0' and \
                 self.episode_count != 0:
