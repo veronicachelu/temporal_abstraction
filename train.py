@@ -6,16 +6,15 @@ import os
 import gym
 import tensorflow as tf
 import tools
-import utility
-from tools import wrappers
+import config_utility as utility
+from env_tools import env_wrappers
 import configs
-from env_wrappers import _create_environment
-
+from env_tools import _create_environment
 
 def train(config, env_processes, logdir):
   tf.reset_default_graph()
   sess = tf.Session()
-  stage_logdir = os.path.join(logdir, "linear_sf")
+  stage_logdir = os.path.join(logdir, "dif")
   tf.gfile.MakeDirs(stage_logdir)
   with sess:
     with tf.device("/cpu:0"):
@@ -26,17 +25,23 @@ def train(config, env_processes, logdir):
         global_step = tf.Variable(0, dtype=tf.int32, name='global_step', trainable=False)
         envs = [_create_environment(config) for _ in range(config.num_agents)]
         action_size = envs[0].action_space.n
-        nb_states = envs[0].nb_states
-        global_network = config.network("global", config, action_size, nb_states)
+        global_network = config.network("global", config, action_size)
+
         if FLAGS.task == "matrix":
-          agent = config.linear_sf_agent(envs[0], 0, global_step, config)
+          agent = config.dif_agent(envs[0], 0, global_step, config, None)
+        elif FLAGS.task == "option":
+          agent = config.dif_agent(envs[0], 0, global_step, config, None)
+        elif FLAGS.task == "eigenoption":
+          agent = config.dif_agent(envs[0], 0, global_step, config, None)
+        elif FLAGS.task == "eval":
+          agent = config.dif_agent(envs[0], 0, global_step, config, global_network)
         else:
-          agents = [config.linear_sf_agent(envs[i], i, global_step, config) for i in range(config.num_agents)]
+          agents = [config.dif_agent(envs[i], i, global_step, config, global_network) for i in range(config.num_agents)]
 
       saver = loader = utility.define_saver(exclude=(r'.*_temporary/.*',))
       if FLAGS.resume:
         sess.run(tf.global_variables_initializer())
-        ckpt = tf.train.get_checkpoint_state(os.path.join(os.path.join(FLAGS.load_from, "linear_sf"), "models"))
+        ckpt = tf.train.get_checkpoint_state(os.path.join(os.path.join(FLAGS.load_from, "dif"), "models"))
         print("Loading Model from {}".format(ckpt.model_checkpoint_path))
         loader.restore(sess, ckpt.model_checkpoint_path)
         sess.run(tf.local_variables_initializer())
@@ -47,7 +52,19 @@ def train(config, env_processes, logdir):
 
       agent_threads = []
       if FLAGS.task == "matrix":
-        thread = threading.Thread(target=(lambda: agent.build_matrix1(sess, coord, saver)))
+        thread = threading.Thread(target=(lambda: agent.build_matrix(sess, coord, saver)))
+        thread.start()
+        agent_threads.append(thread)
+      elif FLAGS.task == "option":
+        thread = threading.Thread(target=(lambda: agent.plot_options(sess, coord, saver)))
+        thread.start()
+        agent_threads.append(thread)
+      elif FLAGS.task == "eigenoption":
+        thread = threading.Thread(target=(lambda: agent.viz_options(sess, coord, saver)))
+        thread.start()
+        agent_threads.append(thread)
+      elif FLAGS.task == "eval":
+        thread = threading.Thread(target=(lambda: agent.eval(sess, coord, saver)))
         thread.start()
         agent_threads.append(thread)
       else:
@@ -91,13 +108,13 @@ def main(_):
 if __name__ == '__main__':
   FLAGS = tf.app.flags.FLAGS
   tf.app.flags.DEFINE_string(
-    'logdir', "./logdir",
+    'logdir', './logdir',
     'Base directory to store logs.')
   tf.app.flags.DEFINE_string(
     'timestamp', datetime.datetime.now().strftime('%Y%m%dT%H%M%S'),
     'Sub directory to store logs.')
   tf.app.flags.DEFINE_string(
-    'config', "linear_4rooms",
+    'config', "eigenoc_montezuma",
     'Configuration to execute.')
   tf.app.flags.DEFINE_boolean(
     'env_processes', True,
@@ -107,6 +124,7 @@ if __name__ == '__main__':
     'Training.')
   tf.app.flags.DEFINE_boolean(
     'resume', False,
+    # 'resume', True,
     'Resume.')
   tf.app.flags.DEFINE_boolean(
     'show_training', False,
@@ -116,6 +134,6 @@ if __name__ == '__main__':
     'Task nature')
   tf.app.flags.DEFINE_string(
     'load_from', None,
-    # 'load_from', "./logdir/1-linear_4rooms",
+    # 'load_from', "./logdir/6-linear_4rooms",
     'Load directory to load models from.')
   tf.app.run()

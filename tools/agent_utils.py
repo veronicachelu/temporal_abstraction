@@ -93,43 +93,9 @@ def set_image(s, option, action, episode_length, primitive):
   draw.text((0, 0), "O: {} >> A: {} >> Len: {} >> Primitive >> {}".format(option, action, episode_length, primitive), (0, 0, 0), font=font)
   return np.asarray(frame)
 
-def set_image_bandit(values, probs, selection, trial):
-  bandit_image = Image.open('./resources/bandit.png')
-  draw = ImageDraw.Draw(bandit_image)
-  font = ImageFont.truetype("./resources/FreeSans.ttf", 24)
-  draw.text((40, 10), str(float("{0:.2f}".format(probs[0]))), (0, 0, 0), font=font)
-  draw.text((130, 10), str(float("{0:.2f}".format(probs[1]))), (0, 0, 0), font=font)
-  draw.text((60, 370), 'Trial: ' + str(trial), (0, 0, 0), font=font)
-  bandit_image = np.array(bandit_image)
-  bandit_image[115:115 + floor(values[0] * 2.5), 20:75, :] = [0, 255.0, 0]
-  bandit_image[115:115 + floor(values[1] * 2.5), 120:175, :] = [0, 255.0, 0]
-  bandit_image[101:107, 10 + (selection * 95):10 + (selection * 95) + 80, :] = [80.0, 80.0, 225.0]
-  return bandit_image
-
-
-def set_image_bandit_11_arms(values, target_arm, selection, trial):
-  bandit_image = Image.open('./resources/11arm.png')
-  draw = ImageDraw.Draw(bandit_image)
-  font = ImageFont.truetype("./resources/FreeSans.ttf", 24)
-  print("target arm is {}. Selection is {}".format(target_arm, selection))
-  delta = 90
-  draw.text((40 + 1 * delta, 10), "T", (0, 0, 0), font=font)
-  draw.text((40 + 2 * delta, 10), "I {}".format(target_arm), (0, 0, 0), font=font)
-  draw.text((40 + 0 * delta, 10), "S", (0, 0, 0), font=font)
-  draw.text((60, 370), 'Trial: ' + str(trial), (0, 0, 0), font=font)
-  bandit_image = np.array(bandit_image)
-  delta = 100
-  for i in range(11):
-    if i == target_arm:
-      bandit_image[115:115 + floor(values[i] / 5 * 2.5), (20 + delta * 1):(75 + delta * 1), :] = [0, 255.0, 0]
-    elif i == 10:
-      bandit_image[115:115 + floor(values[i] / 5 * 2.5), (20 + delta * 2):(75 + delta * 2), :] = [0, 255.0, 0]
-    else:
-      bandit_image[115:115 + floor(values[i] / 5 * 2.5), (20 + delta * 0):(75 + delta * 0), :] = [0, 255.0, 0]
-  if selection == target_arm:
-    bandit_image[101:107, 10 + delta * 1:10 + delta * 1 + 85, :] = [80.0, 80.0, 225.0]
-  elif selection == 10:
-    bandit_image[101:107, 10 + delta * 2:10 + delta * 2 + 85, :] = [80.0, 80.0, 225.0]
+def get_mode(arr):
+  if len(arr) != 0:
+    u, indices = np.unique(arr, return_inverse=True)
+    return u[np.argmax(np.bincount(indices))]
   else:
-    bandit_image[101:107, 10 + delta * 0:10 + delta * 0 + 85, :] = [80.0, 80.0, 225.0]
-  return bandit_image
+    return -1

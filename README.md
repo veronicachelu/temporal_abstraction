@@ -28,15 +28,15 @@ Every 1000 episodes the goal position is changed. The figures illustrate the lea
 
 * To train EOC-SR for Montezuma's Revenge use:
 
-        python train_DIF.py --logdir=./logdir --config=eigenoc_montezuma --task=sf --resume=False --num_agents=32 --nb_options=8
+        python train.py --logdir=./logdir --config=eigenoc_montezuma --task=sf --resume=False --num_agents=32 --nb_options=8
 
 * To resume training EOC-SR use:
 
-        python train_DIF.py --logdir=./logdir --config=eigenoc_montezuma --task=sf --resume=True --load_from=<dir_to_load_from> --num_agents=32 --nb_options=8
+        python train.py --logdir=./logdir --config=eigenoc_montezuma --task=sf --resume=True --load_from=<dir_to_load_from> --num_agents=32 --nb_options=8
         
 * To eval EOC-SR use:
                 
-        python train_DIF.py --logdir=./logdir --config=eigenoc_montezuma --task=eval --resume=True --load_from=<dir_to_load_from> --num_agents=32 --nb_options=8
+        python train.py --logdir=./logdir --config=eigenoc_montezuma --task=eval --resume=True --load_from=<dir_to_load_from> --num_agents=32 --nb_options=8
         
 * To see training progress run tensorboard from the ```logdir/<logdir_oc_dir>/dif/summaries``` directory:
        
@@ -47,7 +47,7 @@ Every 1000 episodes the goal position is changed. The figures illustrate the lea
 
 * To train EOC-SR use:
 
-        python train_DIF.py --logdir=./logdir --config=eigenoc_dyn --task=sf --resume=False
+        python train.py --logdir=./logdir --config=eigenoc_dyn --task=sf --resume=False
 
 * To resume training EOC-SR use:
 
@@ -55,7 +55,7 @@ Every 1000 episodes the goal position is changed. The figures illustrate the lea
         
 * To eval EOC-SR use:
                 
-        python train_DIF.py --logdir=./logdir --config=eigenoc_dyn --task=eval --resume=True --load_from=<dir_to_load_from>
+        python train.py --logdir=./logdir --config=eigenoc_dyn --task=eval --resume=True --load_from=<dir_to_load_from>
         
 * To see training progress run tensorboard from the ```logdir/<logdir_oc_dir>/dif/summaries``` directory:
        
@@ -75,15 +75,15 @@ Every 1000 episodes the goal position is changed. The figures illustrate the lea
 
 * To train OC use:
 
-        python train_DIF.py --logdir=./logdir --config=oc_dyn --task=sf --resume=False
+        python train.py --logdir=./logdir --config=oc_dyn --task=sf --resume=False
 
 * To resume training OC use:
 
-        python train_DIF.py --logdir=./logdir --config=oc_dyn --task=sf --resume=True --load_from=<dir_to_load_from>
+        python train.py --logdir=./logdir --config=oc_dyn --task=sf --resume=True --load_from=<dir_to_load_from>
         
 * To eval OC use:
                 
-        python train_DIF.py --logdir=./logdir --config=oc_dyn --task=eval --resume=True --load_from=<dir_to_load_from>
+        python train.py --logdir=./logdir --config=oc_dyn --task=eval --resume=True --load_from=<dir_to_load_from>
         
 * To see training progress run tensorboard from the ```logdir/<logdir_oc_dir>/dif/summaries``` directory:
        
@@ -103,19 +103,19 @@ Every 1000 episodes the goal position is changed. The figures illustrate the lea
 
 * To train SR representation weights use:
 
-        python train_DIF.py --logdir=./logdir --config=dif_4rooms_fc --task=sf --resume=False
+        python train.py --logdir=./logdir --config=dynamic_SR --task=sf --resume=False
 
 * To resume training SR representation weights use:
 
-        python train_DIF.py --logdir=./logdir --config=dif_4rooms_fc --task=sf --resume=True --load_from=<dir_to_load_from>
+        python train.py --logdir=./logdir --config=dynamic_SR --task=sf --resume=True --load_from=<dir_to_load_from>
         
 * To plot SR_vectors, SR_matrix, EigenVectors of the SR matrix, the EigenValues of the SR_matrix
  and the learned value function and policy coresponding to each eigenvector use:
         
-        python train_DIF.py --logdir=./logdir --config=dif_4rooms_fc --task=matrix --resume=True --load_from=<dir_to_load_from>
+        python train.py --logdir=./logdir --config=dynamic_SR --task=matrix --resume=True --load_from=<dir_to_load_from>
         
         
-* To see training progress run tensorboard from the ```logdir/<logdir_dif_4rooms_fc_dir>/dif/summaries``` directory:
+* To see training progress run tensorboard from the ```logdir/<logdir_dynamic_SR_dir>/dif/summaries``` directory:
        
        tenorboard --logdir=.
 
@@ -167,16 +167,16 @@ https://drive.google.com/open?id=1cVNgB-VZrob31ZXsZJjn28htcAD2xviq
 
 * To train SR representation weights use:
 
-        python train_linear_sf.py --logdir=./logdir --config=linear_4rooms --task="sf" --resume=False
+        python train.py --logdir=./logdir --config=linear_sf --task="sf" --resume=False
 
 * To resume training SR representation weights use:
 
-        python train_linear_sf.py --logdir=./logdir --config=linear_4rooms --task="sf" --resume=True
+        python train.py --logdir=./logdir --config=linear_sf --task="sf" --resume=True
         
 * To plot SR_vectors, SR_matrix, EigenVectors of the SR matrix, the EigenValues of the SR_matrix
  and the learned value function and policy coresponding to each eigenvector use:
         
-        python train_linear_sf.py --logdir=./logdir --config=linear_4rooms --task="matrix" --resume=True
+        python train.py --logdir=./logdir --config=linear_sf --task="matrix" --resume=True
         
 * To see training progress run tensorboard from the ```logdir/linear_sf/summaries``` directory:
        

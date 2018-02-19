@@ -1,12 +1,11 @@
 import threading
-
 import datetime
 import os
 import gym
 import tensorflow as tf
 import tools
-import utility
-from tools import wrappers
+import config_utility
+from env_tools import env_wrappers as wrappers
 import configs
 
 def _create_environment(config):

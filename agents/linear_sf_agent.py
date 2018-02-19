@@ -1,17 +1,12 @@
 import numpy as np
 import tensorflow as tf
-from tools.utils import update_target_graph, discount, set_image_bandit, set_image_bandit_11_arms, make_gif
+from tools.agent_utils import update_target_graph, discount, make_gif
 import os
 import matplotlib.patches as patches
 import matplotlib.pylab as plt
-import mpl_toolkits.mplot3d.axes3d as axes3d
-# import plotly.plotly as py
-# import plotly.tools as tls
-# from matplotlib.ticker import LinearLocator, FormatStrFormatter
 import numpy as np
 from matplotlib import cm
 from collections import deque
-from agents.schedules import LinearSchedule, TFLinearSchedule
 from PIL import Image
 import scipy.stats
 import seaborn as sns
@@ -23,7 +18,7 @@ FLAGS = tf.app.flags.FLAGS
 
 
 class LinearSFAgent():
-  def __init__(self, game, thread_id, global_step, config):
+  def __init__(self, game, thread_id, global_step, config, global_network):
     self.name = "worker_" + str(thread_id)
     self.thread_id = thread_id
     self.optimizer = config.network_optimizer
@@ -53,7 +48,7 @@ class LinearSFAgent():
     self.summary_writer = tf.summary.FileWriter(self.summary_path + "/worker_" + str(self.thread_id))
     self.summary = tf.Summary()
 
-    self.local_network = config.network(self.name, config, self.action_size, self.nb_states)
+    self.local_network = config.network(self.name, config, self.action_size)
 
     self.update_local_vars = update_target_graph('global', self.name)
     self.env = game
@@ -80,7 +75,7 @@ class LinearSFAgent():
                feed_dict=feed_dict)
     return ms, loss, sf_loss
 
-  def build_matrix1(self, sess, coord, saver):
+  def build_matrix(self, sess, coord, saver):
     with sess.as_default(), sess.graph.as_default():
       self.matrix_sf = np.zeros((self.nb_states, self.nb_states))
       for idx in range(self.nb_states):
@@ -300,47 +295,47 @@ class LinearSFAgent():
     plt.savefig(os.path.join(self.summary_path, "SuccessorFeatures_" + prefix + 'policy.png'))
     plt.close()
 
-  def build_matrix(self, sess, coord, saver):
-    with sess.as_default(), sess.graph.as_default():
-      episode_count = sess.run(self.global_step)
-      self.total_steps = sess.run(self.total_steps_tensor)
-
-      print("Starting worker " + str(self.thread_id))
-
-      while not coord.should_stop():
-        if episode_count > self.config.steps:
-          return 0
-
-        sess.run(self.update_local_vars)
-        episode_buffer = []
-        episode_reward = 0
-        d = False
-        t = 0
-        t_counter = 0
-        R = 0
-        old_sf = None
-
-        s = self.env.get_initial_state()
-
-        while not d:
-          a = np.random.choice(range(self.action_size))
-          feed_dict = {self.local_network.observation: np.identity(self.nb_states)[s:s+1]}
-          sf = sess.run(self.local_network.sf, feed_dict=feed_dict)[0]
-          _, r, d, s1 = self.env.step(a)
-
-          r = np.clip(r, -1, 1)
-          self.total_steps += 1
-          sess.run(self.increment_total_steps_tensor)
-          episode_buffer.append([s])
-          episode_reward += r
-          t += 1
-          t_counter += 1
-          s = s1
-
-        self.episode_rewards.append(episode_reward)
-        self.episode_lengths.append(t)
-
-        episode_count += 1
+  # def build_matrix(self, sess, coord, saver):
+  #   with sess.as_default(), sess.graph.as_default():
+  #     episode_count = sess.run(self.global_step)
+  #     self.total_steps = sess.run(self.total_steps_tensor)
+  #
+  #     print("Starting worker " + str(self.thread_id))
+  #
+  #     while not coord.should_stop():
+  #       if episode_count > self.config.steps:
+  #         return 0
+  #
+  #       sess.run(self.update_local_vars)
+  #       episode_buffer = []
+  #       episode_reward = 0
+  #       d = False
+  #       t = 0
+  #       t_counter = 0
+  #       R = 0
+  #       old_sf = None
+  #
+  #       s = self.env.get_initial_state()
+  #
+  #       while not d:
+  #         a = np.random.choice(range(self.action_size))
+  #         feed_dict = {self.local_network.observation: np.identity(self.nb_states)[s:s+1]}
+  #         sf = sess.run(self.local_network.sf, feed_dict=feed_dict)[0]
+  #         _, r, d, s1 = self.env.step(a)
+  #
+  #         r = np.clip(r, -1, 1)
+  #         self.total_steps += 1
+  #         sess.run(self.increment_total_steps_tensor)
+  #         episode_buffer.append([s])
+  #         episode_reward += r
+  #         t += 1
+  #         t_counter += 1
+  #         s = s1
+  #
+  #       self.episode_rewards.append(episode_reward)
+  #       self.episode_lengths.append(t)
+  #
+  #       episode_count += 1
 
   def play(self, sess, coord, saver):
     with sess.as_default(), sess.graph.as_default():
@@ -421,11 +416,11 @@ class LinearSFAgent():
           sess.run(self.increment_global_step)
         episode_count += 1
 
-  def build_sf_matrix(self, sf):
-    if len(self.sf_transition_matrix) == self.config.sf_transition_matrix_size:
-      print("Matrix is ready")
-      self.task = 3
-      self.sf_transition_matrix.popleft()
-
-    self.sf_transition_matrix.append(sf_new - sf_old)
+  # def build_sf_matrix(self, sf):
+  #   if len(self.sf_transition_matrix) == self.config.sf_transition_matrix_size:
+  #     print("Matrix is ready")
+  #     self.task = 3
+  #     self.sf_transition_matrix.popleft()
+  #
+  #   self.sf_transition_matrix.append(sf_new - sf_old)
 

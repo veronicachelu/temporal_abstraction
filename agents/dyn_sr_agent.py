@@ -1,7 +1,7 @@
 import numpy as np
 import tensorflow as tf
-from tools.utils import update_target_graph, update_target_graph_aux, update_target_graph_sf, discount, \
-  set_image_bandit, set_image_bandit_11_arms, make_gif
+from tools.agent_utils import update_target_graph, update_target_graph_aux, update_target_graph_sf, discount, \
+  make_gif
 import os
 import matplotlib.patches as patches
 import matplotlib.pylab as plt
@@ -12,7 +12,6 @@ import mpl_toolkits.mplot3d.axes3d as axes3d
 import numpy as np
 from matplotlib import cm
 from collections import deque
-from agents.schedules import LinearSchedule, TFLinearSchedule
 from PIL import Image
 import scipy.stats
 import seaborn as sns
@@ -27,8 +26,8 @@ from auxilary.policy_iteration import PolicyIteration
 FLAGS = tf.app.flags.FLAGS
 
 
-class DIFAgent(Visualizer):
-  def __init__(self, game, thread_id, global_step, config):
+class DynSRAgent(Visualizer):
+  def __init__(self, game, thread_id, global_step, config, global_netowork):
     self.name = "worker_" + str(thread_id)
     self.thread_id = thread_id
     self.optimizer = config.network_optimizer
@@ -57,7 +56,7 @@ class DIFAgent(Visualizer):
     self.summary_writer = tf.summary.FileWriter(self.summary_path + "/worker_" + str(self.thread_id))
     self.summary = tf.Summary()
 
-    self.local_network = config.network(self.name, config, self.action_size, self.nb_states)
+    self.local_network = config.network(self.name, config, self.action_size)
 
     self.update_local_vars_aux = update_target_graph_aux('global', self.name)
     self.update_local_vars_sf = update_target_graph_sf('global', self.name)
