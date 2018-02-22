@@ -97,6 +97,31 @@ def linear_sf():
 
   return locals()
 
+def dynamic_SR():
+  locals().update(default())
+  dif_agent = DynSRAgent
+  num_agents = 8
+  network = DynSRNetwork
+
+  input_size = (13, 13)
+  history_size = 3
+  fc_layers = 128,
+  sf_layers = 128,
+  aux_fc_layers = 507,
+  lr = 1e-3
+  discount = 0.985
+
+  batch_size = 16
+  memory_size = 500000
+  observation_steps = 1000
+  steps = 1e6   # 1M
+  training_steps = 5e5
+  summary_interval = 10
+  checkpoint_interval = 10
+  max_length = 1e6
+
+  return locals()
+
 def oc():
   locals().update(default())
   dif_agent = EigenOCAgent
@@ -150,14 +175,14 @@ def eigenoc():
 def eigenoc_dyn():
   locals().update(eigenoc())
   dif_agent = EigenOCAgentDyn
-  sf_matrix_size = 10000
+  sf_matrix_size = 5000
   sr_matrix = "dynamic"
   return locals()
 
 def oc_dyn():
   locals().update(oc())
   dif_agent = EigenOCAgentDyn
-  sf_matrix_size = 10000
+  sf_matrix_size = 5000
   sr_matrix = "dynamic"
   return locals()
 
@@ -194,27 +219,4 @@ def eigenoc_montezuma():
 
   return locals()
 
-def dynamic_SR():
-  locals().update(default())
-  dif_agent = DynSRAgent
-  num_agents = 8
-  network = DynSRNetwork
 
-  input_size = (13, 13)
-  history_size = 3
-  fc_layers = 128,
-  sf_layers = 128,
-  aux_fc_layers = 507,
-  lr = 1e-3
-  discount = 0.985
-
-  batch_size = 16
-  memory_size = 500000
-  observation_steps = 1000
-  steps = 1e6   # 1M
-  training_steps = 5e5
-  summary_interval = 10
-  checkpoint_interval = 10
-  max_length = 1e6
-
-  return locals()

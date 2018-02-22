@@ -479,7 +479,7 @@ class EigenOCAgent(BaseAgent):
       tf.logging.info("Starting eval agent")
       ep_rewards = []
       ep_lengths = []
-      episode_frames = []
+      # episode_frames = []
       for i in range(self.config.nb_test_ep):
         episode_reward = 0
         s = self.env.reset()
@@ -504,7 +504,7 @@ class EigenOCAgent(BaseAgent):
             action = np.argmax(pi == action)
             o_term = o_term[0, option] > np.random.uniform()
 
-          episode_frames.append(set_image(s, option, action, episode_length, primitive_action))
+          # episode_frames.append(set_image(s, option, action, episode_length, primitive_action))
           s1, r, d, _ = self.env.step(action)
 
           r = np.clip(r, -1, 1)
@@ -524,8 +524,8 @@ class EigenOCAgent(BaseAgent):
         ep_rewards.append(episode_reward)
         ep_lengths.append(episode_length)
         tf.logging.info("Ep {} finished in {} steps with reward {}".format(i, episode_length, episode_reward))
-      images = np.array(episode_frames)
-      make_gif(images, os.path.join(self.test_path, 'test_episodes.gif'),
-               duration=len(images) * 1.0, true_image=True)
+      # images = np.array(episode_frames)
+      # make_gif(images, os.path.join(self.test_path, 'test_episodes.gif'),
+      #          duration=len(images) * 1.0, true_image=True)
       tf.logging.info("Won {} episodes of {}".format(ep_rewards.count(1), self.config.nb_test_ep))
 
