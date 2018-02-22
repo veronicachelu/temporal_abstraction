@@ -425,8 +425,8 @@ class EigenOCAgent(BaseAgent):
       primitive_action = option >= self.config.nb_options
       d = False
       episode_length = 0
-      if i == 0:
-        episode_frames = []
+      # if i == 0:
+      #   episode_frames = []
       while not d:
         feed_dict = {self.local_network.observation: np.stack([s])}
         options, o_term = self.sess.run([self.local_network.options, self.local_network.termination],
@@ -441,8 +441,8 @@ class EigenOCAgent(BaseAgent):
           action = np.argmax(pi == action)
           o_term = o_term[0, option] > np.random.uniform()
 
-        if i == 0 and self.episode_count > 500:
-          episode_frames.append(set_image(s, option, action, episode_length, primitive_action))
+        # if i == 0 and self.episode_count > 500:
+        #   episode_frames.append(set_image(s, option, action, episode_length, primitive_action))
         s1, r, d, _ = self.env.step(action)
 
         r = np.clip(r, -1, 1)
@@ -459,10 +459,10 @@ class EigenOCAgent(BaseAgent):
         if episode_length > self.config.max_length_eval:
           break
 
-        if i == 0 and self.episode_count > 500:
-          images = np.array(episode_frames)
-          make_gif(images[:100], os.path.join(self.test_path, 'eval_episode_{}.gif'.format(self.episode_count)),
-                   duration=len(images[:100]) * 0.1, true_image=True)
+        # if i == 0 and self.episode_count > 500:
+        #   images = np.array(episode_frames)
+        #   make_gif(images[:100], os.path.join(self.test_path, 'eval_episode_{}.gif'.format(self.episode_count)),
+        #            duration=len(images[:100]) * 0.1, true_image=True)
 
       episodes_won += episode_reward
       episode_lengths.append(episode_length)
