@@ -75,6 +75,7 @@ class EigenOCAgentDyn(EigenOCAgent):
           sess.run(self.increment_total_steps_tensor)
 
         self.log_episode()
+        self.update_episode_stats()
 
         if self.episode_count % self.config.episode_eval_interval == 0 and \
                self.name == 'worker_0' and self.episode_count != 0:
