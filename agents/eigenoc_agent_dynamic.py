@@ -101,7 +101,7 @@ class EigenOCAgentDyn(EigenOCAgent):
         self.episode_count += 1
 
   def add_SF(self, sf):
-    self.global_network.sf_matrix_buffer[0] = sf
+    self.global_network.sf_matrix_buffer[0] = sf.copy()
     self.global_network.sf_matrix_buffer = np.roll(self.global_network.sf_matrix_buffer, 1, 0)
 
   def policy_evaluation(self, s):
@@ -168,9 +168,10 @@ class EigenOCAgentDyn(EigenOCAgent):
 
   def recompute_eigenvectors_dynamic(self):
     if self.config.eigen:
-      feed_dict = {self.local_network.matrix_sf: self.global_network.sf_matrix_buffer}
+      feed_dict = {self.local_network.matrix_sf: [self.global_network.sf_matrix_buffer]}
       eigenval, eigenvect = self.sess.run([self.local_network.eigenvalues, self.local_network.eigenvectors],
                                           feed_dict=feed_dict)
+      eigenval, eigenvect = eigenval[0], eigenvect[0]
 
       eigenvalues = eigenval[self.config.first_eigenoption:self.config.nb_options + self.config.first_eigenoption]
       new_eigenvectors = eigenvect[self.config.first_eigenoption:self.config.nb_options + self.config.first_eigenoption]

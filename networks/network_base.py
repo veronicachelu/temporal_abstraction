@@ -149,9 +149,10 @@ class BaseNetwork():
     #                                 dtype=tf.float32, name="matrix_sf")
     if self.config.sf_matrix_size is None:
       self.config.sf_matrix_size = self.nb_states
-    self.matrix_sf = tf.placeholder(shape=[self.config.sf_matrix_size, self.sf_layers[-1]],
+    self.matrix_sf = tf.placeholder(shape=[1, self.config.sf_matrix_size, self.sf_layers[-1]],
                                     dtype=tf.float32, name="matrix_sf")
-    self.eigenvalues, _, self.eigenvectors = tf.svd(self.matrix_sf, full_matrices=True, compute_uv=True)
+    self.eigenvalues, _, ev = tf.svd(self.matrix_sf, full_matrices=True, compute_uv=True)
+    self.eigenvectors = tf.conj(ev)
 
     with tf.name_scope('sf_loss'):
       sf_td_error = self.target_sf - self.sf
