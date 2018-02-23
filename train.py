@@ -123,8 +123,8 @@ if __name__ == '__main__':
     'train', True,
     'Training.')
   tf.app.flags.DEFINE_boolean(
-    # 'resume', False,
-    'resume', True,
+    'resume', False,
+    #'resume', True,
     'Resume.')
   tf.app.flags.DEFINE_boolean(
     'show_training', False,
@@ -133,7 +133,7 @@ if __name__ == '__main__':
     'task', "sf",
     'Task nature')
   tf.app.flags.DEFINE_string(
-    # 'load_from', None,
-    'load_from', "./logdir/16-eigenoc_dyn",
+    'load_from', None,
+    #'load_from', "./logdir/16-eigenoc_dyn",
     'Load directory to load models from.')
   tf.app.run()
