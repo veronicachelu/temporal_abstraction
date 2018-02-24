@@ -152,7 +152,7 @@ class BaseNetwork():
     self.matrix_sf = tf.placeholder(shape=[1, self.config.sf_matrix_size, self.sf_layers[-1]],
                                     dtype=tf.float32, name="matrix_sf")
     self.eigenvalues, _, ev = tf.svd(self.matrix_sf, full_matrices=True, compute_uv=True)
-    self.eigenvectors = tf.conj(ev)
+    self.eigenvectors = tf.transpose(tf.conj(ev), perm=[0, 2, 1])
 
     with tf.name_scope('sf_loss'):
       sf_td_error = self.target_sf - self.sf

@@ -175,14 +175,14 @@ def eigenoc():
 def eigenoc_dyn():
   locals().update(eigenoc())
   dif_agent = EigenOCAgentDyn
-  sf_matrix_size = 100
+  sf_matrix_size = 10000
   sr_matrix = "dynamic"
   return locals()
 
 def oc_dyn():
   locals().update(oc())
   dif_agent = EigenOCAgentDyn
-  sf_matrix_size = 100
+  sf_matrix_size = 10000
   sr_matrix = "dynamic"
   return locals()
 
