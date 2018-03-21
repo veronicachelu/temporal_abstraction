@@ -10,7 +10,7 @@ from networks import DynSRNetwork
 from networks import EignOCMontezumaNetwork
 
 def default():
-  num_agents = 12
+  num_agents = 8
   use_gpu = False
 
   weight_summaries = dict(
@@ -159,7 +159,7 @@ def eigenoc():
   aux_fc_layers = 507,
 
   batch_size = 32
-  memory_size = 100000
+  memory_size = 500000
   observation_steps = 16*4
 
   alpha_r = 0.75
@@ -175,15 +175,19 @@ def eigenoc():
 def eigenoc_dyn():
   locals().update(eigenoc())
   dif_agent = EigenOCAgentDyn
-  sf_matrix_size = 10000
+  sf_matrix_size = 50000
   sr_matrix = "dynamic"
+  goal_locations = [(11, 7), (5, 2), (1, 10), (2, 2), (6, 2)]
+  move_goal_nb_of_ep = 1000
   return locals()
 
 def oc_dyn():
   locals().update(oc())
   dif_agent = EigenOCAgentDyn
-  sf_matrix_size = 10000
+  sf_matrix_size = 50000
   sr_matrix = "dynamic"
+  goal_locations = [(11, 7), (5, 2), (1, 10), (2, 2), (6, 2)]
+  move_goal_nb_of_ep = 1000
   return locals()
 
 def eigenoc_montezuma():
