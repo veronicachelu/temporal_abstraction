@@ -28,7 +28,8 @@ class BaseAgent():
     tf.gfile.MakeDirs(self.model_path)
     tf.gfile.MakeDirs(self.summary_path)
     self.global_network = global_network
-    self.directions = self.global_network.directions
+    if config.sr_matrix is not None:
+      self.directions = self.global_network.directions
 
     self.increment_global_step = self.global_step.assign_add(1)
     self.episode_rewards = []
