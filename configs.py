@@ -124,6 +124,7 @@ def dynamic_SR():
 
 def oc():
   locals().update(default())
+  nb_options = 4
   dif_agent = EigenOCAgent
   eigen = False
   network = EignOCNetwork
