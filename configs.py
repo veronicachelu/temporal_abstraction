@@ -29,7 +29,7 @@ def default():
   target_update_iter_sf = 30
   target_update_iter_option = 30
 
-  goal_locations = [(1, 11), (3, 2), (6, 2), (1, 4), (11, 10)]
+  goal_locations = [(11, 7), (5, 2), (1, 10), (2, 2), (6, 2)]
   move_goal_nb_of_ep = 1000
 
   env = functools.partial(
