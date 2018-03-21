@@ -184,8 +184,7 @@ def eigenoc_dyn():
 def oc_dyn():
   locals().update(oc())
   dif_agent = EigenOCAgentDyn
-  sf_matrix_size = 50000
-  sr_matrix = "dynamic"
+  sr_matrix = None
   goal_locations = [(11, 7), (5, 2), (1, 10), (2, 2), (6, 2)]
   move_goal_nb_of_ep = 1000
   return locals()
