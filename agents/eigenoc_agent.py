@@ -279,9 +279,10 @@ class EigenOCAgent(BaseAgent):
           feed_dict = {self.local_network.observation: [s]}
           sf = self.sess.run(self.local_network.sf, feed_dict=feed_dict)[0]
           matrix_sf[idx] = sf
-      feed_dict = {self.local_network.matrix_sf: matrix_sf}
+      feed_dict = {self.local_network.matrix_sf: [matrix_sf]}
       eigenval, eigenvect = self.sess.run([self.local_network.eigenvalues, self.local_network.eigenvectors],
                                           feed_dict=feed_dict)
+      eigenval, eigenvect = eigenval[0], eigenvect[0]
       # u, s, v = np.linalg.svd(self.sr_matrix_buffer.get(), full_matrices=False)
       eigenvalues = eigenval[self.config.first_eigenoption:self.config.nb_options + self.config.first_eigenoption]
       new_eigenvectors = eigenvect[self.config.first_eigenoption:self.config.nb_options + self.config.first_eigenoption]
