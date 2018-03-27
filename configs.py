@@ -118,7 +118,7 @@ def dynamic_SR():
   training_steps = 5e5
   summary_interval = 10
   checkpoint_interval = 10
-  max_length = 1e6
+  max_length = 1e20
 
   return locals()
 
@@ -175,14 +175,14 @@ def eigenoc():
 def eigenoc_dyn():
   locals().update(eigenoc())
   dif_agent = EigenOCAgentDyn
-  sf_matrix_size = 10000
+  sf_matrix_size = 5000
   sr_matrix = "dynamic"
   return locals()
 
 def oc_dyn():
   locals().update(oc())
   dif_agent = EigenOCAgentDyn
-  sf_matrix_size = 10000
+  sf_matrix_size = 5000
   sr_matrix = "dynamic"
   return locals()
 
