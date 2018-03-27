@@ -39,7 +39,7 @@ def default():
   min_update_freq = 5
   aux_update_freq = 1
 
-  steps = 10000000  # 10M
+  steps = -1  # 10M
   episodes = 1e6  # 1M
 
   final_random_option_prob = 0.1
@@ -82,7 +82,7 @@ def linear_sf():
   option_entropy_coef = 0.01
   auto_coef = 1
 
-  steps = 1e6  # 1M
+  steps = -1  # 1M
   explore_steps = 1e5
   delib_cost = 0
   margin_cost = 0
@@ -137,7 +137,7 @@ def oc():
   memory_size = 100000
   observation_steps = 16*4
 
-  steps = 1000000  # 1M
+  steps = -1  # 1M
   episodes = 1e6  # 1M
   eigen_exploration_steps = 16*4
   max_length = 1000
