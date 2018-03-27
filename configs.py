@@ -10,7 +10,7 @@ from networks import DynSRNetwork
 from networks import EignOCMontezumaNetwork
 
 def default():
-  num_agents = 12
+  num_agents = 8
   use_gpu = False
 
   weight_summaries = dict(
@@ -29,7 +29,7 @@ def default():
   target_update_iter_sf = 30
   target_update_iter_option = 30
 
-  goal_locations = [(1, 11), (3, 2), (6, 2), (1, 4), (11, 10)]
+  goal_locations = [(11, 7), (5, 2), (1, 10), (2, 2), (6, 2)]
   move_goal_nb_of_ep = 1000
 
   env = functools.partial(
@@ -124,6 +124,7 @@ def dynamic_SR():
 
 def oc():
   locals().update(default())
+  nb_options = 4
   dif_agent = EigenOCAgent
   eigen = False
   network = EignOCNetwork
@@ -144,6 +145,8 @@ def oc():
   include_primitive_options = True
   sr_matrix_size = 169
   sr_matrix = "static"
+  goal_locations = [(11, 7), (5, 2), (1, 10), (2, 2), (6, 2)]
+  move_goal_nb_of_ep = 1000
 
   return locals()
 
@@ -170,6 +173,8 @@ def eigenoc():
   include_primitive_options = True
   sr_matrix_size = 169
   sr_matrix = "static"
+  goal_locations = [(11, 7), (5, 2), (1, 10), (2, 2), (6, 2)]
+  move_goal_nb_of_ep = 1000
   return locals()
 
 def eigenoc_dyn():
@@ -177,13 +182,16 @@ def eigenoc_dyn():
   dif_agent = EigenOCAgentDyn
   sf_matrix_size = 5000
   sr_matrix = "dynamic"
+  goal_locations = [(11, 7), (5, 2), (1, 10), (2, 2), (6, 2)]
+  move_goal_nb_of_ep = 1000
   return locals()
 
 def oc_dyn():
   locals().update(oc())
   dif_agent = EigenOCAgentDyn
-  sf_matrix_size = 5000
-  sr_matrix = "dynamic"
+  sr_matrix = None
+  goal_locations = [(11, 7), (5, 2), (1, 10), (2, 2), (6, 2)]
+  move_goal_nb_of_ep = 1000
   return locals()
 
 def eigenoc_montezuma():

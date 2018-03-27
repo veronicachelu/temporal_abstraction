@@ -32,7 +32,8 @@ class EigenOCAgentDyn(EigenOCAgent):
         if self.name == "worker_0" and self.episode_count > 0:
           self.recompute_eigenvectors_dynamic()
 
-        self.load_directions()
+        if self.config.sr_matrix is not None:
+          self.load_directions()
         self.init_episode()
 
         s = self.env.reset()
@@ -164,7 +165,8 @@ class EigenOCAgentDyn(EigenOCAgent):
     tf.logging.info(
       "Saved Model at {}".format(self.model_path + '/model-{}.{}.cptk'.format(self.episode_count, self.total_steps)))
 
-    self.save_SF_matrix()
+    if self.config.sr_matrix is not None:
+      self.save_SF_matrix()
 
   def recompute_eigenvectors_dynamic(self):
     if self.config.eigen:
