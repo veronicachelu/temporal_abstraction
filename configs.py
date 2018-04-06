@@ -46,7 +46,7 @@ def default():
   final_random_action_prob = 0.01
 
   nb_test_ep = 100
-  max_length = 72000
+  max_length = 1000
 
   gradient_clip_norm_value = 40
   clip_option_grad_by_value = False
@@ -140,13 +140,13 @@ def oc():
   steps = -1  # 1M
   episodes = 1e6  # 1M
   eigen_exploration_steps = 16*4
-  max_length = 72000
+  max_length = 1000
   max_length_eval = 1000
   include_primitive_options = True
   sr_matrix_size = 169
   sr_matrix = "static"
   goal_locations = [(11, 7), (5, 2), (1, 10), (2, 2), (6, 2)]
-  move_goal_nb_of_ep = 500
+  move_goal_nb_of_ep = 1000
 
   return locals()
 
@@ -167,14 +167,14 @@ def eigenoc():
 
   alpha_r = 0.75
   eigen_exploration_steps = 16*4
-  max_length = 72000
+  max_length = 1000
   max_length_eval = 1000
   first_eigenoption = 1
   include_primitive_options = True
   sr_matrix_size = 169
   sr_matrix = "static"
   goal_locations = [(11, 7), (5, 2), (1, 10), (2, 2), (6, 2)]
-  move_goal_nb_of_ep = 500
+  move_goal_nb_of_ep = 1000
   return locals()
 
 def eigenoc_dyn():
