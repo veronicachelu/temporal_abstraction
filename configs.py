@@ -46,7 +46,7 @@ def default():
   final_random_action_prob = 0.01
 
   nb_test_ep = 100
-  max_length = 1000
+  max_length = 2000
 
   gradient_clip_norm_value = 40
   clip_option_grad_by_value = False
@@ -133,14 +133,14 @@ def oc():
   sf_layers = 128,
   aux_fc_layers = 507,
 
-  batch_size = 32
+  batch_size = 16
   memory_size = 100000
   observation_steps = 16*4
 
   steps = -1  # 1M
   episodes = 1e6  # 1M
   eigen_exploration_steps = 16*4
-  max_length = 1000
+  max_length = 2000
   max_length_eval = 1000
   include_primitive_options = True
   sr_matrix_size = 169
@@ -161,13 +161,13 @@ def eigenoc():
   sf_layers = 128,
   aux_fc_layers = 507,
 
-  batch_size = 32
+  batch_size = 16
   memory_size = 100000
   observation_steps = 16*4
 
   alpha_r = 0.75
   eigen_exploration_steps = 16*4
-  max_length = 1000
+  max_length = 2000
   max_length_eval = 1000
   first_eigenoption = 1
   include_primitive_options = True
