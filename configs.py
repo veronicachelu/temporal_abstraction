@@ -20,7 +20,7 @@ def default():
   network_optimizer = 'AdamOptimizer'
   lr = 0.0001
   discount = 0.99
-  sf_coef = 1
+  sf_coef = 10
   aux_coef = 1
   entropy_coef = 0.01
   critic_coef = 1
