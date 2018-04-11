@@ -20,7 +20,7 @@ def default():
   network_optimizer = 'AdamOptimizer'
   lr = 0.0001
   discount = 0.99
-  sf_coef = 10
+  sf_coef = 1
   aux_coef = 1
   entropy_coef = 0.01
   critic_coef = 1
@@ -46,7 +46,7 @@ def default():
   final_random_action_prob = 0.01
 
   nb_test_ep = 100
-  max_length = 2000
+  max_length = 3000
 
   gradient_clip_norm_value = 40
   clip_option_grad_by_value = False

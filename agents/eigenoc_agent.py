@@ -286,6 +286,9 @@ class EigenOCAgent(BaseAgent):
       # u, s, v = np.linalg.svd(self.sr_matrix_buffer.get(), full_matrices=False)
       eigenvalues = eigenval[self.config.first_eigenoption:self.config.nb_options + self.config.first_eigenoption]
       new_eigenvectors = eigenvect[self.config.first_eigenoption:self.config.nb_options + self.config.first_eigenoption]
+
+      range(0, self.config.nb_options)
+
       min_similarity = np.min(
         [self.cosine_similarity(a, b) for a, b in zip(self.global_network.directions, new_eigenvectors)])
       max_similarity = np.max(
