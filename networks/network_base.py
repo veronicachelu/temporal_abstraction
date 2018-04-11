@@ -70,7 +70,7 @@ class BaseNetwork():
                                        tf.ones_like(self.current_option),
                                        tf.zeros_like(self.current_option))
       self.summaries_option.append(tf.contrib.layers.summarize_activation(self.current_option))
-      self.v = tf.reduce_max(self.q_val, axis=1) * (1 - self.config.final_random_option_prob) + \
+      self.v = self.max_q_val * (1 - self.config.final_random_option_prob) + \
                self.config.final_random_option_prob * tf.reduce_mean(self.q_val, axis=1)
       self.summaries_option.append(tf.contrib.layers.summarize_activation(self.v))
 
@@ -156,7 +156,7 @@ class BaseNetwork():
 
     with tf.name_scope('sf_loss'):
       sf_td_error = self.target_sf - self.sf
-    self.sf_loss = tf.reduce_mean(huber_loss(sf_td_error))
+    self.sf_loss = tf.reduce_mean(self.config.sf_coef * huber_loss(sf_td_error))
 
     with tf.name_scope('aux_loss'):
       aux_error = self.next_obs - self.target_next_obs

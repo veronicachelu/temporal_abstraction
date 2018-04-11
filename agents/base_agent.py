@@ -106,7 +106,6 @@ class BaseAgent():
       if len(option_lengths) != 0:
         self.episode_mean_options_lengths[op] = np.mean(option_lengths)
 
-
   def save_model(self):
     self.saver.save(self.sess, self.model_path + '/model-{}.{}.cptk'.format(self.episode_count, self.total_steps),
                     global_step=self.global_step)
