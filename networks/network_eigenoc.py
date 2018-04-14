@@ -24,6 +24,7 @@ class EignOCNetwork(BaseNetwork):
         self.summaries_aux.append(tf.contrib.layers.summarize_activation(out))
         self.summaries_option.append(tf.contrib.layers.summarize_activation(out))
       self.fi = out
+      self.fi_relu = tf.nn.relu(self.fi)
 
       return out
 
@@ -56,9 +57,9 @@ class EignOCNetwork(BaseNetwork):
       out = self.observation
       out = layers.flatten(out, scope="flatten")
 
-      out = self.build_feature_net(out)
-      out = self.build_option_term_net(out)
-      _ = self.build_option_q_val_net(out)
+      _ = self.build_feature_net(out)
+      _ = self.build_option_term_net()
+      _ = self.build_option_q_val_net()
 
       if self.config.eigen:
         self.build_eigen_option_q_val_net()

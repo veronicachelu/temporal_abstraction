@@ -175,9 +175,12 @@ class BaseAgent():
   def cosine_similarity(self, next_sf, evect):
     state_dif_norm = np.linalg.norm(next_sf)
     state_dif_normalized = next_sf / (state_dif_norm + 1e-8)
+
+    evect_norm = np.linalg.norm(evect)
+    evect_normalized = evect / (evect_norm + 1e-8)
     # evect_norm = np.linalg.norm(evect)
     # evect_normalized = evect / (evect_norm + 1e-8)
-    res = np.dot(state_dif_normalized, evect)
+    res = np.dot(state_dif_normalized, evect_normalized)
     return res
 
   def write_eval_summary(self, eval_episodes_won, mean_ep_length):

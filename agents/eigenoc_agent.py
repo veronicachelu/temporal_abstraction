@@ -13,7 +13,7 @@ import seaborn as sns
 sns.set()
 import random
 import matplotlib.pyplot as plt
-
+import copy
 FLAGS = tf.app.flags.FLAGS
 
 
@@ -276,22 +276,27 @@ class EigenOCAgent(BaseAgent):
 
   def recompute_eigenvectors_classic(self):
     if self.config.eigen:
-      matrix_sf = np.zeros((self.nb_states, self.config.sf_layers[-1]))
+      new_eigenvectors = copy.deepcopy(self.global_network.directions)
+      # matrix_sf = np.zeros((self.nb_states, self.config.sf_layers[-1]))
       for idx in range(self.nb_states):
         s, ii, jj = self.env.fake_get_state(idx)
         if self.env.not_wall(ii, jj):
           feed_dict = {self.local_network.observation: [s]}
           sf = self.sess.run(self.local_network.sf, feed_dict=feed_dict)[0]
-          matrix_sf[idx] = sf
+          ci = np.argmin(
+            [self.cosine_similarity(sf, d) for d in self.global_network.directions])
+
+          sf_norm = np.linalg.norm(sf)
+          sf_normalized = sf / (sf_norm + 1e-8)
+          new_eigenvectors[ci] = self.config.tau * sf_normalized + (1 - self.config.tau) * self.global_network.directions[ci]
+
       # feed_dict = {self.local_network.matrix_sf: [matrix_sf]}
       # eigenval, eigenvect = self.sess.run([self.local_network.eigenvalues, self.local_network.eigenvectors],
       #                                     feed_dict=feed_dict)
       # eigenval, eigenvect = eigenval[0], eigenvect[0]
-      _, eigenval, eigenvect = np.linalg.svd(matrix_sf, full_matrices=False)
+      # _, eigenval, eigenvect = np.linalg.svd(matrix_sf, full_matrices=False)
       # eigenvalues = eigenval[self.config.first_eigenoption:self.config.nb_options + self.config.first_eigenoption]
-      new_eigenvectors = eigenvect[self.config.first_eigenoption:self.config.nb_options + self.config.first_eigenoption]
-
-      range(0, self.config.nb_options)
+      # new_eigenvectors = eigenvect[self.config.first_eigenoption:self.config.nb_options + self.config.first_eigenoption]
 
       min_similarity = np.min(
         [self.cosine_similarity(a, b) for a, b in zip(self.global_network.directions, new_eigenvectors)])
