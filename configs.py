@@ -159,7 +159,7 @@ def eigenoc():
   eigen = True
   network = EignOCNetwork
 
-  fc_layers = 128,
+  fc_layers = 169,
   sf_layers = 169,
   aux_fc_layers = 507,
   sf_coef = 10
