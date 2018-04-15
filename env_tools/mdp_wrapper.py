@@ -7,11 +7,12 @@ from PIL import Image
 import scipy.ndimage
 import numpy as np
 import random
+import gym
 from gym import spaces
 
 class GridWorld:
   def __init__(self, goal_locations, load_path=None):
-    self.action_space = spaces.Discrete(4)
+    self.action_space = spaces .Discrete(4)
 
     self.rewardFunction = None
     self.nb_actions = 4

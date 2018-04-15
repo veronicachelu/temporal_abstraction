@@ -278,16 +278,22 @@ class EigenOCAgent(BaseAgent):
     if self.config.eigen:
       new_eigenvectors = copy.deepcopy(self.global_network.directions)
       # matrix_sf = np.zeros((self.nb_states, self.config.sf_layers[-1]))
-      states = []
+      states_all = []
+      binary_map = []
       for idx in range(self.nb_states):
         s, ii, jj = self.env.fake_get_state(idx)
+        states.append(s)
         if self.env.not_wall(ii, jj):
-          states.append(s)
+          binary_map.append(1)
+        else:
+          binary_map.append(0)
 
       feed_dict = {self.local_network.observation: states}
       matrix_sf = self.sess.run(self.local_network.sf, feed_dict=feed_dict)
 
       self.plot_sr_vectors(matrix_sf, "sr_stats")
+
+      matrix_sf = matrix_sf[binary_map == 1, :]
       _, eigenval, eigenvect = np.linalg.svd(matrix_sf, full_matrices=True)
       self.plot_basis_functions(eigenval, eigenvect, "sr_stats")
 
