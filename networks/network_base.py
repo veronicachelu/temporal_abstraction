@@ -283,3 +283,22 @@ class BaseNetwork():
     if relu:
       x = tf.nn.relu(x)
     return x
+
+  def compute_gradients(self, losses):
+    local_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, self.scope)
+    global_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, 'global')
+    var_norms = tf.global_norm(local_vars)
+    gradients_list = []
+    grads_list = []
+    apply_grads_list = []
+    grad_norm_list = []
+    for loss in losses:
+      gradients = tf.gradients(loss, local_vars)
+      gradients_list.append(gradients)
+      grads, grad_norms = tf.clip_by_global_norm(gradients, self.config.gradient_clip_norm_value)
+      grads_list.append(grads)
+      grad_norm_list.append(grad_norms)
+      apply_grads = self.network_optimizer.apply_gradients(zip(grads, global_vars))
+      apply_grads_list.append(apply_grads)
+
+    return grads_list, grad_norm_list, apply_grads_list

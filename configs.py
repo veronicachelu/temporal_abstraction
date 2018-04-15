@@ -1,9 +1,11 @@
+from agents import SomAgent
 from agents import EigenOCAgent
 from agents import LinearSFAgent
 from agents import EigenOCAgentDyn
 from agents import DynSRAgent
 from env_tools import GridWorld
 import functools
+from networks import SomNetwork
 from networks import EignOCNetwork
 from networks import LinearSFNetwork
 from networks import DynSRNetwork
@@ -231,4 +233,31 @@ def eigenoc_montezuma():
 
   return locals()
 
+def som():
+  locals().update(default())
+  dif_agent = SomAgent
+  nb_options = 4
+  eigen = True
+  network = SomNetwork
 
+  fc_layers = 128,
+  sf_layers = 128,
+  aux_fc_layers = 507,
+
+  batch_size = 16
+  memory_size = 100000
+  observation_steps = 16*4
+
+  alpha_r = 0.75
+  eigen_exploration_steps = 16*4
+  max_length = 1000
+  max_length_eval = 1000
+  first_eigenoption = 1
+  include_primitive_options = True
+  sr_matrix_size = 169
+  sr_matrix = "static"
+  goal_locations = [(11, 7), (5, 2), (1, 10), (2, 2), (6, 2)]
+  # goal_locations = [(1, 11), (3, 2)]
+  move_goal_nb_of_ep = 1000
+  tau = 0.1
+  return locals()
