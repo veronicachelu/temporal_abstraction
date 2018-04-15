@@ -282,13 +282,13 @@ class EigenOCAgent(BaseAgent):
       binary_map = []
       for idx in range(self.nb_states):
         s, ii, jj = self.env.fake_get_state(idx)
-        states.append(s)
+        states_all.append(s)
         if self.env.not_wall(ii, jj):
           binary_map.append(1)
         else:
           binary_map.append(0)
 
-      feed_dict = {self.local_network.observation: states}
+      feed_dict = {self.local_network.observation: states_all}
       matrix_sf = self.sess.run(self.local_network.sf, feed_dict=feed_dict)
 
       self.plot_sr_vectors(matrix_sf, "sr_stats")
