@@ -435,8 +435,9 @@ class BaseAgent():
         sns.plt.savefig(os.path.join(folder_path, "SR_VECTOR_" + str(i) + '.png'))
         sns.plt.close()
 
-  def plot_basis_functions(self, eigenvalues, eigenvectors):
+  def plot_basis_functions(self, eigenvalues, eigenvectors, folder):
     sns.plt.clf()
+    folder_path = os.path.join(os.path.join(self.config.stage_logdir, "summaries"), folder)
     for k in ["poz", "neg"]:
       for i in range(len(eigenvalues)):
         Z = eigenvectors[i].reshape(self.config.input_size[0], self.config.input_size[1])
@@ -458,7 +459,7 @@ class BaseAgent():
                 facecolor="gray"
               )
             )
-        sns.plt.savefig(os.path.join(self.summary_path, ("Eigenvector" + str(i) + '_eig_' + k + '.png')))
+        sns.plt.savefig(os.path.join(folder_path, ("Eigenvector" + str(i) + '_eig_' + k + '.png')))
         sns.plt.close()
 
     sns.plt.plot(eigenvalues, 'o')

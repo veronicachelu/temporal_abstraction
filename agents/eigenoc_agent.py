@@ -287,9 +287,9 @@ class EigenOCAgent(BaseAgent):
       feed_dict = {self.local_network.observation: states}
       matrix_sf = self.sess.run(self.local_network.sf, feed_dict=feed_dict)
 
-      self.plot_sr_vectors(matrix_sf)
+      self.plot_sr_vectors(matrix_sf, "sr_stats")
       _, eigenval, eigenvect = np.linalg.svd(matrix_sf, full_matrices=False)
-      self.plot_basis_functions(eigenval, eigenvect)
+      self.plot_basis_functions(eigenval, eigenvect, "sr_stats")
 
     for v in eigenvect:
       ci = np.argmax(
