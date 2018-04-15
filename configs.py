@@ -20,6 +20,7 @@ def default():
   input_size = (13, 13)
   history_size = 3
   network_optimizer = 'AdamOptimizer'
+  adam_epsilon = 1e-04
   lr = 0.0001
   discount = 0.99
   sf_coef = 1
@@ -260,4 +261,6 @@ def som():
   # goal_locations = [(1, 11), (3, 2)]
   move_goal_nb_of_ep = 1000
   tau = 0.1
+  reward_coef = 1
+  reward_i_coef = 1
   return locals()

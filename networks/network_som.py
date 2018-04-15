@@ -8,6 +8,7 @@ import os
 class SomNetwork(BaseNetwork):
   def __init__(self, scope, config, action_size, total_steps_tensor=None):
     super(SomNetwork, self).__init__(scope, config, action_size, total_steps_tensor)
+    self.summaries_reward = []
     self.build_network()
 
   def build_feature_net(self, out):
@@ -30,27 +31,36 @@ class SomNetwork(BaseNetwork):
 
   def build_reward_pred_net(self):
     out = layers.fully_connected(self.fi_relu, num_outputs=1,
-                                 activation_fn=None,
+                                 activation_fn=None, biases_initializer=None,
                                  variables_collections=tf.get_collection("variables"),
                                  outputs_collections="activations", scope="reward")
-    self.summaries_inst_r.append(tf.contrib.layers.summarize_activation(out))
+    self.summaries_reward.append(tf.contrib.layers.summarize_activation(out))
     self.r = out
 
+    with tf.variable_scope("reward_pred_i"):
+      self.options_placeholder = tf.placeholder(shape=[None], dtype=tf.int32, name="options")
+      self.options_fc = layers.fully_connected(tf.cast(self.options_placeholder, tf.float32)[..., None], num_outputs=self.sf_layers[-1],
+                                       activation_fn=None,
+
+                                       variables_collections=tf.get_collection("variables"),
+                                       outputs_collections="activations", scope="fc")
+
+    self.fi_o = tf.add(tf.stop_gradient(self.fi), self.options_fc)
     out = layers.fully_connected(self.fi_o, num_outputs=1,
-                                 activation_fn=None,
+                                 activation_fn=None, biases_initializer=None,
                                  variables_collections=tf.get_collection("variables"),
                                  outputs_collections="activations", scope="reward_i")
-    self.summaries_inst_r.append(tf.contrib.layers.summarize_activation(out))
+    self.summaries_reward.append(tf.contrib.layers.summarize_activation(out))
     self.r_i = out
 
   def get_w(self):
     with tf.variable_scope("reward", reuse=True):
-      v = tf.get_variable("weights", [1])
+      v = tf.get_variable("weights")
     return v
 
   def get_w_g(self):
     with tf.variable_scope("reward_i", reuse=True):
-      v = tf.get_variable("weights", [1])
+      v = tf.get_variable("weights")
     return v
 
   def build_next_frame_prediction_net(self):
@@ -101,8 +111,11 @@ class SomNetwork(BaseNetwork):
 
   def build_option_q_val_net(self):
     self.w = self.get_w()
+    # self.w = tf.reshape(self.w, [-1])
+    # self.w = tf.tile(self.w[None, ...], [self.sf.shape[0].value, self.w.shape[0].value])
     with tf.variable_scope("option_q_val"):
-      self.q_val = tf.mat_mul(self.sf, self.w)
+      self.q_val = tf.map_fn(lambda x: tf.matmul(x, self.w), self.sf)
+      self.q_val = tf.squeeze(self.q_val, 2)
       self.summaries_option.append(tf.contrib.layers.summarize_activation(self.q_val))
       self.max_q_val = tf.reduce_max(self.q_val, 1)
       self.max_options = tf.cast(tf.argmax(self.q_val, 1), dtype=tf.int32)
@@ -126,7 +139,9 @@ class SomNetwork(BaseNetwork):
     self.wg = self.get_w_g()
 
     with tf.variable_scope("eigen_option_q_val"):
-      self.eigen_q_val = tf.mat_mul(self.sf, ((1 - self.config.alpha_r) * self.w + self.config.alpha_r * self.wg))
+      mixed_w = ((1 - self.config.alpha_r) * self.w + self.config.alpha_r * self.wg)
+      self.eigen_q_val = tf.map_fn(lambda x: tf.matmul(x, mixed_w), self.sf)
+      self.eigen_q_val = tf.squeeze(self.eigen_q_val, 2)
       self.summaries_option.append(tf.contrib.layers.summarize_activation(self.eigen_q_val))
       concatenated_eigen_q = self.eigen_q_val
     self.eigenv = tf.reduce_max(concatenated_eigen_q, axis=1) * \
@@ -148,7 +163,7 @@ class SomNetwork(BaseNetwork):
       self.build_intraoption_policies_nets()
       self.build_SF_net(layer_norm=False)
       self.build_next_frame_prediction_net()
-      self.build_inst_r_pred_net()
+      self.build_reward_pred_net()
 
       _ = self.build_option_q_val_net()
 
@@ -165,7 +180,7 @@ class SomNetwork(BaseNetwork):
     self.target_next_obs = tf.placeholder(
       shape=[None, self.config.input_size[0], self.config.input_size[1], next_frame_channel_size], dtype=tf.float32,
       name="target_next_obs")
-    self.options_placeholder = tf.placeholder(shape=[None], dtype=tf.int32, name="options")
+    # self.options_placeholder = tf.placeholder(shape=[None], dtype=tf.int32, name="options")
     self.target_r = tf.placeholder(shape=[None], dtype=tf.float32)
     self.target_r_i = tf.placeholder(shape=[None], dtype=tf.float32)
 
@@ -197,11 +212,11 @@ class SomNetwork(BaseNetwork):
 
     with tf.name_scope('reward_loss'):
       reward_error = self.r - self.target_r
-    self.reward_loss = tf.reduce_mean(self.config.r_ext_coef * huber_loss(reward_error))
+    self.reward_loss = tf.reduce_mean(self.config.reward_coef * huber_loss(reward_error))
 
     with tf.name_scope('instant_reward_in_loss'):
       reward_i_error = self.r_i - self.target_r_i
-    self.reward_i_loss = tf.reduce_mean(self.config.r_in_coef * huber_loss(reward_i_error))
+    self.reward_i_loss = tf.reduce_mean(self.config.reward_i_coef * huber_loss(reward_i_error))
 
     with tf.name_scope('aux_loss'):
       aux_error = self.next_obs - self.target_next_obs
@@ -225,7 +240,9 @@ class SomNetwork(BaseNetwork):
                                                                             tf.log(self.policies + 1e-7),
                                                                             axis=1))
     with tf.name_scope('policy_loss'):
-      self.policy_loss = -tf.reduce_mean(tf.log(self.responsible_actions + 1e-7) * sf_td_error * self.wg)
+      advantage = tf.map_fn(lambda x: tf.matmul(x, self.wg), sf_td_error)
+      advantage = tf.squeeze(advantage, axis=2)
+      self.policy_loss = -tf.reduce_mean(tf.log(self.responsible_actions + 1e-7) * advantage)
                                          # tf.stop_gradient(
         # eigen_td_error if self.config.eigen else td_error))
 
@@ -257,3 +274,10 @@ class SomNetwork(BaseNetwork):
                                                 tf.summary.scalar('avg_policy_loss', self.policy_loss),
                                                 tf.summary.scalar('gradient_norm_option', grads_option_norm),
                                                 gradient_summaries(zip(grads_option, local_vars))])
+    self.merged_summary_reward = tf.summary.merge(self.summaries_reward + [
+      tf.summary.scalar('reward_loss', self.reward_loss),
+      tf.summary.scalar('reward_i_loss', self.reward_i_loss),
+      tf.summary.scalar('gradient_norm_reward_i', grads_reward_i_norm),
+      tf.summary.scalar('gradient_norm_reward', grads_reward_norm),
+      gradient_summaries(zip(grads_reward_i, local_vars)),
+      gradient_summaries(zip(grads_reward, local_vars))])

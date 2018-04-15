@@ -23,7 +23,8 @@ class BaseNetwork():
     self.summaries_option = []
 
     self.network_optimizer = config.network_optimizer(
-      self.config.lr, name='network_optimizer')
+      learning_rate=self.config.lr,
+      epsilon=self.config.adam_epsilon, name='network_optimizer')
 
     if scope == 'global' and self.config.sr_matrix is not None:
       self.directions = np.zeros((config.nb_options, config.sf_layers[-1]))
