@@ -302,7 +302,8 @@ class EigenOCAgent(BaseAgent):
         cj = np.argmax(
               [self.cosine_similarity(self.global_network.directions[ci], e) for e in eigenvect])
         new_eigenvectors[ci] = self.config.tau * eigenvect[cj] + (1 - self.config.tau) * new_eigenvectors[ci]
-        del eigenvect[cj]
+        # del eigenvect[cj]
+        eigenvect = eigenvect[:cj] + eigenvect[cj+1:]
 
       # for v in eigenvect:
       #   ci = np.argmax(
