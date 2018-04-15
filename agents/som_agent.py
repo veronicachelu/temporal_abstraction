@@ -14,6 +14,7 @@ sns.set()
 import random
 import matplotlib.pyplot as plt
 import copy
+from tools.agent_utils import update_target_graph_reward
 FLAGS = tf.app.flags.FLAGS
 
 
@@ -35,7 +36,8 @@ class SomAgent(BaseAgent):
     tf.logging.info("Starting worker " + str(self.thread_id))
     self.aux_episode_buffer = deque()
     self.instant_reward_buffer = deque()
-    self.ms_aux = self.ms_sf = self.ms_option = None
+    self.ms_aux = self.ms_sf = self.ms_option = self.ms_reward = None
+    self.update_local_vars_reward = update_target_graph_reward('global', self.name)
 
   def init_episode(self):
     self.episode_buffer_sf = []
@@ -57,17 +59,17 @@ class SomAgent(BaseAgent):
     self.eigen_R = 0
     self.ms_aux = self.ms_sf = self.ms_reward = self.ms_option = None
 
-  def SF_prediction(self, s1, o1):
-    self.sf_counter += 1
-    if self.config.eigen and (self.sf_counter == self.config.max_update_freq or self.done):
-      feed_dict = {self.local_network.observation: [s1]}
-      sf = self.sess.run(self.local_network.sf,
-                    feed_dict=feed_dict)[0]
-      sf = sf[o1]
-      bootstrap_sf = np.zeros_like(sf) if self.done else sf
-      self.ms_sf, self.sf_loss = self.train_sf(bootstrap_sf)
-      self.episode_buffer_sf = []
-      self.sf_counter = 0
+  # def SF_prediction(self, s1, o1):
+  #   self.sf_counter += 1
+  #   if self.config.eigen and (self.sf_counter == self.config.max_update_freq or self.done):
+  #     feed_dict = {self.local_network.observation: [s1]}
+  #     sf = self.sess.run(self.local_network.sf,
+  #                   feed_dict=feed_dict)[0]
+  #     sf = sf[o1]
+  #     bootstrap_sf = np.zeros_like(sf) if self.done else sf
+  #     self.ms_sf, self.sf_loss = self.train_sf(bootstrap_sf)
+  #     self.episode_buffer_sf = []
+  #     self.sf_counter = 0
 
   def next_frame_prediction(self):
     if len(self.aux_episode_buffer) > self.config.observation_steps and \
@@ -95,6 +97,19 @@ class SomAgent(BaseAgent):
 
     self.episode_buffer_option = []
     self.option_counter = 0
+
+  def sync_threads(self, force=False):
+    if force:
+      self.sess.run(self.update_local_vars_aux)
+      self.sess.run(self.update_local_vars_option)
+      self.sess.run(self.update_local_vars_reward)
+    else:
+      if self.total_steps % self.config.target_update_iter_aux == 0:
+        self.sess.run(self.update_local_vars_aux)
+      if self.total_steps % self.config.target_update_iter_reward == 0:
+        self.sess.run(self.update_local_vars_reward)
+      if self.total_steps % self.config.target_update_iter_option == 0:
+        self.sess.run(self.update_local_vars_option)
 
   def play(self, sess, coord, saver):
     with sess.as_default(), sess.graph.as_default():
