@@ -278,17 +278,26 @@ class EigenOCAgent(BaseAgent):
     if self.config.eigen:
       new_eigenvectors = copy.deepcopy(self.global_network.directions)
       # matrix_sf = np.zeros((self.nb_states, self.config.sf_layers[-1]))
+      states = []
       for idx in range(self.nb_states):
         s, ii, jj = self.env.fake_get_state(idx)
         if self.env.not_wall(ii, jj):
-          feed_dict = {self.local_network.observation: [s]}
-          sf = self.sess.run(self.local_network.sf, feed_dict=feed_dict)[0]
-          ci = np.argmin(
-            [self.cosine_similarity(sf, d) for d in self.global_network.directions])
+          states.append(s)
 
-          sf_norm = np.linalg.norm(sf)
-          sf_normalized = sf / (sf_norm + 1e-8)
-          new_eigenvectors[ci] = self.config.tau * sf_normalized + (1 - self.config.tau) * new_eigenvectors[ci]
+      feed_dict = {self.local_network.observation: states}
+      matrix_sf = self.sess.run(self.local_network.sf, feed_dict=feed_dict)
+
+      self.plot_sr_vectors(matrix_sf)
+      _, eigenval, eigenvect = np.linalg.svd(matrix_sf, full_matrices=False)
+      self.plot_basis_functions(eigenval, eigenvect)
+
+    for v in eigenvect:
+      ci = np.argmax(
+            [self.cosine_similarity(v, d) for d in self.global_network.directions])
+
+      # sf_norm = np.linalg.norm(sf)
+      # sf_normalized = sf / (sf_norm + 1e-8)
+      new_eigenvectors[ci] = self.config.tau * v + (1 - self.config.tau) * new_eigenvectors[ci]
 
       # feed_dict = {self.local_network.matrix_sf: [matrix_sf]}
       # eigenval, eigenvect = self.sess.run([self.local_network.eigenvalues, self.local_network.eigenvectors],
