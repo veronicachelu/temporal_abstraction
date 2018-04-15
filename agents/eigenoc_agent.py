@@ -297,13 +297,13 @@ class EigenOCAgent(BaseAgent):
       _, eigenval, eigenvect = np.linalg.svd(matrix_sf, full_matrices=True)
       # self.plot_basis_functions(eigenval, eigenvect, "sr_stats")
 
-    for v in eigenvect:
-      ci = np.argmax(
-            [self.cosine_similarity(v, d) for d in self.global_network.directions])
+      for v in eigenvect:
+        ci = np.argmax(
+              [self.cosine_similarity(v, d) for d in self.global_network.directions])
 
-      # sf_norm = np.linalg.norm(sf)
-      # sf_normalized = sf / (sf_norm + 1e-8)
-      new_eigenvectors[ci] = self.config.tau * v + (1 - self.config.tau) * new_eigenvectors[ci]
+        # sf_norm = np.linalg.norm(sf)
+        # sf_normalized = sf / (sf_norm + 1e-8)
+        new_eigenvectors[ci] = self.config.tau * v + (1 - self.config.tau) * new_eigenvectors[ci]
 
       # feed_dict = {self.local_network.matrix_sf: [matrix_sf]}
       # eigenval, eigenvect = self.sess.run([self.local_network.eigenvalues, self.local_network.eigenvectors],
