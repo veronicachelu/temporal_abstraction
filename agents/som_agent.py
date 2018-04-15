@@ -57,19 +57,19 @@ class SomAgent(BaseAgent):
     self.option_counter = 0
     self.R = 0
     self.eigen_R = 0
-    self.ms_aux = self.ms_sf = self.ms_reward = self.ms_option = None
+    # self.ms_aux = self.ms_sf = self.ms_reward = self.ms_option = None
 
-  # def SF_prediction(self, s1, o1):
-  #   self.sf_counter += 1
-  #   if self.config.eigen and (self.sf_counter == self.config.max_update_freq or self.done):
-  #     feed_dict = {self.local_network.observation: [s1]}
-  #     sf = self.sess.run(self.local_network.sf,
-  #                   feed_dict=feed_dict)[0]
-  #     sf = sf[o1]
-  #     bootstrap_sf = np.zeros_like(sf) if self.done else sf
-  #     self.ms_sf, self.sf_loss = self.train_sf(bootstrap_sf)
-  #     self.episode_buffer_sf = []
-  #     self.sf_counter = 0
+  def SF_prediction(self, s1, o1):
+    self.sf_counter += 1
+    if self.config.eigen and (self.sf_counter == self.config.max_update_freq or self.done):
+      feed_dict = {self.local_network.observation: [s1]}
+      sf = self.sess.run(self.local_network.sf,
+                    feed_dict=feed_dict)[0]
+      sf = sf[o1]
+      bootstrap_sf = np.zeros_like(sf) if self.done else sf
+      self.ms_sf, self.sf_loss = self.train_sf(bootstrap_sf)
+      self.episode_buffer_sf = []
+      self.sf_counter = 0
 
   def next_frame_prediction(self):
     if len(self.aux_episode_buffer) > self.config.observation_steps and \
@@ -246,8 +246,8 @@ class SomAgent(BaseAgent):
     self.episode_actions.append(self.action)
 
   def store_general_info(self, s, s1, a, r):
-    # if self.config.eigen:
-    #   self.episode_buffer_sf.append([s, s1, a, self.option])
+    if self.config.eigen:
+      self.episode_buffer_sf.append([s, s1, a, self.option])
     if len(self.aux_episode_buffer) == self.config.memory_size:
       self.aux_episode_buffer.popleft()
 
@@ -340,30 +340,30 @@ class SomAgent(BaseAgent):
       self.global_network.directions = self.new_eigenvectors
       self.directions = self.global_network.directions
 
-  # def train_sf(self, bootstrap_sf):
-  #   rollout = np.array(self.episode_buffer_sf)
-  #
-  #   observations = rollout[:, 0]
-  #   options = rollout[:, 3]
-  #
-  #   feed_dict = {self.local_network.observation: np.stack(observations, axis=0)}
-  #   fi = self.sess.run(self.local_network.fi,
-  #                      feed_dict=feed_dict)
-  #   # fi = fi[np.arange(len(observations)), np.stack(options, axis=0)]
-  #
-  #   sf_plus = np.asarray(fi.tolist() + [bootstrap_sf])
-  #   discounted_sf = discount(sf_plus, self.config.discount)[:-1]
-  #
-  #   feed_dict = {self.local_network.target_sf: np.stack(discounted_sf, axis=0),
-  #                self.local_network.observation: np.stack(observations, axis=0)}  # ,
-  #
-  #   _, ms, sf_loss = \
-  #     self.sess.run([self.local_network.apply_grads_sf,
-  #                    self.local_network.merged_summary_sf,
-  #                    self.local_network.sf_loss],
-  #                   feed_dict=feed_dict)
-  #
-  #   return ms, sf_loss
+  def train_sf(self, bootstrap_sf):
+    rollout = np.array(self.episode_buffer_sf)
+
+    observations = rollout[:, 0]
+    options = rollout[:, 3]
+
+    feed_dict = {self.local_network.observation: np.stack(observations, axis=0)}
+    fi = self.sess.run(self.local_network.fi,
+                       feed_dict=feed_dict)
+    # fi = fi[np.arange(len(observations)), np.stack(options, axis=0)]
+
+    sf_plus = np.asarray(fi.tolist() + [bootstrap_sf])
+    discounted_sf = discount(sf_plus, self.config.discount)[:-1]
+
+    feed_dict = {self.local_network.target_sf: np.stack(discounted_sf, axis=0),
+                 self.local_network.observation: np.stack(observations, axis=0)}  # ,
+
+    _, ms, sf_loss = \
+      self.sess.run([self.local_network.apply_grads_sf,
+                     self.local_network.merged_summary_sf,
+                     self.local_network.sf_loss],
+                    feed_dict=feed_dict)
+
+    return ms, sf_loss
 
   def train_aux(self):
     minibatch = random.sample(self.aux_episode_buffer, self.config.batch_size)
