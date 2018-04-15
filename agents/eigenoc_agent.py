@@ -288,7 +288,7 @@ class EigenOCAgent(BaseAgent):
       matrix_sf = self.sess.run(self.local_network.sf, feed_dict=feed_dict)
 
       self.plot_sr_vectors(matrix_sf, "sr_stats")
-      _, eigenval, eigenvect = np.linalg.svd(matrix_sf, full_matrices=False)
+      _, eigenval, eigenvect = np.linalg.svd(matrix_sf, full_matrices=True)
       self.plot_basis_functions(eigenval, eigenvect, "sr_stats")
 
     for v in eigenvect:
