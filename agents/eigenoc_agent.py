@@ -34,7 +34,7 @@ class EigenOCAgent(BaseAgent):
     self.evalue = None
     tf.logging.info("Starting worker " + str(self.thread_id))
     self.aux_episode_buffer = deque()
-    self.ms_aux = self.ms_sf = self.ms_option = None
+    self.ms_aux = self.ms_sf = self.ms_option =  None
 
   def init_episode(self):
     self.episode_buffer_sf = []
@@ -278,32 +278,39 @@ class EigenOCAgent(BaseAgent):
     if self.config.eigen:
       new_eigenvectors = copy.deepcopy(self.global_network.directions)
       # matrix_sf = np.zeros((self.nb_states, self.config.sf_layers[-1]))
-      states_all = []
-      binary_map = []
+      states = []
+      # binary_map = []
       for idx in range(self.nb_states):
         s, ii, jj = self.env.fake_get_state(idx)
-        states_all.append(s)
         if self.env.not_wall(ii, jj):
-          binary_map.append(1)
-        else:
-          binary_map.append(0)
+          states.append(s)
+        # if self.env.not_wall(ii, jj):
+        #   binary_map.append(1)
+        # else:
+        #   binary_map.append(0)
 
-      feed_dict = {self.local_network.observation: states_all}
+      feed_dict = {self.local_network.observation: states}
       matrix_sf = self.sess.run(self.local_network.sf, feed_dict=feed_dict)
 
       # self.plot_sr_vectors(matrix_sf, "sr_stats")
 
-      matrix_sf = matrix_sf[binary_map == 1, :]
-      _, eigenval, eigenvect = np.linalg.svd(matrix_sf, full_matrices=True)
+      # matrix_sf = matrix_sf[binary_map == 1, :]
+      _, eigenval, eigenvect = np.linalg.svd(matrix_sf)
       # self.plot_basis_functions(eigenval, eigenvect, "sr_stats")
 
-      for v in eigenvect:
-        ci = np.argmax(
-              [self.cosine_similarity(v, d) for d in self.global_network.directions])
+      for ci in range(len(new_eigenvectors)):
+        cj = np.argmax(
+              [self.cosine_similarity(self.global_network.directions[ci], e) for e in eigenvect])
+        new_eigenvectors[ci] = self.config.tau * eigenvect[cj] + (1 - self.config.tau) * new_eigenvectors[ci]
+        del eigenvect[cj]
 
-        # sf_norm = np.linalg.norm(sf)
-        # sf_normalized = sf / (sf_norm + 1e-8)
-        new_eigenvectors[ci] = self.config.tau * v + (1 - self.config.tau) * new_eigenvectors[ci]
+      # for v in eigenvect:
+      #   ci = np.argmax(
+      #         [self.cosine_similarity(v, d) for d in self.global_network.directions])
+      #
+      #   # sf_norm = np.linalg.norm(sf)
+      #   # sf_normalized = sf / (sf_norm + 1e-8)
+      #   new_eigenvectors[ci] = self.config.tau * v + (1 - self.config.tau) * new_eigenvectors[ci]
 
       # feed_dict = {self.local_network.matrix_sf: [matrix_sf]}
       # eigenval, eigenvect = self.sess.run([self.local_network.eigenvalues, self.local_network.eigenvectors],
