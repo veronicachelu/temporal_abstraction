@@ -294,16 +294,27 @@ class EigenOCAgent(BaseAgent):
 
       # self.plot_sr_vectors(matrix_sf, "sr_stats")
 
-      # matrix_sf = matrix_sf[binary_map == 1, :]
-      _, eigenval, eigenvect = np.linalg.svd(matrix_sf)
-      # self.plot_basis_functions(eigenval, eigenvect, "sr_stats")
 
-      for ci in range(len(new_eigenvectors)):
+      #### varianta 1 #####
+      # _, eigenval, eigenvect = np.linalg.svd(matrix_sf)
+      # # self.plot_basis_functions(eigenval, eigenvect, "sr_stats")
+      #
+      # for ci in range(len(new_eigenvectors)):
+      #   cj = np.argmax(
+      #         [self.cosine_similarity(self.global_network.directions[ci], e) for e in eigenvect])
+      #   new_eigenvectors[ci] = self.config.tau * eigenvect[cj] + (1 - self.config.tau) * new_eigenvectors[ci]
+      #   # del eigenvect[cj]
+      #   eigenvect = np.concatenate((eigenvect[:cj], eigenvect[cj + 1:]), axis=0)
+      #   # eigenvect = eigenvect[:cj, :] + eigenvect[cj+1:, :]
+
+      #### varianta 2 #####
+
+      for sf in range(len(matrix_sf)):
         cj = np.argmax(
-              [self.cosine_similarity(self.global_network.directions[ci], e) for e in eigenvect])
-        new_eigenvectors[ci] = self.config.tau * eigenvect[cj] + (1 - self.config.tau) * new_eigenvectors[ci]
+          [self.cosine_similarity(c, sf) for c in self.global_network.directions])
+        new_eigenvectors[cj] = self.config.tau * sf + (1 - self.config.tau) * new_eigenvectors[cj]
         # del eigenvect[cj]
-        eigenvect = np.concatenate((eigenvect[:cj], eigenvect[cj + 1:]), axis=0)
+        # eigenvect = np.concatenate((eigenvect[:cj], eigenvect[cj + 1:]), axis=0)
         # eigenvect = eigenvect[:cj, :] + eigenvect[cj+1:, :]
 
       # for v in eigenvect:
