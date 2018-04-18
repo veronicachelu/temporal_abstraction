@@ -30,23 +30,25 @@ class SomNetwork(BaseNetwork):
       return out
 
   def build_reward_pred_net(self):
-    out = layers.fully_connected(self.fi_relu, num_outputs=1,
+    out = tf.stop_gradient(self.fi_relu)
+    out = layers.fully_connected(out, num_outputs=1,
                                  activation_fn=None, biases_initializer=None,
                                  variables_collections=tf.get_collection("variables"),
                                  outputs_collections="activations", scope="reward")
     self.summaries_reward.append(tf.contrib.layers.summarize_activation(out))
     self.r = out
 
-    with tf.variable_scope("reward_pred_i"):
-      self.options_placeholder = tf.placeholder(shape=[None], dtype=tf.int32, name="options")
-      self.options_fc = layers.fully_connected(tf.cast(self.options_placeholder, tf.float32)[..., None], num_outputs=self.sf_layers[-1],
-                                       activation_fn=None,
-
-                                       variables_collections=tf.get_collection("variables"),
-                                       outputs_collections="activations", scope="fc")
-
-    self.fi_o = tf.add(tf.stop_gradient(self.fi), self.options_fc)
-    out = layers.fully_connected(self.fi_o, num_outputs=1,
+    # with tf.variable_scope("reward_pred_i"):
+    #   self.options_placeholder = tf.placeholder(shape=[None], dtype=tf.int32, name="options")
+    #   self.options_fc = layers.fully_connected(tf.cast(self.options_placeholder, tf.float32)[..., None], num_outputs=self.sf_layers[-1],
+    #                                    activation_fn=None,
+    #
+    #                                    variables_collections=tf.get_collection("variables"),
+    #                                    outputs_collections="activations", scope="fc")
+    #
+    # self.fi_o = tf.add(tf.stop_gradient(self.fi), self.options_fc)
+    out = tf.stop_gradient(self.fi_relu)
+    out = layers.fully_connected(out, num_outputs=(self.nb_options + self.action_size),
                                  activation_fn=None, biases_initializer=None,
                                  variables_collections=tf.get_collection("variables"),
                                  outputs_collections="activations", scope="reward_i")
@@ -95,8 +97,9 @@ class SomNetwork(BaseNetwork):
 
     with tf.variable_scope("sf"):
       # self.fi_o = tf.add(tf.stop_gradient(self.fi), self.options_fc)
+      out = tf.stop_gradient(self.fi_relu)
       for i, nb_filt in enumerate(self.sf_layers):
-        out = layers.fully_connected(self.fi_relu, num_outputs=nb_filt * (self.nb_options + self.action_size),
+        out = layers.fully_connected(out, num_outputs=nb_filt * (self.nb_options + self.action_size),
                                      activation_fn=None,
                                      biases_initializer=None,
                                      variables_collections=tf.get_collection("variables"),
@@ -135,19 +138,19 @@ class SomNetwork(BaseNetwork):
                self.config.final_random_option_prob * tf.reduce_mean(self.q_val, axis=1)
       self.summaries_option.append(tf.contrib.layers.summarize_activation(self.v))
 
-  def build_eigen_option_q_val_net(self):
-    self.wg = self.get_w_g()
-
-    with tf.variable_scope("eigen_option_q_val"):
-      mixed_w = ((1 - self.config.alpha_r) * self.w + self.config.alpha_r * self.wg)
-      self.eigen_q_val = tf.map_fn(lambda x: tf.matmul(x, mixed_w), self.sf)
-      self.eigen_q_val = tf.squeeze(self.eigen_q_val, 2)
-      self.summaries_option.append(tf.contrib.layers.summarize_activation(self.eigen_q_val))
-      concatenated_eigen_q = self.eigen_q_val
-    self.eigenv = tf.reduce_max(concatenated_eigen_q, axis=1) * \
-                  (1 - self.config.final_random_option_prob) + \
-                  self.config.final_random_option_prob * tf.reduce_mean(concatenated_eigen_q, axis=1)
-    self.summaries_option.append(tf.contrib.layers.summarize_activation(self.eigenv))
+  # def build_eigen_option_q_val_net(self):
+  #   self.wg = self.get_w_g()
+  #
+  #   with tf.variable_scope("eigen_option_q_val"):
+  #     mixed_w = ((1 - self.config.alpha_r) * self.w + self.config.alpha_r * self.wg)
+  #     self.eigen_q_val = tf.map_fn(lambda x: tf.matmul(x, mixed_w), self.sf)
+  #     self.eigen_q_val = tf.squeeze(self.eigen_q_val, 2)
+  #     self.summaries_option.append(tf.contrib.layers.summarize_activation(self.eigen_q_val))
+  #     concatenated_eigen_q = self.eigen_q_val
+  #   self.eigenv = tf.reduce_max(concatenated_eigen_q, axis=1) * \
+  #                 (1 - self.config.final_random_option_prob) + \
+  #                 self.config.final_random_option_prob * tf.reduce_mean(concatenated_eigen_q, axis=1)
+  #   self.summaries_option.append(tf.contrib.layers.summarize_activation(self.eigenv))
 
 
   def build_network(self):
