@@ -279,6 +279,14 @@ class BaseNetwork():
       o_term = o_term > local_random
     return o_term
 
+  def get_o_r_i(self, o):
+    options_taken_one_hot = tf.one_hot(o, (
+      self.config.nb_options + self.action_size) if self.config.include_primitive_options else self.config.nb_options,
+                                       name="options_one_hot")
+    q_values_o = tf.reduce_sum(tf.multiply(self.r_i, options_taken_one_hot),
+                               reduction_indices=1, name="values_Q")
+    return q_values_o
+
   def layer_norm_fn(self, x, relu=True):
     x = layers.layer_norm(x, scale=True, center=True)
     if relu:

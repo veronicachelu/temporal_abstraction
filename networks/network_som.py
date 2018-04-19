@@ -170,8 +170,8 @@ class SomNetwork(BaseNetwork):
 
       _ = self.build_option_q_val_net()
 
-      if self.config.eigen:
-        self.build_eigen_option_q_val_net()
+      # if self.config.eigen:
+      #   self.build_eigen_option_q_val_net()
 
       if self.scope != 'global':
         self.build_placeholders(self.config.history_size)
@@ -196,6 +196,7 @@ class SomNetwork(BaseNetwork):
     #   eigen_q_val = self.get_eigen_q(self.options_placeholder)
     q_val = self.get_q(self.options_placeholder)
     o_term = self.get_o_term(self.options_placeholder)
+    r_i_o = self.get_o_r_i(self.options_placeholder)
 
     self.image_summaries.append(
       tf.summary.image('next', tf.concat([self.next_obs, self.target_next_obs], 2), max_outputs=30))
