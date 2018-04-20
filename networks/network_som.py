@@ -222,7 +222,7 @@ class SomNetwork(BaseNetwork):
       reward_error = self.r - self.target_r
     self.reward_loss = tf.reduce_mean(self.config.reward_coef * huber_loss(reward_error))
 
-    with tf.name_scope('instant_reward_in_loss'):
+    with tf.name_scope('reward_loss_i'):
       reward_i_error = r_i_o - self.target_r_i
     self.reward_i_loss = tf.reduce_mean(self.config.reward_i_coef * huber_loss(reward_i_error))
 
@@ -280,12 +280,12 @@ class SomNetwork(BaseNetwork):
       tf.summary.scalar('gradient_norm_option', grads_option_norm),
       gradient_summaries(zip(grads_option, local_vars))])
     self.merged_summary_reward = tf.summary.merge(self.summaries_reward + [
-      tf.summary.scalar('reward_loss', self.reward_loss),
+      tf.summary.scalar('avg_reward_loss', self.reward_loss),
       tf.summary.scalar('gradient_norm_reward', grads_reward_norm),
       gradient_summaries(zip(grads_reward, local_vars))])
 
     self.merged_summary_reward_i = tf.summary.merge(self.summaries_reward + [
-      tf.summary.scalar('reward_i_loss', self.reward_i_loss),
+      tf.summary.scalar('avg_reward_i_loss', self.reward_i_loss),
       tf.summary.scalar('gradient_norm_reward_i', grads_reward_i_norm),
       gradient_summaries(zip(grads_reward_i, local_vars))])
 

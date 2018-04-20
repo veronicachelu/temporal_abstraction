@@ -260,9 +260,16 @@ class SomAgent(BaseAgent):
         sf_normalized = sf / (sf_norm + 1e-8)
         # sf_normalized = tf.nn.l2_normalize(sf, axis=1)
         self.new_eigenvectors = self.config.tau * sf_normalized + (1 - self.config.tau) * self.new_eigenvectors
+        new_eigenvectors_norm = np.linalg.norm(self.new_eigenvectors, axis=1, keepdims=True)
+        self.new_eigenvectors =  self.new_eigenvectors / (new_eigenvectors_norm + 1e-8)
 
       for sf in sfs:
         move_option(sf)
+
+      # for sf in range(len(matrix_sf)):
+      #   cj = np.argmax(
+      #     [self.cosine_similarity(c, sf) for c in self.global_network.directions])
+      #   new_eigenvectors[cj] = self.config.tau * sf + (1 - self.config.tau) * new_eigenvectors[cj]
       # feed_dict = {self.local_network.matrix_sf: [matrix_sf]}
       # eigenval, eigenvect = self.sess.run([self.local_network.eigenvalues, self.local_network.eigenvectors],
       #                                     feed_dict=feed_dict)
@@ -336,15 +343,14 @@ class SomAgent(BaseAgent):
     rollout = np.array(minibatch)
     observations = rollout[:, 0]
     next_observations = rollout[:, 1]
-    r = rollout[:, 3]
-    r_i = rollout[:, 4]
-    o = rollout[:, 5]
+    r = rollout[:, 2]
+    r_i = rollout[:, 3]
+    o = rollout[:, 4]
     primitive = rollout[:, 5]
 
     feed_dict = {self.local_network.observation: np.stack(observations, axis=0),
                  self.local_network.target_next_obs: np.stack(next_observations, axis=0),
-                 self.local_network.target_r: r,
-                 self.local_network.target_r_i: r_i}
+                 self.local_network.target_r: r}
 
 
     r_loss, _, ms_r = \
