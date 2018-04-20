@@ -162,7 +162,7 @@ def eigenoc():
   fc_layers = 128,
   sf_layers = 128,
   aux_fc_layers = 507,
-  sf_coef = 10
+  sf_coef = 1
   batch_size = 16
   memory_size = 100000
   observation_steps = 16*4
@@ -175,8 +175,8 @@ def eigenoc():
   include_primitive_options = True
   sr_matrix_size = 169
   sr_matrix = "static"
-  goal_locations = [(11, 7), (5, 2)] #, (1, 10), (2, 2), (6, 2)]
-  # goal_locations = [(1, 11), (3, 2)]
+  # goal_locations = [(11, 7), (5, 2)] #, (1, 10), (2, 2), (6, 2)]
+  goal_locations = [(11, 7), (5, 2)]
   move_goal_nb_of_ep = 100
   tau = 0.1
   return locals()
