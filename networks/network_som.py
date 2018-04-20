@@ -250,7 +250,7 @@ class SomNetwork(BaseNetwork):
     with tf.name_scope('policy_loss'):
       advantage = tf.map_fn(lambda i: tf.matmul(self.sf_td_error_target[i][None, ...], wg_o[i]),
                             tf.range(tf.shape(self.sf_td_error_target)[0]), dtype=tf.float32)
-      advantage = tf.squeeze(advantage, axis=[1, 2])
+      self.advantage = tf.squeeze(advantage, axis=[1, 2])
       self.policy_loss = -tf.reduce_mean(tf.log(self.responsible_actions + 1e-7) * advantage)
 
     self.option_loss = self.policy_loss - self.entropy_loss + self.term_loss
@@ -266,6 +266,7 @@ class SomNetwork(BaseNetwork):
 
     self.merged_summary_sf = tf.summary.merge(
       self.summaries_sf + [tf.summary.scalar('avg_sf_loss', self.sf_loss),
+                           tf.summary.scalar('avg_sf_td_error', self.sf_td_error),
                            tf.summary.scalar('gradient_norm_sf', grads_sf_norm),
                            gradient_summaries(zip(grads_sf, local_vars))])
     self.merged_summary_aux = tf.summary.merge(self.image_summaries + self.summaries_aux +
@@ -277,6 +278,8 @@ class SomNetwork(BaseNetwork):
       tf.summary.scalar('avg_termination_loss', self.term_loss),
       tf.summary.scalar('avg_entropy_loss', self.entropy_loss),
       tf.summary.scalar('avg_policy_loss', self.policy_loss),
+      tf.summary.scalar('advantage', self.advantage),
+      tf.summary.scalar('avg_option_loss', self.option_loss),
       tf.summary.scalar('gradient_norm_option', grads_option_norm),
       gradient_summaries(zip(grads_option, local_vars))])
     self.merged_summary_reward = tf.summary.merge(self.summaries_reward + [
