@@ -176,11 +176,11 @@ class SomAgent(BaseAgent):
         self.log_episode()
         self.update_episode_stats()
 
-        if self.episode_count % self.config.episode_eval_interval == 0 and \
-                self.name == 'worker_0' and self.episode_count != 0:
-          tf.logging.info("Evaluating agent....")
-          eval_episodes_won, mean_ep_length = self.evaluate_agent()
-          self.write_eval_summary(eval_episodes_won, mean_ep_length)
+        # if self.episode_count % self.config.episode_eval_interval == 0 and \
+        #         self.name == 'worker_0' and self.episode_count != 0:
+        #   tf.logging.info("Evaluating agent....")
+        #   eval_episodes_won, mean_ep_length = self.evaluate_agent()
+        #   self.write_eval_summary(eval_episodes_won, mean_ep_length)
 
         if self.episode_count % self.config.move_goal_nb_of_ep == 0 and \
                 self.name == 'worker_0' and self.episode_count != 0:
