@@ -266,7 +266,7 @@ class SomNetwork(BaseNetwork):
 
     self.merged_summary_sf = tf.summary.merge(
       self.summaries_sf + [tf.summary.scalar('avg_sf_loss', self.sf_loss),
-                           tf.summary.scalar('avg_sf_td_error', self.sf_td_error),
+                           tf.summary.scalar('avg_sf_td_error', tf.reduce_mean(self.sf_td_error, 1)),
                            tf.summary.scalar('gradient_norm_sf', grads_sf_norm),
                            gradient_summaries(zip(grads_sf, local_vars))])
     self.merged_summary_aux = tf.summary.merge(self.image_summaries + self.summaries_aux +
