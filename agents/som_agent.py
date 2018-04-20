@@ -21,6 +21,7 @@ FLAGS = tf.app.flags.FLAGS
 class SomAgent(BaseAgent):
   def __init__(self, game, thread_id, global_step, config, global_network):
     super(SomAgent, self).__init__(game, thread_id, global_step, config, global_network)
+    self.update_local_vars_reward = update_target_graph_reward('global', self.name)
 
   def init_play(self, sess, saver):
     self.sess = sess
@@ -37,7 +38,7 @@ class SomAgent(BaseAgent):
     self.aux_episode_buffer = deque()
     self.reward_pred_episode_buffer = deque()
     self.ms_aux = self.ms_sf = self.ms_option = self.ms_reward = self.ms_reward_i = None
-    self.update_local_vars_reward = update_target_graph_reward('global', self.name)
+
 
   def init_episode(self):
     self.episode_buffer_sf = []
@@ -103,6 +104,7 @@ class SomAgent(BaseAgent):
   def sync_threads(self, force=False):
     if force:
       self.sess.run(self.update_local_vars_aux)
+      self.sess.run(self.update_local_vars_sf)
       self.sess.run(self.update_local_vars_option)
       self.sess.run(self.update_local_vars_reward)
     else:
@@ -110,6 +112,8 @@ class SomAgent(BaseAgent):
         self.sess.run(self.update_local_vars_aux)
       if self.total_steps % self.config.target_update_iter_reward == 0:
         self.sess.run(self.update_local_vars_reward)
+      if self.total_steps % self.config.target_update_iter_sf == 0:
+        self.sess.run(self.update_local_vars_sf)
       if self.total_steps % self.config.target_update_iter_option == 0:
         self.sess.run(self.update_local_vars_option)
 
