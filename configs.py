@@ -259,10 +259,12 @@ def som():
   sr_matrix = "static"
   goal_locations = [(11, 7), (5, 2), (1, 10), (2, 2), (6, 2)]
   # goal_locations = [(1, 11), (3, 2)]
-  move_goal_nb_of_ep = 1000
+  move_goal_nb_of_ep = 500
   reward_update_freq = 1
   target_update_iter_reward = 1
   tau = 0.1
   reward_coef = 1
   reward_i_coef = 1
+  adam_epsilon = 1e-08
+
   return locals()
