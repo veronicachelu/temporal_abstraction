@@ -278,7 +278,7 @@ class SomNetwork(BaseNetwork):
       tf.summary.scalar('avg_termination_loss', self.term_loss),
       tf.summary.scalar('avg_entropy_loss', self.entropy_loss),
       tf.summary.scalar('avg_policy_loss', self.policy_loss),
-      tf.summary.scalar('advantage', self.advantage),
+      tf.summary.scalar('advantage', tf.reduce_mean(self.advantage)),
       tf.summary.scalar('avg_option_loss', self.option_loss),
       tf.summary.scalar('gradient_norm_option', grads_option_norm),
       gradient_summaries(zip(grads_option, local_vars))])
