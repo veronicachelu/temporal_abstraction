@@ -251,7 +251,7 @@ class SomNetwork(BaseNetwork):
       advantage = tf.map_fn(lambda i: tf.matmul(self.sf_td_error_target[i][None, ...], wg_o[i]),
                             tf.range(tf.shape(self.sf_td_error_target)[0]), dtype=tf.float32)
       self.advantage = tf.squeeze(advantage, axis=[1, 2])
-      self.policy_loss = -tf.reduce_mean(tf.log(self.responsible_actions + 1e-7) * advantage)
+      self.policy_loss = -tf.reduce_mean(tf.log(self.responsible_actions + 1e-7) * tf.stop_gradient(advantage))
 
     self.option_loss = self.policy_loss - self.entropy_loss + self.term_loss
 
