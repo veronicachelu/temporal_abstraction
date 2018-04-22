@@ -415,7 +415,7 @@ class BaseAgent():
     tf.gfile.MakeDirs(folder_path)
 
     counter = 0
-    for option in self.config.nb_options:
+    for option in range(self.config.nb_options):
       for i in range(self.nb_states):
         aa, bb = self.env.get_state_xy(i)
         if self.env.not_wall(aa, bb):
@@ -437,7 +437,7 @@ class BaseAgent():
                 )
               )
 
-          sns.plt.savefig(os.path.join(folder_path, 'SR_VECTOR_{}_o_{}.png'.format(i, option)))
+          sns.plt.savefig(os.path.join(folder_path, 'SR_ECTOR_{}_o_{}.png'.format(i, option)))
           sns.plt.close()
 
   def plot_basis_functions(self, eigenvectors, folder):
