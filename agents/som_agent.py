@@ -642,25 +642,26 @@ class SomAgent(BaseAgent):
             facecolor="gray"
           )
         )
-        plt.gca().add_patch(
-          patches.Rectangle(
-            (j, self.config.input_size[0] - i - 1),  # (x,y)
-            1.0,  # width
-            1.0,  # height
-            facecolor=option_colors[o]
-          )
+        continue
+      plt.gca().add_patch(
+        patches.Rectangle(
+          (j, self.config.input_size[0] - i - 1),  # (x,y)
+          1.0,  # width
+          1.0,  # height
+          facecolor=option_colors[o]
         )
+      )
 
-        plt.xlim([0, self.config.input_size[1]])
-        plt.ylim([0, self.config.input_size[0]])
+    plt.xlim([0, self.config.input_size[1]])
+    plt.ylim([0, self.config.input_size[0]])
 
-        for i in range(self.config.input_size[1]):
-          plt.axvline(i, color='k', linestyle=':')
-        plt.axvline(self.config.input_size[1], color='k', linestyle=':')
+    for i in range(self.config.input_size[1]):
+      plt.axvline(i, color='k', linestyle=':')
+    plt.axvline(self.config.input_size[1], color='k', linestyle=':')
 
-        for j in range(self.config.input_size[0]):
-          plt.axhline(j, color='k', linestyle=':')
-        plt.axhline(self.config.input_size[0], color='k', linestyle=':')
+    for j in range(self.config.input_size[0]):
+      plt.axhline(j, color='k', linestyle=':')
+    plt.axhline(self.config.input_size[0], color='k', linestyle=':')
 
-        plt.savefig(os.path.join(self.stats_path,  "Option_map.png"))
-        plt.close()
+    plt.savefig(os.path.join(self.stats_path,  "Option_map.png"))
+    plt.close()
