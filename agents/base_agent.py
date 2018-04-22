@@ -408,3 +408,66 @@ class BaseAgent():
 
           plt.savefig(os.path.join(self.summary_path, "Option_" + prefix + 'policy.png'))
           plt.close()
+
+  def plot_sr_vectors(self, matrix, folder):
+    sns.plt.clf()
+    folder_path = os.path.join(os.path.join(self.config.stage_logdir, "summaries"), folder)
+    tf.gfile.MakeDirs(folder_path)
+
+    counter = 0
+    for i in range(self.nb_states):
+      aa, bb = self.env.get_state_xy(i)
+      if self.env.not_wall(aa, bb):
+        Z = matrix[counter].reshape(self.config.input_size[0], self.config.input_size[1])
+        ax = sns.heatmap(Z, cmap="Blues")
+        counter += 1
+
+        for idx in range(self.nb_states):
+          ii, jj = self.env.get_state_xy(idx)
+          if self.env.not_wall(ii, jj):
+            continue
+          else:
+            sns.plt.gca().add_patch(
+              patches.Rectangle(
+                (jj, self.config.input_size[0] - ii - 1),  # (x,y)
+                1.0,  # width
+                1.0,  # height
+                facecolor="gray"
+              )
+            )
+
+        sns.plt.savefig(os.path.join(folder_path, "SR_VECTOR_" + str(i) + '.png'))
+        sns.plt.close()
+
+  def plot_basis_functions(self, eigenvectors, folder):
+    sns.plt.clf()
+    folder_path = os.path.join(os.path.join(self.config.stage_logdir, "summaries"), folder)
+    for i in range(len(eigenvectors)):
+      Z = eigenvectors[i].reshape(self.config.input_size[0], self.config.input_size[1])
+      ax = sns.heatmap(Z, cmap="Blues")
+
+      for idx in range(self.nb_states):
+        ii, jj = self.env.get_state_xy(idx)
+        if self.env.not_wall(ii, jj):
+         continue
+        else:
+          sns.plt.gca().add_patch(
+            patches.Rectangle(
+              (jj, self.config.input_size[0] - ii - 1),  # (x,y)
+              1.0,  # width
+              1.0,  # height
+              facecolor="gray"
+            )
+          )
+      sns.plt.savefig(os.path.join(folder_path, ("Eigenvector" + str(i) + '_eig.png')))
+      sns.plt.close()
+
+    sns.plt.savefig(self.summary_path + 'eigenvalues.png')
+
+  def plot_sr_matrix(self, matrix, folder):
+    plt.clf()
+    ax = sns.heatmap(matrix, cmap="Blues")
+    folder_path = os.path.join(os.path.join(self.config.stage_logdir, "summaries"), folder)
+    tf.gfile.MakeDirs(folder_path)
+    plt.savefig(os.path.join(folder_path, 'SR_matrix.png'))
+    plt.close()

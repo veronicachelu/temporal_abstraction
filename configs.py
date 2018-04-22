@@ -241,8 +241,8 @@ def som():
   eigen = True
   network = SomNetwork
 
-  fc_layers = 128,
-  sf_layers = 128,
+  fc_layers = 169,
+  sf_layers = 169,
   aux_fc_layers = 507,
 
   batch_size = 16
@@ -259,12 +259,13 @@ def som():
   sr_matrix = "static"
   goal_locations = [(11, 7), (5, 2), (1, 10), (2, 2), (6, 2)]
   # goal_locations = [(1, 11), (3, 2)]
-  move_goal_nb_of_ep = 500
+  move_goal_nb_of_ep = 1000
   reward_update_freq = 1
   target_update_iter_reward = 1
   tau = 0.1
   reward_coef = 1
   reward_i_coef = 1
   adam_epsilon = 1e-08
+  plot_every = 10
 
   return locals()

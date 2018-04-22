@@ -128,7 +128,8 @@ class SomAgent(BaseAgent):
         self.sync_threads()
 
         if self.name == "worker_0" and self.episode_count > 0:
-          self.recompute_eigenvectors_classic()
+          plotting = self.total_steps % self.config.plot_every == 0
+          self.recompute_eigenvectors_classic(plotting)
 
         self.load_directions()
         self.init_episode()
@@ -238,7 +239,7 @@ class SomAgent(BaseAgent):
     self.aux_episode_buffer.append([s, s1, a])
     self.episode_reward += r
 
-  def recompute_eigenvectors_classic(self):
+  def recompute_eigenvectors_classic(self, plotting=False):
     if self.config.eigen:
       self.new_eigenvectors = copy.deepcopy(self.global_network.directions)
       # matrix_sf = np.zeros((self.nb_states, self.config.sf_layers[-1]))
@@ -248,12 +249,6 @@ class SomAgent(BaseAgent):
         if self.env.not_wall(ii, jj):
           states.append(s)
 
-      # options = range(0, (self.config.nb_options + self.action_size))
-      # option_values = options * len(states)
-      # states_values = np.repeat(states, len(options))
-
-      # states_values = states * len(options)
-      # option_values = np.repeat(options, len(states))
 
       feed_dict = {self.local_network.observation: states}
       sfs = self.sess.run(self.local_network.sf, feed_dict=feed_dict)
@@ -270,17 +265,9 @@ class SomAgent(BaseAgent):
       for sf in sfs:
         move_option(sf)
 
-      # for sf in range(len(matrix_sf)):
-      #   cj = np.argmax(
-      #     [self.cosine_similarity(c, sf) for c in self.global_network.directions])
-      #   new_eigenvectors[cj] = self.config.tau * sf + (1 - self.config.tau) * new_eigenvectors[cj]
-      # feed_dict = {self.local_network.matrix_sf: [matrix_sf]}
-      # eigenval, eigenvect = self.sess.run([self.local_network.eigenvalues, self.local_network.eigenvectors],
-      #                                     feed_dict=feed_dict)
-      # eigenval, eigenvect = eigenval[0], eigenvect[0]
-      # _, eigenval, eigenvect = np.linalg.svd(matrix_sf, full_matrices=False)
-      # eigenvalues = eigenval[self.config.first_eigenoption:self.config.nb_options + self.config.first_eigenoption]
-      # new_eigenvectors = eigenvect[self.config.first_eigenoption:self.config.nb_options + self.config.first_eigenoption]
+      if plotting:
+        self.plot_sr_vectors(sfs, "sr_stats")
+        self.plot_sr_matrix(sfs, "sr_stats")
 
       min_similarity = np.min(
         [self.cosine_similarity(a, b) for a, b in zip(self.global_network.directions, self.new_eigenvectors)])
@@ -294,9 +281,11 @@ class SomAgent(BaseAgent):
       self.summary.value.add(tag='Eigenvectors/Mean similarity', simple_value=float(mean_similarity))
       self.summary_writer.add_summary(self.summary, self.episode_count)
       self.summary_writer.flush()
-      # tf.logging.warning("Min cosine similarity between old eigenvectors and recomputed onesis {}".format(min_similarity))
       self.global_network.directions = self.new_eigenvectors
       self.directions = self.global_network.directions
+
+      if plotting:
+        self.plot_basis_functions(self.directions, "sr_stats")
 
   def train_sf(self, bootstrap_sf):
     rollout = np.array(self.episode_buffer_sf)
