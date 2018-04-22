@@ -613,11 +613,11 @@ class SomAgent(BaseAgent):
       writer.writeheader()
       total_timesteps_in_state = np.sum(self.stats_options, axis=1)[..., None]
       self.stats_options = self.stats_options / total_timesteps_in_state
-      for s in self.nb_states:
-        writer.writerow({'State': str(s), 'Option_0': self.stats_options[s][0], 'Option_1': self.stats_options[s][1],
-                         'Option_2': self.stats_options[s][2], 'Option_3': self.stats_options[s][3],
-                         'Option_4': self.stats_options[s][4], 'Option_5': self.stats_options[s][5],
-                         'Option_6': self.stats_options[s][6], 'Option_7': self.stats_options[s][7]})
+      for s in range(self.nb_states):
+        writer.writerow({'State': str(s), 'Option_0': self.stats_options[s, 0], 'Option_1': self.stats_options[s, 1],
+                         'Option_2': self.stats_options[s, 2], 'Option_3': self.stats_options[s, 3],
+                         'Option_4': self.stats_options[s, 4], 'Option_5': self.stats_options[s, 5],
+                         'Option_6': self.stats_options[s, 6], 'Option_7': self.stats_options[s, 7]})
 
     with open('summary_stats.csv', 'w', newline='') as csvfile:
       spamwriter = csv.writer(csvfile, delimiter=' ',
