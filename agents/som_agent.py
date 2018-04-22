@@ -655,7 +655,7 @@ class SomAgent(BaseAgent):
       )
 
       x, y = self.env.get_state_xy(idx)
-      states = [] #up, right, down, left
+      states = [] #up, right, down, leftƒpo
       if x - 1 > 0:
         states.append((x-1, y))
       if y + 1 < self.config.input_size[1]:
@@ -666,7 +666,7 @@ class SomAgent(BaseAgent):
         states.append((x, y - 1))
 
       state_idxs = [self.env.get_state_index(x, y) for x, y in states]
-      possible_next_states = [self.env.fake_get_state(idx) for idx in state_idxs]
+      possible_next_states = [self.env.fake_get_state(idx)[0] for idx in state_idxs]
 
 
       feed_dict = {self.local_network.observation: np.stack([s] + possible_next_states)}
