@@ -10,6 +10,8 @@ class SomNetwork(BaseNetwork):
   def __init__(self, scope, config, action_size, total_steps_tensor=None):
     super(SomNetwork, self).__init__(scope, config, action_size, total_steps_tensor)
     self.summaries_reward = []
+    self.random_option_prob = tf.Variable(self.config.initial_random_option_prob, trainable=False,
+                                                   name="prob_of_random_option", dtype=tf.float32)
     self.build_network()
 
   def build_feature_net(self, out):
@@ -126,7 +128,7 @@ class SomNetwork(BaseNetwork):
                                            dtype=tf.int32)
       self.local_random = tf.random_uniform(shape=[tf.shape(self.q_val)[0]], minval=0., maxval=1., dtype=tf.float32,
                                             name="rand_options")
-      self.condition = self.local_random > self.config.final_random_option_prob
+      self.condition = self.local_random > self.random_option_prob
 
       self.current_option = tf.where(self.condition, self.max_options, self.exp_options)
       self.primitive_action = tf.where(self.current_option >= self.nb_options,
@@ -136,21 +138,6 @@ class SomNetwork(BaseNetwork):
       self.v = self.max_q_val * (1 - self.config.final_random_option_prob) + \
                self.config.final_random_option_prob * tf.reduce_mean(self.q_val, axis=1)
       self.summaries_option.append(tf.contrib.layers.summarize_activation(self.v))
-
-  # def build_eigen_option_q_val_net(self):
-  #   self.wg = self.get_w_g()
-  #
-  #   with tf.variable_scope("eigen_option_q_val"):
-  #     mixed_w = ((1 - self.config.alpha_r) * self.w + self.config.alpha_r * self.wg)
-  #     self.eigen_q_val = tf.map_fn(lambda x: tf.matmul(x, mixed_w), self.sf)
-  #     self.eigen_q_val = tf.squeeze(self.eigen_q_val, 2)
-  #     self.summaries_option.append(tf.contrib.layers.summarize_activation(self.eigen_q_val))
-  #     concatenated_eigen_q = self.eigen_q_val
-  #   self.eigenv = tf.reduce_max(concatenated_eigen_q, axis=1) * \
-  #                 (1 - self.config.final_random_option_prob) + \
-  #                 self.config.final_random_option_prob * tf.reduce_mean(concatenated_eigen_q, axis=1)
-  #   self.summaries_option.append(tf.contrib.layers.summarize_activation(self.eigenv))
-
 
   def build_network(self):
     with tf.variable_scope(self.scope):
@@ -170,8 +157,8 @@ class SomNetwork(BaseNetwork):
 
       _ = self.build_option_q_val_net()
 
-      # if self.config.eigen:
-      #   self.build_eigen_option_q_val_net()
+      self.decrease_prob_of_random_option = tf.assign_sub(self.random_option_prob, tf.constant(
+        (self.config.initial_random_option_prob - self.config.final_random_option_prob) / self.config.explore_options_episodes))
 
       if self.scope != 'global':
         self.build_placeholders(self.config.history_size)

@@ -48,7 +48,9 @@ def default():
   episodes = 1e6  # 1M
 
   final_random_option_prob = 0.1
+  initial_random_option_prob = 1
   final_random_action_prob = 0.01
+  explore_options_episodes = 2000
 
   nb_test_ep = 100
   max_length = 3000
