@@ -665,17 +665,19 @@ class SomAgent(BaseAgent):
       if y - 1 > 0:
         states.append((x, y - 1))
 
-      state_idxs = [self.env.get_state_index(x, y) for x, y in states]
-      possible_next_states = [self.env.fake_get_state(idx)[0] for idx in state_idxs]
+      if o >= self.nb_options:
+        a = o - self.nb_options
+      else:
+        state_idxs = [self.env.get_state_index(x, y) for x, y in states]
+        possible_next_states = [self.env.fake_get_state(idx)[0] for idx in state_idxs]
 
+        feed_dict = {self.local_network.observation: np.stack([s] + possible_next_states)}
+        fis = self.sess.run(self.local_network.fi, feed_dict=feed_dict)
+        fi_s = fis[0]
 
-      feed_dict = {self.local_network.observation: np.stack([s] + possible_next_states)}
-      fis = self.sess.run(self.local_network.fi, feed_dict=feed_dict)
-      fi_s = fis[0]
-
-      fi_diffs = fi_s - fis[1:]
-      cosine_sims = [self.cosine_similarity(d, self.directions[o]) for d in fi_diffs]
-      a = np.argmax(cosine_sims)
+        fi_diffs = fi_s - fis[1:]
+        cosine_sims = [self.cosine_similarity(d, self.directions[o]) for d in fi_diffs]
+        a = np.argmax(cosine_sims)
 
       if a  == 0:  # up
         dy = 0.35
