@@ -611,7 +611,7 @@ class SomAgent(BaseAgent):
       writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
 
       writer.writeheader()
-      total_timesteps_in_state = np.sum(self.stats_options, axis=1)
+      total_timesteps_in_state = np.sum(self.stats_options, axis=1)[..., None]
       self.stats_options = self.stats_options / total_timesteps_in_state
       for s in self.nb_states:
         writer.writerow({'State': str(s), 'Option_0': self.stats_options[s][0], 'Option_1': self.stats_options[s][1],
