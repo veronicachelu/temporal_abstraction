@@ -647,7 +647,7 @@ class SomAgent(BaseAgent):
             (j, self.config.input_size[0] - i - 1),  # (x,y)
             1.0,  # width
             1.0,  # height
-            facecolor=option_colors[d]
+            facecolor=option_colors[o]
           )
         )
 
