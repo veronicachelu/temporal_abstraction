@@ -414,8 +414,8 @@ class BaseAgent():
     folder_path = os.path.join(os.path.join(self.config.stage_logdir, "summaries"), folder)
     tf.gfile.MakeDirs(folder_path)
 
-    counter = 0
     for option in range(self.config.nb_options):
+      counter = 0
       for i in range(self.nb_states):
         aa, bb = self.env.get_state_xy(i)
         if self.env.not_wall(aa, bb):
