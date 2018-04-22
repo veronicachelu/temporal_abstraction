@@ -273,7 +273,7 @@ class SomAgent(BaseAgent):
         move_option(sf)
 
       if plotting:
-        self.plot_sr_vectors(sfs, "sr_stats")
+        # self.plot_sr_vectors(sfs, "sr_stats")
         self.plot_sr_matrix(sfs, "sr_stats")
 
       min_similarity = np.min(

@@ -470,6 +470,6 @@ class BaseAgent():
     folder_path = os.path.join(os.path.join(self.config.stage_logdir, "summaries"), folder)
     tf.gfile.MakeDirs(folder_path)
     for option in range(self.config.nb_options):
-      ax = sns.heatmap(matrix[np.arange(len(matrix))][option][:], cmap="Blues")
+      ax = sns.heatmap(matrix[:, option, :], cmap="Blues")
       plt.savefig(os.path.join(folder_path, 'SR_matrix_o_{}.png'.format(option)))
       plt.close()
