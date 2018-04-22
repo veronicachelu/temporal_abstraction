@@ -16,6 +16,7 @@ import random
 import copy
 from tools.agent_utils import update_target_graph_reward
 FLAGS = tf.app.flags.FLAGS
+import csv
 
 
 class SomAgent(BaseAgent):
@@ -552,6 +553,7 @@ class SomAgent(BaseAgent):
     # tf.logging.warning("Writing step summary....")
 
   def write_episode_summary(self, r):
+    self.write_episode_summary_stats()
     self.summary = tf.Summary()
     if len(self.episode_rewards) != 0:
       last_reward = self.episode_rewards[-1]
@@ -599,3 +601,24 @@ class SomAgent(BaseAgent):
     for op, option_lengths in enumerate(self.episode_options_lengths):
       if len(option_lengths) != 0:
         self.episode_mean_options_lengths[op] = np.mean(option_lengths)
+
+  def write_episode_summary_stats(self):
+    with open('summary_stats.csv', 'w', newline='') as csvfile:
+      fieldnames = ['State', 'Option_0', 'Option_1', 'Option_2', 'Option_3',
+                    'Option_4', 'Option_5', 'Option_6', 'Option_7']
+      writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+
+      writer.writeheader()
+      total_timesteps_in_state = np.sum(self.stats_options, axis=1)
+      self.stats_options = self.stats_options / total_timesteps_in_state
+      for s in self.nb_states:
+        writer.writerow({'State': str(s), 'Option_0': self.stats_options[s][0], 'Option_1': self.stats_options[s][1],
+                         'Option_2': self.stats_options[s][2], 'Option_3': self.stats_options[s][3],
+                         'Option_4': self.stats_options[s][4], 'Option_5': self.stats_options[s][5],
+                         'Option_6': self.stats_options[s][6], 'Option_7': self.stats_options[s][7]})
+
+    with open('summary_stats.csv', 'w', newline='') as csvfile:
+      spamwriter = csv.writer(csvfile, delimiter=' ',
+                              quotechar='|', quoting=csv.QUOTE_MINIMAL)
+      spamwriter.writerow(['Spam'] * 5 + ['Baked Beans'])
+      spamwriter.writerow(['Spam', 'Lovely Spam', 'Wonderful Spam'])
