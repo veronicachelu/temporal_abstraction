@@ -23,6 +23,8 @@ class SomAgent(BaseAgent):
   def __init__(self, game, thread_id, global_step, config, global_network):
     super(SomAgent, self).__init__(game, thread_id, global_step, config, global_network)
     self.update_local_vars_reward = update_target_graph_reward('global', self.name)
+    self.stats_path = os.path.join(self.summary_path, 'stats')
+    tf.gfile.MakeDirs(self.stats_path)
 
   def init_play(self, sess, saver):
     self.sess = sess
@@ -603,7 +605,7 @@ class SomAgent(BaseAgent):
         self.episode_mean_options_lengths[op] = np.mean(option_lengths)
 
   def write_episode_summary_stats(self):
-    with open('summary_stats.csv', 'w', newline='') as csvfile:
+    with open(os.path.join(self.stats_path, 'summary_stats.csv'), 'w', newline='') as csvfile:
       fieldnames = ['State', 'Option_0', 'Option_1', 'Option_2', 'Option_3',
                     'Option_4', 'Option_5', 'Option_6', 'Option_7']
       writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
