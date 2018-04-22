@@ -88,8 +88,9 @@ class GridWorld:
   def reset(self):
     s = self.get_initial_state()
     screen = self.build_screen()
+    stateIdx = self.get_state_index(self.agentX, self.agentY)
 
-    return screen
+    return screen, stateIdx
 
   def read_file(self, load_path):
     with open(load_path, "r") as f:

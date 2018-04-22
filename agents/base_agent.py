@@ -467,8 +467,9 @@ class BaseAgent():
 
   def plot_sr_matrix(self, matrix, folder):
     plt.clf()
-    ax = sns.heatmap(matrix, cmap="Blues")
     folder_path = os.path.join(os.path.join(self.config.stage_logdir, "summaries"), folder)
     tf.gfile.MakeDirs(folder_path)
-    plt.savefig(os.path.join(folder_path, 'SR_matrix.png'))
-    plt.close()
+    for option in range(self.config.nb_options):
+      ax = sns.heatmap(matrix[np.arange(len(matrix))][option], cmap="Blues")
+      plt.savefig(os.path.join(folder_path, 'SR_matrix_o_{}.png'.format(option)))
+      plt.close()

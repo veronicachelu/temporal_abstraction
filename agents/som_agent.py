@@ -38,7 +38,7 @@ class SomAgent(BaseAgent):
     self.aux_episode_buffer = deque()
     self.reward_pred_episode_buffer = deque()
     self.ms_aux = self.ms_sf = self.ms_option = self.ms_reward = self.ms_reward_i = None
-
+    self.stats_options = np.zeros((self.nb_states, self.nb_options + self.action_size))
 
   def init_episode(self):
     self.episode_buffer_sf = []
@@ -135,13 +135,13 @@ class SomAgent(BaseAgent):
         self.load_directions()
         self.init_episode()
 
-        s = self.env.reset()
-        self.option_evaluation(s)
+        s, s_idx = self.env.reset()
+        self.option_evaluation(s, s_idx)
         while not self.done:
           self.sync_threads()
           self.policy_evaluation(s)
 
-          s1, r, self.done, _ = self.env.step(self.action)
+          s1, r, self.done, s1_idx = self.env.step(self.action)
 
           r = np.clip(r, -1, 1)
           if self.done:
@@ -160,7 +160,7 @@ class SomAgent(BaseAgent):
               if not self.primitive_action:
                 self.episode_options_lengths[self.option][-1] = self.episode_len - \
                                                                 self.episode_options_lengths[self.option][-1]
-              self.option_evaluation(s1)
+              self.option_evaluation(s1, s1_idx)
 
             self.SF_option_prediction(s, self.old_option, s1, self.option, self.action, self.primitive_action)
 
@@ -201,11 +201,14 @@ class SomAgent(BaseAgent):
           sess.run(self.increment_global_step)
         self.episode_count += 1
 
-  def option_evaluation(self, s):
+  def option_evaluation(self, s, s_idx):
     feed_dict = {self.local_network.observation: np.stack([s])}
     self.option, self.primitive_action = self.sess.run(
       [self.local_network.current_option, self.local_network.primitive_action], feed_dict=feed_dict)
     self.option, self.primitive_action = self.option[0], self.primitive_action[0]
+
+    self.stats_options[s_idx][self.option] += 1
+
     self.episode_options.append(self.option)
     if not self.primitive_action:
       self.episode_options_lengths[self.option].append(self.episode_len)
