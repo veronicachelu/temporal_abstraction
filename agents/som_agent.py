@@ -132,7 +132,7 @@ class SomAgent(BaseAgent):
 
         if self.name == "worker_0" and self.episode_count > 0:
           # plotting = self.episode_count % self.config.plot_every == 0
-          plotting = True
+          plotting = False
           self.recompute_eigenvectors_classic(plotting)
 
         self.load_directions()
