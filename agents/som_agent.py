@@ -59,7 +59,7 @@ class SomAgent(BaseAgent):
     self.option_counter = 0
     self.R = 0
     self.eigen_R = 0
-    self.stats_options = np.zeros((self.nb_states, self.nb_options + self.action_size))
+    # self.stats_options = np.zeros((self.nb_states, self.nb_options + self.action_size))
     # self.ms_aux = self.ms_sf = self.ms_reward = self.ms_option = None
 
   def SF_option_prediction(self, s, o, s1, o1, a, primitive):
@@ -605,22 +605,61 @@ class SomAgent(BaseAgent):
         self.episode_mean_options_lengths[op] = np.mean(option_lengths)
 
   def write_episode_summary_stats(self):
-    with open(os.path.join(self.stats_path, 'summary_stats.csv'), 'w', newline='') as csvfile:
-      fieldnames = ['State', 'Option_0', 'Option_1', 'Option_2', 'Option_3',
-                    'Option_4', 'Option_5', 'Option_6', 'Option_7']
-      writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+    # with open(os.path.join(self.stats_path, 'summary_stats.csv'), 'w', newline='') as csvfile:
+    #   fieldnames = ['State', 'Option_0', 'Option_1', 'Option_2', 'Option_3',
+    #                 'Option_4', 'Option_5', 'Option_6', 'Option_7']
+    #   writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+    #
+    #   writer.writeheader()
+      # total_timesteps_in_state = np.sum(self.stats_options, axis=1)[..., None]
+      # stats_options = self.stats_options / (total_timesteps_in_state + 1e-12)
+    most_chosen_options = np.argmax(self.stats_options, axis=1)
+    #   for s in range(self.nb_states):
+    #     writer.writerow({'State': str(s), 'Option_0': self.stats_options[s, 0], 'Option_1': self.stats_options[s, 1],
+    #                      'Option_2': self.stats_options[s, 2], 'Option_3': self.stats_options[s, 3],
+    #                      'Option_4': self.stats_options[s, 4], 'Option_5': self.stats_options[s, 5],
+    #                      'Option_6': self.stats_options[s, 6], 'Option_7': self.stats_options[s, 7]})
+    #
+    # with open('summary_stats.csv', 'w', newline='') as csvfile:
+    #   spamwriter = csv.writer(csvfile, delimiter=' ',
+    #                           quotechar='|', quoting=csv.QUOTE_MINIMAL)
+    #   spamwriter.writerow(['Spam'] * 5 + ['Baked Beans'])
+    #   spamwriter.writerow(['Spam', 'Lovely Spam', 'Wonderful Spam'])
 
-      writer.writeheader()
-      total_timesteps_in_state = np.sum(self.stats_options, axis=1)[..., None]
-      self.stats_options = self.stats_options / (total_timesteps_in_state + 1e-12)
-      for s in range(self.nb_states):
-        writer.writerow({'State': str(s), 'Option_0': self.stats_options[s, 0], 'Option_1': self.stats_options[s, 1],
-                         'Option_2': self.stats_options[s, 2], 'Option_3': self.stats_options[s, 3],
-                         'Option_4': self.stats_options[s, 4], 'Option_5': self.stats_options[s, 5],
-                         'Option_6': self.stats_options[s, 6], 'Option_7': self.stats_options[s, 7]})
+    plt.clf()
+    option_colors = [(0.1, 0.2, 0.5, 0.4), (0.1, 0.2, 0.5, 0.6), (0.1, 0.2, 0.5, 0.8), (0.1, 0.2, 0.5, 1),
+                     (0.5, 0.2, 0.1, 0.4), (0.5, 0.2, 0.1, 0.6), (0.5, 0.2, 0.1, 0.8), (0.5, 0.2, 0.1, 1)]
+    for idx in range(self.nb_states):
+      o = most_chosen_options[idx]
+      s, i, j = self.env.get_state(idx)
+      if not self.env.not_wall(i, j):
+        plt.gca().add_patch(
+          patches.Rectangle(
+            (j, self.config.input_size[0] - i - 1),  # (x,y)
+            1.0,  # width
+            1.0,  # height
+            facecolor="gray"
+          )
+        )
+        plt.gca().add_patch(
+          patches.Rectangle(
+            (j, self.config.input_size[0] - i - 1),  # (x,y)
+            1.0,  # width
+            1.0,  # height
+            facecolor=option_colors[d]
+          )
+        )
 
-    with open('summary_stats.csv', 'w', newline='') as csvfile:
-      spamwriter = csv.writer(csvfile, delimiter=' ',
-                              quotechar='|', quoting=csv.QUOTE_MINIMAL)
-      spamwriter.writerow(['Spam'] * 5 + ['Baked Beans'])
-      spamwriter.writerow(['Spam', 'Lovely Spam', 'Wonderful Spam'])
+        plt.xlim([0, self.config.input_size[1]])
+        plt.ylim([0, self.config.input_size[0]])
+
+        for i in range(self.config.input_size[1]):
+          plt.axvline(i, color='k', linestyle=':')
+        plt.axvline(self.config.input_size[1], color='k', linestyle=':')
+
+        for j in range(self.config.input_size[0]):
+          plt.axhline(j, color='k', linestyle=':')
+        plt.axhline(self.config.input_size[0], color='k', linestyle=':')
+
+        plt.savefig(os.path.join(self.stats_path,  "Option_map.png"))
+        plt.close()
