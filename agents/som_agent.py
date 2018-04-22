@@ -128,7 +128,8 @@ class SomAgent(BaseAgent):
         self.sync_threads()
 
         if self.name == "worker_0" and self.episode_count > 0:
-          plotting = self.total_steps % self.config.plot_every == 0
+          # plotting = self.episode_count % self.config.plot_every == 0
+          plotting = True
           self.recompute_eigenvectors_classic(plotting)
 
         self.load_directions()
@@ -260,7 +261,7 @@ class SomAgent(BaseAgent):
         # sf_normalized = tf.nn.l2_normalize(sf, axis=1)
         self.new_eigenvectors = self.config.tau * sf_normalized + (1 - self.config.tau) * self.new_eigenvectors
         new_eigenvectors_norm = np.linalg.norm(self.new_eigenvectors, axis=1, keepdims=True)
-        self.new_eigenvectors =  self.new_eigenvectors / (new_eigenvectors_norm + 1e-8)
+        self.new_eigenvectors = self.new_eigenvectors / (new_eigenvectors_norm + 1e-8)
 
       for sf in sfs:
         move_option(sf)
