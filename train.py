@@ -118,7 +118,7 @@ if __name__ == '__main__':
     'timestamp', datetime.datetime.now().strftime('%Y%m%dT%H%M%S'),
     'Sub directory to store logs.')
   tf.app.flags.DEFINE_string(
-    'config', "exploration",
+    'config', "oc",
     'Configuration to execute.')
   tf.app.flags.DEFINE_boolean(
     'env_processes', True,
@@ -134,7 +134,7 @@ if __name__ == '__main__':
     'show_training', False,
     'Show gym envs.')
   tf.app.flags.DEFINE_string(
-    'task', "exploration",
+    'task', "sf",
     'Task nature')
   tf.app.flags.DEFINE_string(
     'load_from', None,

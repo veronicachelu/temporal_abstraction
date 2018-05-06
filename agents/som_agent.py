@@ -130,6 +130,7 @@ class SomAgent(BaseAgent):
 
       while not coord.should_stop():
         if self.config.steps != -1 and (self.total_steps > self.config.steps and self.name == "worker_0"):
+          coord.request_stop()
           return 0
 
         self.sync_threads()

@@ -133,13 +133,13 @@ class EigenOCAgent(BaseAgent):
         self.load_directions()
         self.init_episode()
 
-        s = self.env.reset()
+        s, s_idx = self.env.reset()
         self.option_evaluation(s)
         while not self.done:
           self.sync_threads()
           self.policy_evaluation(s)
 
-          s1, r, self.done, _ = self.env.step(self.action)
+          s1, r, self.done, s1_idx = self.env.step(self.action)
 
           r = np.clip(r, -1, 1)
           if self.done:
