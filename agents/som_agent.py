@@ -61,7 +61,8 @@ class SomAgent(BaseAgent):
     self.R = 0
     self.eigen_R = 0
 
-    self.sess.run(self.local_network.decrease_prob_of_random_option)
+    if self.config.decrease_option_prob:
+      self.sess.run(self.local_network.decrease_prob_of_random_option)
     # self.stats_options = np.zeros((self.nb_states, self.nb_options + self.action_size))
     # self.ms_aux = self.ms_sf = self.ms_reward = self.ms_option = None
 
