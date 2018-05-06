@@ -57,7 +57,6 @@ class SomAgent(BaseAgent):
     self.done = False
     self.episode_len = 0
     self.sf_counter = 0
-    self.option_counter = 0
     self.R = 0
     self.eigen_R = 0
 
@@ -70,7 +69,7 @@ class SomAgent(BaseAgent):
     self.episode_buffer_sf.append((s, o, s1, o1, a, primitive))
     self.sf_counter += 1
     if self.config.eigen and (self.sf_counter == self.config.max_update_freq or self.done or (
-            self.o_term and self.option_counter >= self.config.min_update_freq)):
+            self.o_term and self.sf_counter >= self.config.min_update_freq)):
       feed_dict = {self.local_network.observation: [s1], self.local_network.options_placeholder: [o1]}
       sf_o = self.sess.run(self.local_network.sf_o,
                     feed_dict=feed_dict)[0]
@@ -391,7 +390,7 @@ class SomAgent(BaseAgent):
     rollout = np.array(self.episode_buffer_sf)  # s, self.option, self.action, r, r_i
     observations = rollout[:, 0]
     options = rollout[:, 1]
-    nest_observations = rollout[:, 2]
+    next_observations = rollout[:, 2]
     next_options = rollout[:, 3]
     actions = rollout[:, 4]
     primitive = rollout[:, 5]

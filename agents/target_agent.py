@@ -37,10 +37,11 @@ class TargetAgent(BaseAgent):
     self.eigen_q_value = None
     self.evalue = None
     tf.logging.info("Starting worker " + str(self.thread_id))
-    self.aux_episode_buffer = deque()
-    self.sf_episode_buffer = deque()
+    # self.aux_episode_buffer = deque()
+    # self.sf_episode_buffer = deque()
     self.reward_pred_episode_buffer = deque()
-    self.ms_aux = self.ms_sf = self.ms_option = self.ms_reward = self.ms_reward_i = None
+    # self.ms_aux = self.ms_sf = \
+    self.ms_option = self.ms_reward = self.ms_reward_i = None
     self.stats_options = np.zeros((self.nb_states, self.nb_options + self.action_size))
 
   def init_episode(self):

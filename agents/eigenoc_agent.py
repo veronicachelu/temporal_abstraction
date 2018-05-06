@@ -283,7 +283,7 @@ class EigenOCAgent(BaseAgent):
         if self.env.not_wall(ii, jj):
           feed_dict = {self.local_network.observation: [s]}
           sf = self.sess.run(self.local_network.sf, feed_dict=feed_dict)[0]
-          ci = np.argmin(
+          ci = np.argmax(
             [self.cosine_similarity(sf, d) for d in self.global_network.directions])
 
           sf_norm = np.linalg.norm(sf)

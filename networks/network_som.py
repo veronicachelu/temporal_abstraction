@@ -135,8 +135,8 @@ class SomNetwork(BaseNetwork):
                                        tf.ones_like(self.current_option),
                                        tf.zeros_like(self.current_option))
       self.summaries_option.append(tf.contrib.layers.summarize_activation(self.current_option))
-      self.v = self.max_q_val * (1 - self.config.final_random_option_prob) + \
-               self.config.final_random_option_prob * tf.reduce_mean(self.q_val, axis=1)
+      self.v = self.max_q_val * (1 - self.random_option_prob) + \
+               self.random_option_prob * tf.reduce_mean(self.q_val, axis=1)
       self.summaries_option.append(tf.contrib.layers.summarize_activation(self.v))
 
   def build_network(self):
