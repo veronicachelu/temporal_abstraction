@@ -35,8 +35,8 @@ def default():
   target_update_iter_sf = 1
   target_update_iter_option = 30
 
-  # goal_locations = [(11, 7), (5, 2)]#, (1, 10), (2, 2), (6, 2)]
-  goal_locations = [(1, 11), (3, 2)]
+  goal_locations = [(11, 7), (5, 2)]#, (1, 10), (2, 2), (6, 2)]
+  #goal_locations = [(1, 11), (3, 2)]
 
   move_goal_nb_of_ep = 500
 
