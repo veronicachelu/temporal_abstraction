@@ -156,8 +156,8 @@ def oc():
   include_primitive_options = True
   sr_matrix_size = 169
   sr_matrix = "static"
-  # goal_locations = [(11, 7), (5, 2), (1, 10), (2, 2), (6, 2)]
-  goal_locations = [(1, 11), (3, 2), (6, 2), (1, 4), (1, 1), (8, 1), (2, 5), (11, 10)]
+  goal_locations = [(11, 7), (5, 2), (1, 10), (2, 2), (6, 2)]
+  #goal_locations = [(1, 11), (3, 2), (6, 2), (1, 4), (1, 1), (8, 1), (2, 5), (11, 10)]
   move_goal_nb_of_ep = 1000
 
   return locals()
@@ -265,8 +265,8 @@ def som():
   include_primitive_options = True
   sr_matrix_size = 128
   sr_matrix = "static"
-  # goal_locations = [(11, 7), (5, 2)]#, (1, 10), (2, 2), (6, 2)]
-  goal_locations = [(1, 11), (3, 2)]
+  goal_locations = [(11, 7), (5, 2)]#, (1, 10), (2, 2), (6, 2)]
+  #goal_locations = [(1, 11), (3, 2)]
   move_goal_nb_of_ep = 500
 
   final_random_option_prob = 0.1
@@ -308,8 +308,8 @@ def exploration():
   include_primitive_options = True
   sr_matrix_size = 128
   sr_matrix = "static"
-  # goal_locations = [(11, 7), (5, 2)]#, (1, 10), (2, 2), (6, 2)]
-  goal_locations = [(1, 11), (3, 2)]
+  goal_locations = [(11, 7), (5, 2)]#, (1, 10), (2, 2), (6, 2)]
+  #goal_locations = [(1, 11), (3, 2)]
   move_goal_nb_of_ep = 500
   reward_update_freq = 1
   target_update_iter_reward = 1
