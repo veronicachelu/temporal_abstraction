@@ -156,7 +156,8 @@ def oc():
   include_primitive_options = True
   sr_matrix_size = 169
   sr_matrix = "static"
-  goal_locations = [(11, 7), (5, 2), (1, 10), (2, 2), (6, 2)]
+  # goal_locations = [(11, 7), (5, 2), (1, 10), (2, 2), (6, 2)]
+  goal_locations = [(1, 11), (3, 2), (6, 2), (1, 4), (1, 1), (8, 1), (2, 5), (11, 10)]
   move_goal_nb_of_ep = 1000
 
   return locals()
