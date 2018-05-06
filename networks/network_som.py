@@ -51,22 +51,34 @@ class SomNetwork(BaseNetwork):
     #
     # self.fi_o = tf.add(tf.stop_gradient(self.fi), self.options_fc)
     out = tf.stop_gradient(self.fi_relu)
-    out = layers.fully_connected(out, num_outputs=self.nb_options,
+    # out = layers.fully_connected(out, num_outputs=self.nb_options,
+    #                              activation_fn=None, biases_initializer=None,
+    #                              variables_collections=tf.get_collection("variables"),
+    #                              outputs_collections="activations", scope="reward_i")
+    out = layers.fully_connected(out, num_outputs=self.nb_options * self.action_size,
                                  activation_fn=None, biases_initializer=None,
                                  variables_collections=tf.get_collection("variables"),
                                  outputs_collections="activations", scope="reward_i")
     self.summaries_reward.append(tf.contrib.layers.summarize_activation(out))
-    self.r_i = out
+    self.r_i = tf.reshape(out, (-1, self.nb_options, self.action_size))
+    # self.r_i = out
 
   def get_w(self):
     with tf.variable_scope("reward", reuse=True):
       v = tf.get_variable("weights")
     return v
 
+  # def get_wg(self):
+  #   with tf.variable_scope("reward_i", reuse=True):
+  #     v = tf.get_variable("weights")
+  #   return v
+
   def get_wg(self):
     with tf.variable_scope("reward_i", reuse=True):
       v = tf.get_variable("weights")
+      v = tf.reshape(v, (self.fc_layers[-1], self.nb_options, self.action_size))
     return v
+
 
   def build_next_frame_prediction_net(self):
     with tf.variable_scope("aux_action_fc"):
@@ -176,6 +188,7 @@ class SomNetwork(BaseNetwork):
     self.sf_td_error_target = tf.placeholder(shape=[None, self.sf_layers[-1]], dtype=tf.float32,
                                              name="sf_td_error_target")
     self.wg = self.get_wg()
+    self.sf_o = self.get_sf_o(self.options_placeholder)
 
   def build_losses(self):
     self.policies = self.get_intra_option_policies(self.options_placeholder)
@@ -185,9 +198,11 @@ class SomNetwork(BaseNetwork):
     #   eigen_q_val = self.get_eigen_q(self.options_placeholder)
     q_val = self.get_q(self.options_placeholder)
     o_term = self.get_o_term(self.options_placeholder)
-    r_i_o = self.get_r_i_o(self.options_placeholder)
-    self.sf_o = self.get_sf_o(self.options_placeholder)
-    wg_o = self.get_wg_o(self.options_placeholder)
+    # r_i_o = self.get_r_i_o(self.options_placeholder)
+    # wg_o = self.get_wg_o(self.options_placeholder)
+
+    r_i_o_a = self.get_r_i_o_a(self.options_placeholder, self.actions_placeholder)
+    wg_o_a = self.get_wg_o_a(self.options_placeholder, self.actions_placeholder)
 
     self.image_summaries.append(
       tf.summary.image('next', tf.concat([self.next_obs, self.target_next_obs], 2), max_outputs=30))
@@ -210,7 +225,7 @@ class SomNetwork(BaseNetwork):
     self.reward_loss = tf.reduce_mean(self.config.reward_coef * huber_loss(reward_error))
 
     with tf.name_scope('reward_loss_i'):
-      reward_i_error = r_i_o - self.target_r_i
+      reward_i_error = r_i_o_a - self.target_r_i
     self.reward_i_loss = tf.reduce_mean(self.config.reward_i_coef * huber_loss(reward_i_error))
 
     with tf.name_scope('aux_loss'):
@@ -235,7 +250,7 @@ class SomNetwork(BaseNetwork):
                                                                             tf.log(self.policies + 1e-7),
                                                                             axis=1))
     with tf.name_scope('policy_loss'):
-      advantage = tf.map_fn(lambda i: tf.matmul(self.sf_td_error_target[i][None, ...], wg_o[i]),
+      advantage = tf.map_fn(lambda i: tf.matmul(self.sf_td_error_target[i][None, ...], wg_o_a[i]),
                             tf.range(tf.shape(self.sf_td_error_target)[0]), dtype=tf.float32)
       self.advantage = tf.squeeze(advantage, axis=[1, 2])
       self.policy_loss = -tf.reduce_mean(tf.log(self.responsible_actions + 1e-7) * tf.stop_gradient(advantage))
@@ -279,12 +294,24 @@ class SomNetwork(BaseNetwork):
       tf.summary.scalar('gradient_norm_reward_i', grads_reward_i_norm),
       gradient_summaries(zip(grads_reward_i, local_vars))])
 
-  def get_r_i_o(self, o):
-    options_taken_one_hot = tf.one_hot(o, self.config.nb_options,
-                                       name="options_one_hot")
-    r_i_o = tf.reduce_sum(tf.multiply(self.r_i, options_taken_one_hot),
-                          reduction_indices=1, name="option_r_i")
-    return r_i_o
+  # def get_r_i_o(self, o):
+  #   options_taken_one_hot = tf.one_hot(o, self.config.nb_options,
+  #                                      name="options_one_hot")
+  #   r_i_o = tf.reduce_sum(tf.multiply(self.r_i, options_taken_one_hot),
+  #                         reduction_indices=1, name="option_r_i")
+  #   return r_i_o
+
+  def get_r_i_o_a(self, o, a):
+    options_taken_one_hot = tf.one_hot(o, self.nb_options,
+                                       name="options_one_hot")[..., None]
+    options_taken_one_hot_tile = tf.tile(options_taken_one_hot, (1, 1, self.action_size))
+    actions_taken_one_hot = tf.one_hot(a, self.action_size,
+                                       name="actions_one_hot")
+    r_i_o = tf.reduce_sum(tf.multiply(self.r_i, options_taken_one_hot_tile),
+                          reduction_indices=1, name="option_r_i_o")
+    r_i_o_a = tf.reduce_sum(tf.multiply(r_i_o, actions_taken_one_hot),
+                          reduction_indices=1, name="option_r_i_oa")
+    return r_i_o_a
 
   def get_sf_o(self, o):
     options_taken_one_hot = tf.one_hot(o, (
@@ -295,13 +322,29 @@ class SomNetwork(BaseNetwork):
                          reduction_indices=1, name="SF_o")
     return sf_o
 
-  def get_wg_o(self, o):
-    options_taken_one_hot = tf.one_hot(o, self.config.nb_options,
-                                       name="options_one_hot")
-    options_taken_one_hot_tile = tf.tile(options_taken_one_hot[..., None], (1, 1, self.fc_layers[-1]))
-    wg_tile = tf.tile(tf.transpose(self.wg, (1, 0))[None, ...], (tf.shape(options_taken_one_hot)[0], 1, 1))
+  # def get_wg_o(self, o):
+  #   options_taken_one_hot = tf.one_hot(o, self.config.nb_options,
+  #                                      name="options_one_hot")
+  #   options_taken_one_hot_tile = tf.tile(options_taken_one_hot[..., None], (1, 1, self.fc_layers[-1]))
+  #   wg_tile = tf.tile(tf.transpose(self.wg, (1, 0))[None, ...], (tf.shape(options_taken_one_hot)[0], 1, 1))
+  #   wg_o = tf.reduce_sum(tf.multiply(wg_tile, options_taken_one_hot_tile),
+  #                        reduction_indices=1, name="wg_o")
+  #   wg_o = wg_o[..., None]
+  #
+  #   return wg_o
+
+  def get_wg_o_a(self, o, a):
+    options_taken_one_hot = tf.one_hot(o, self.nb_options,
+                                       name="options_one_hot")[..., None]
+    actions_taken_one_hot = tf.one_hot(a, self.action_size,
+                                       name="actions_one_hot")
+    options_taken_one_hot_tile = tf.tile(options_taken_one_hot[..., None], (1, 1, self.action_size, self.fc_layers[-1]))
+    wg_tile = tf.tile(tf.transpose(self.wg, (1, 2, 0))[None, ...], (tf.shape(options_taken_one_hot)[0], 1, 1, 1))
     wg_o = tf.reduce_sum(tf.multiply(wg_tile, options_taken_one_hot_tile),
                          reduction_indices=1, name="wg_o")
-    wg_o = wg_o[..., None]
+    actions_taken_one_hot_tile = tf.tile(actions_taken_one_hot[..., None], (1, 1, self.fc_layers[-1]))
+    wg_o_a = tf.reduce_sum(tf.multiply(wg_o, actions_taken_one_hot_tile),
+                         reduction_indices=1, name="wg_o_a")
+    wg_o_a = wg_o_a[..., None]
 
-    return wg_o
+    return wg_o_a

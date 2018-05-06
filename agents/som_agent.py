@@ -86,7 +86,8 @@ class SomAgent(BaseAgent):
                 self.total_steps % self.config.aux_update_freq == 0:
       self.ms_aux, self.aux_loss = self.train_aux()
 
-  def store_reward_info(self, s, o, s1, r, primitive):
+  def store_reward_info(self, s, o, a, s1, r, primitive):
+    self.episode_reward += r
     if self.config.eigen and not self.primitive_action:
       feed_dict = {self.local_network.observation: np.stack([s, s1])}
       fi = self.sess.run(self.local_network.fi,
@@ -99,7 +100,7 @@ class SomAgent(BaseAgent):
     if len(self.reward_pred_episode_buffer) == self.config.memory_size:
       self.reward_pred_episode_buffer.popleft()
 
-    self.reward_pred_episode_buffer.append([s, s1, r, r_i, o, primitive])
+    self.reward_pred_episode_buffer.append([s, s1, r, r_i, o, a, primitive])
 
   def reward_prediction(self):
     if len(self.reward_pred_episode_buffer) > self.config.observation_steps and \
@@ -155,7 +156,7 @@ class SomAgent(BaseAgent):
             s1 = s
 
           self.store_general_info(s, s1, self.action, r)
-          self.store_reward_info(s, self.option, s1, r, self.primitive_action)
+          self.store_reward_info(s, self.option, self.action, s1, r, self.primitive_action)
           self.log_timestep()
 
           if self.total_steps > self.config.observation_steps:
@@ -248,7 +249,6 @@ class SomAgent(BaseAgent):
       self.aux_episode_buffer.popleft()
 
     self.aux_episode_buffer.append([s, s1, a])
-    self.episode_reward += r
 
   def recompute_eigenvectors_classic(self, plotting=False):
     if self.config.eigen:
@@ -350,7 +350,8 @@ class SomAgent(BaseAgent):
     r = rollout[:, 2]
     r_i = rollout[:, 3]
     o = rollout[:, 4]
-    primitive = rollout[:, 5]
+    a = rollout[:, 5]
+    primitive = rollout[:, 6]
 
     feed_dict = {self.local_network.observation: np.stack(observations, axis=0),
                  self.local_network.target_next_obs: np.stack(next_observations, axis=0),
@@ -372,10 +373,12 @@ class SomAgent(BaseAgent):
       next_observations = next_observations[notprimitve]
       r_i = r_i[notprimitve]
       o = o[notprimitve]
+      a = a[notprimitve]
 
       feed_dict = {self.local_network.observation: np.stack(observations, axis=0),
                    self.local_network.target_next_obs: np.stack(next_observations, axis=0),
                    self.local_network.options_placeholder: o,
+                   self.local_network.actions_placeholder: a,
                    self.local_network.target_r_i: r_i}
 
       r_i_loss, _, ms_r_i = \
