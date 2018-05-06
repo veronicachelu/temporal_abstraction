@@ -431,7 +431,7 @@ class EigenOCAgent(BaseAgent):
     episode_lengths = []
     for i in range(self.config.nb_test_ep):
       episode_reward = 0
-      s = self.env.reset()
+      s, s_idx = self.env.reset()
       feed_dict = {self.local_network.observation: np.stack([s])}
       option, primitive_action = self.sess.run([self.local_network.max_options, self.local_network.primitive_action],
                                                feed_dict=feed_dict)
@@ -496,7 +496,7 @@ class EigenOCAgent(BaseAgent):
       # episode_frames = []
       for i in range(self.config.nb_test_ep):
         episode_reward = 0
-        s = self.env.reset()
+        s, s_idx = self.env.reset()
         feed_dict = {self.local_network.observation: np.stack([s])}
         option, primitive_action = self.sess.run(
           [self.local_network.max_options, self.local_network.primitive_action], feed_dict=feed_dict)
