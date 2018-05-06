@@ -14,13 +14,12 @@ from env_tools import _create_environment
 def train(config, env_processes, logdir):
   tf.reset_default_graph()
   sess = tf.Session()
-  stage_logdir = os.path.join(logdir, "dif")
-  tf.gfile.MakeDirs(stage_logdir)
+  tf.gfile.MakeDirs(logdir)
   with sess:
     with tf.device("/cpu:0"):
       with config.unlocked:
         config.logdir = logdir
-        config.stage_logdir = stage_logdir
+        config.stage_logdir = logdir
         config.network_optimizer = getattr(tf.train, config.network_optimizer)
         global_step = tf.Variable(0, dtype=tf.int32, name='global_step', trainable=False)
         envs = [_create_environment(config) for _ in range(config.num_agents)]
@@ -35,6 +34,10 @@ def train(config, env_processes, logdir):
           agent = config.dif_agent(envs[0], 0, global_step, config, None)
         elif FLAGS.task == "eval":
           agent = config.dif_agent(envs[0], 0, global_step, config, global_network)
+        elif FLAGS.task == "exploration":
+          agents = [config.dif_agent(envs[i], i, global_step, config, global_network) for i in range(config.num_agents-1)]
+          agents.append(config.behaviour_agent(envs[config.num_agents-1], config.num_agents-1, global_step,
+                                               config, global_network))
         else:
           agents = [config.dif_agent(envs[i], i, global_step, config, global_network) for i in range(config.num_agents)]
 
@@ -115,7 +118,7 @@ if __name__ == '__main__':
     'timestamp', datetime.datetime.now().strftime('%Y%m%dT%H%M%S'),
     'Sub directory to store logs.')
   tf.app.flags.DEFINE_string(
-    'config', "turi",
+    'config', "exploration",
     'Configuration to execute.')
   tf.app.flags.DEFINE_boolean(
     'env_processes', True,
@@ -131,7 +134,7 @@ if __name__ == '__main__':
     'show_training', False,
     'Show gym envs.')
   tf.app.flags.DEFINE_string(
-    'task', "sf",
+    'task', "exploration",
     'Task nature')
   tf.app.flags.DEFINE_string(
     'load_from', None,

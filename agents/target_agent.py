@@ -18,9 +18,9 @@ from tools.agent_utils import update_target_graph_reward
 FLAGS = tf.app.flags.FLAGS
 
 
-class TuriAgent(BaseAgent):
+class TargetAgent(BaseAgent):
   def __init__(self, game, thread_id, global_step, config, global_network):
-    super(TuriAgent, self).__init__(game, thread_id, global_step, config, global_network)
+    super(TargetAgent, self).__init__(game, thread_id, global_step, config, global_network)
     self.update_local_vars_reward = update_target_graph_reward('global', self.name)
     self.stats_path = os.path.join(self.summary_path, 'stats')
     tf.gfile.MakeDirs(self.stats_path)
@@ -44,10 +44,10 @@ class TuriAgent(BaseAgent):
     self.stats_options = np.zeros((self.nb_states, self.nb_options + self.action_size))
 
   def init_episode(self):
-    self.episode_buffer_sf = []
-    self.episode_values = []
-    self.episode_q_values = []
-    self.episode_eigen_q_values = []
+    self.episode_buffer_option = []
+    # self.episode_values = []
+    # self.episode_q_values = []
+    # self.episode_eigen_q_values = []
     self.episode_oterm = []
     self.episode_options = []
     self.episode_actions = []
@@ -56,34 +56,30 @@ class TuriAgent(BaseAgent):
     # self.episode_option_histogram = np.zeros(self.config.nb_options)
     self.done = False
     self.episode_len = 0
-    self.sf_counter = 0
     self.option_counter = 0
-    self.R = 0
-    self.eigen_R = 0
-
-    self.sess.run(self.local_network.decrease_prob_of_random_option)
+    self.option_counter = 0
+    # self.R = 0
+    # self.eigen_R = 0
+    if self.config.decrease_prob_of_random_option:
+      self.sess.run(self.local_network.decrease_prob_of_random_option)
     # self.stats_options = np.zeros((self.nb_states, self.nb_options + self.action_size))
     # self.ms_aux = self.ms_sf = self.ms_reward = self.ms_option = None
 
   def option_prediction(self, s, o, s1, o1, a, primitive):
-    self.episode_buffer_sf.append((s, o, s1, o1, a, primitive))
-    self.sf_counter += 1
-    if self.config.eigen and (self.sf_counter == self.config.max_update_freq or self.done or (
+    self.episode_buffer_option.append([s, o, s1, o1, a, primitive])
+    self.option_counter += 1
+    if self.config.eigen and (self.option_counter == self.config.max_update_freq or self.done or (
             self.o_term and self.option_counter >= self.config.min_update_freq)):
-      feed_dict = {self.local_network.observation: [s1], self.local_network.options_placeholder: [o1]}
-      sf_o = self.sess.run(self.local_network.sf_o,
+      feed_dict = {self.local_network.observation: [s1],
+                   self.local_network.options_placeholder: [o1]}
+      sf_o1 = self.sess.run(self.local_network.sf_o,
                     feed_dict=feed_dict)[0]
 
-      bootstrap_sf = np.zeros_like(sf_o) if self.done else sf_o
-      # self.ms_sf, self.sf_loss = self.train_sf(bootstrap_sf)
+      bootstrap_sf = np.zeros_like(sf_o1) if self.done else sf_o1
       self.ms_option, self.option_loss = self.train_option(bootstrap_sf)
 
-      if len(self.sf_episode_buffer) == self.config.memory_size:
-        self.sf_episode_buffer.popleft()
-      self.sf_episode_buffer.append((self.episode_buffer_sf, self.done))
-
-      self.episode_buffer_sf = []
-      self.sf_counter = 0
+      self.episode_buffer_option = []
+      self.option_counter = 0
 
   def next_frame_prediction(self):
     if len(self.aux_episode_buffer) > self.config.observation_steps and \
@@ -95,7 +91,8 @@ class TuriAgent(BaseAgent):
                 self.total_steps % self.config.sf_update_freq == 0:
       self.ms_sf, self.sf_loss = self.train_sf()
 
-  def store_reward_info(self, s, o, s1, r, primitive):
+  def store_reward_info(self, s, o, a,  s1, r, primitive):
+    self.episode_reward += r
     if self.config.eigen and not self.primitive_action:
       feed_dict = {self.local_network.observation: np.stack([s, s1])}
       fi = self.sess.run(self.local_network.fi,
@@ -108,27 +105,26 @@ class TuriAgent(BaseAgent):
     if len(self.reward_pred_episode_buffer) == self.config.memory_size:
       self.reward_pred_episode_buffer.popleft()
 
-    self.reward_pred_episode_buffer.append([s, s1, r, r_i, o, primitive])
+    self.reward_pred_episode_buffer.append([s, s1, r, r_i, o, a, primitive])
 
   def reward_prediction(self):
     if len(self.reward_pred_episode_buffer) > self.config.observation_steps and \
                 self.total_steps % self.config.reward_update_freq == 0:
       self.ms_reward, self.ms_reward_i, self.r_loss, self.r_i_loss = self.train_reward_prediction()
 
-
   def sync_threads(self, force=False):
     if force:
-      self.sess.run(self.update_local_vars_aux)
-      self.sess.run(self.update_local_vars_sf)
+      # self.sess.run(self.update_local_vars_aux)
+      # self.sess.run(self.update_local_vars_sf)
       self.sess.run(self.update_local_vars_option)
       self.sess.run(self.update_local_vars_reward)
     else:
-      if self.total_steps % self.config.target_update_iter_aux == 0:
-        self.sess.run(self.update_local_vars_aux)
+      # if self.total_steps % self.config.target_update_iter_aux == 0:
+      #   self.sess.run(self.update_local_vars_aux)
       if self.total_steps % self.config.target_update_iter_reward == 0:
         self.sess.run(self.update_local_vars_reward)
-      if self.total_steps % self.config.target_update_iter_sf == 0:
-        self.sess.run(self.update_local_vars_sf)
+      # if self.total_steps % self.config.target_update_iter_sf == 0:
+      #   self.sess.run(self.update_local_vars_sf)
       if self.total_steps % self.config.target_update_iter_option == 0:
         self.sess.run(self.update_local_vars_option)
 
@@ -142,10 +138,10 @@ class TuriAgent(BaseAgent):
 
         self.sync_threads()
 
-        if self.name == "worker_0" and self.episode_count > 0:
-          # plotting = self.episode_count % self.config.plot_every == 0
-          plotting = False
-          self.recompute_eigenvectors_classic(plotting)
+        # if self.name == "worker_0" and self.episode_count > 0:
+        #   # plotting = self.episode_count % self.config.plot_every == 0
+        #   plotting = False
+        #   self.recompute_eigenvectors_classic(plotting)
 
         self.load_directions()
         self.init_episode()
@@ -162,13 +158,13 @@ class TuriAgent(BaseAgent):
           if self.done:
             s1 = s
 
-          self.store_general_info(s, s1, self.action, r)
-          self.store_reward_info(s, self.option, s1, r, self.primitive_action)
+          # self.store_general_info(s, s1, self.action, r)
+          self.store_reward_info(s, self.option, self.action, s1, r, self.primitive_action)
           self.log_timestep()
 
           if self.total_steps > self.config.observation_steps:
-            self.next_frame_prediction()
-            self.SF_prediction()
+            # self.next_frame_prediction()
+            # self.SF_prediction()
             self.reward_prediction()
             self.old_option = self.option
 
@@ -200,8 +196,7 @@ class TuriAgent(BaseAgent):
         #   eval_episodes_won, mean_ep_length = self.evaluate_agent()
         #   self.write_eval_summary(eval_episodes_won, mean_ep_length)
 
-        if self.episode_count % self.config.move_goal_nb_of_ep == 0 and \
-                self.name == 'worker_0' and self.episode_count != 0:
+        if self.episode_count % self.config.move_goal_nb_of_ep == 0 and self.episode_count != 0:
           tf.logging.info("Moving GOAL....")
           self.env.set_goal(self.episode_count, self.config.move_goal_nb_of_ep)
 
@@ -250,118 +245,121 @@ class TuriAgent(BaseAgent):
       self.action = np.random.choice(range(self.action_size))
     self.episode_actions.append(self.action)
 
-  def store_general_info(self, s, s1, a, r):
-    # if self.config.eigen:
-    #   self.episode_buffer_sf.append([s, s1, a, self.option])
-    if len(self.aux_episode_buffer) == self.config.memory_size:
-      self.aux_episode_buffer.popleft()
+  # def store_general_info(self, s, s1, a, r):
+  #   # if self.config.eigen:
+  #   #   self.episode_buffer_sf.append([s, s1, a, self.option])
+  #   if len(self.aux_episode_buffer) == self.config.memory_size:
+  #     self.aux_episode_buffer.popleft()
+  #
+  #   self.aux_episode_buffer.append([s, s1, a])
+  #   self.episode_reward += r
 
-    self.aux_episode_buffer.append([s, s1, a])
-    self.episode_reward += r
+  # def recompute_eigenvectors_classic(self, plotting=False):
+  #   if self.config.eigen:
+  #     self.new_eigenvectors = copy.deepcopy(self.global_network.directions)
+  #     # matrix_sf = np.zeros((self.nb_states, self.config.sf_layers[-1]))
+  #     states = []
+  #     for idx in range(self.nb_states):
+  #       s, ii, jj = self.env.fake_get_state(idx)
+  #       if self.env.not_wall(ii, jj):
+  #         states.append(s)
+  #
+  #
+  #     feed_dict = {self.local_network.observation: states}
+  #     sfs = self.sess.run(self.local_network.sf, feed_dict=feed_dict)
+  #
+  #     def move_option(sf):
+  #       sf = sf[:self.nb_options]
+  #       sf_norm = np.linalg.norm(sf, axis=1, keepdims=True)
+  #       sf_normalized = sf / (sf_norm + 1e-8)
+  #       # sf_normalized = tf.nn.l2_normalize(sf, axis=1)
+  #       self.new_eigenvectors = self.config.tau * sf_normalized + (1 - self.config.tau) * self.new_eigenvectors
+  #       new_eigenvectors_norm = np.linalg.norm(self.new_eigenvectors, axis=1, keepdims=True)
+  #       self.new_eigenvectors = self.new_eigenvectors / (new_eigenvectors_norm + 1e-8)
+  #
+  #     for sf in sfs:
+  #       move_option(sf)
+  #
+  #     if plotting:
+  #       # self.plot_sr_vectors(sfs, "sr_stats")
+  #       self.plot_sr_matrix(sfs, "sr_stats")
+  #
+  #     min_similarity = np.min(
+  #       [self.cosine_similarity(a, b) for a, b in zip(self.global_network.directions, self.new_eigenvectors)])
+  #     max_similarity = np.max(
+  #       [self.cosine_similarity(a, b) for a, b in zip(self.global_network.directions, self.new_eigenvectors)])
+  #     mean_similarity = np.mean(
+  #       [self.cosine_similarity(a, b) for a, b in zip(self.global_network.directions, self.new_eigenvectors)])
+  #     self.summary = tf.Summary()
+  #     self.summary.value.add(tag='Eigenvectors/Min similarity', simple_value=float(min_similarity))
+  #     self.summary.value.add(tag='Eigenvectors/Max similarity', simple_value=float(max_similarity))
+  #     self.summary.value.add(tag='Eigenvectors/Mean similarity', simple_value=float(mean_similarity))
+  #     self.summary_writer.add_summary(self.summary, self.episode_count)
+  #     self.summary_writer.flush()
+  #     self.global_network.directions = self.new_eigenvectors
+  #     self.directions = self.global_network.directions
+  #
+  #     if plotting:
+  #       self.plot_basis_functions(self.directions, "sr_stats")
 
-  def recompute_eigenvectors_classic(self, plotting=False):
-    if self.config.eigen:
-      self.new_eigenvectors = copy.deepcopy(self.global_network.directions)
-      # matrix_sf = np.zeros((self.nb_states, self.config.sf_layers[-1]))
-      states = []
-      for idx in range(self.nb_states):
-        s, ii, jj = self.env.fake_get_state(idx)
-        if self.env.not_wall(ii, jj):
-          states.append(s)
+  # def train_sf(self):
+  #
+  #
+  #
+  #   minibatch = random.sample(self.sf_episode_buffer, self.config.batch_size)
+  #   rollout_minibatch = np.array(minibatch)
+  #   episode_buffer_sf = rollout_minibatch[:, 0]
+  #   done = rollout_minibatch[:, 1]
+  #
+  #   rollouts = np.array(episode_buffer_sf)
+  #   observations = rollouts[:, :, 0]
+  #   options = rollouts[:, :, 1]
+  #   next_observations = rollouts[:, :, 2]
+  #   next_options = rollouts[:, :, 3]
+  #
+  #   s1 = next_observations[-1]
+  #   o1 = next_options[-1]
+  #   feed_dict = {self.local_network.observation: [s1], self.local_network.options_placeholder: [o1]}
+  #   sf_o = self.sess.run(self.local_network.sf_o,
+  #                        feed_dict=feed_dict)[0]
+  #
+  #   bootstrap_sf = np.zeros_like(sf_o) if done else sf_o
+  #
+  #   feed_dict = {self.local_network.observation: np.stack(observations, axis=0)}
+  #   fi = self.sess.run(self.local_network.fi,
+  #                      feed_dict=feed_dict)
+  #
+  #   sf_plus = np.asarray(fi.tolist() + [bootstrap_sf])
+  #   discounted_sf = discount(sf_plus, self.config.discount)[:-1]
+  #
+  #   feed_dict = {self.local_network.target_sf: np.stack(discounted_sf, axis=0),
+  #                self.local_network.observation: np.stack(observations, axis=0),
+  #                self.local_network.options_placeholder: np.stack(options, axis=0)}
+  #
+  #   _, ms, sf_loss = \
+  #     self.sess.run([self.local_network.apply_grads_sf,
+  #                    self.local_network.merged_summary_sf,
+  #                    self.local_network.sf_loss],
+  #                   feed_dict=feed_dict)
+  #
+  #   return ms, sf_loss
 
-
-      feed_dict = {self.local_network.observation: states}
-      sfs = self.sess.run(self.local_network.sf, feed_dict=feed_dict)
-
-      def move_option(sf):
-        sf = sf[:self.nb_options]
-        sf_norm = np.linalg.norm(sf, axis=1, keepdims=True)
-        sf_normalized = sf / (sf_norm + 1e-8)
-        # sf_normalized = tf.nn.l2_normalize(sf, axis=1)
-        self.new_eigenvectors = self.config.tau * sf_normalized + (1 - self.config.tau) * self.new_eigenvectors
-        new_eigenvectors_norm = np.linalg.norm(self.new_eigenvectors, axis=1, keepdims=True)
-        self.new_eigenvectors = self.new_eigenvectors / (new_eigenvectors_norm + 1e-8)
-
-      for sf in sfs:
-        move_option(sf)
-
-      if plotting:
-        # self.plot_sr_vectors(sfs, "sr_stats")
-        self.plot_sr_matrix(sfs, "sr_stats")
-
-      min_similarity = np.min(
-        [self.cosine_similarity(a, b) for a, b in zip(self.global_network.directions, self.new_eigenvectors)])
-      max_similarity = np.max(
-        [self.cosine_similarity(a, b) for a, b in zip(self.global_network.directions, self.new_eigenvectors)])
-      mean_similarity = np.mean(
-        [self.cosine_similarity(a, b) for a, b in zip(self.global_network.directions, self.new_eigenvectors)])
-      self.summary = tf.Summary()
-      self.summary.value.add(tag='Eigenvectors/Min similarity', simple_value=float(min_similarity))
-      self.summary.value.add(tag='Eigenvectors/Max similarity', simple_value=float(max_similarity))
-      self.summary.value.add(tag='Eigenvectors/Mean similarity', simple_value=float(mean_similarity))
-      self.summary_writer.add_summary(self.summary, self.episode_count)
-      self.summary_writer.flush()
-      self.global_network.directions = self.new_eigenvectors
-      self.directions = self.global_network.directions
-
-      if plotting:
-        self.plot_basis_functions(self.directions, "sr_stats")
-
-  def train_sf(self):
-    minibatch = random.sample(self.sf_episode_buffer, self.config.batch_size)
-    rollout = np.array(minibatch)
-    episode_buffer_sf = rollout[:, 0]
-    done = rollout[:, 1]
-
-    rollout = np.array(episode_buffer_sf)
-    observations = rollout[:, 0]
-    options = rollout[:, 1]
-    next_observations = rollout[:, 2]
-    next_options = rollout[:, 3]
-
-    s1 = next_observations[-1]
-    o1 = next_options[-1]
-    feed_dict = {self.local_network.observation: [s1], self.local_network.options_placeholder: [o1]}
-    sf_o = self.sess.run(self.local_network.sf_o,
-                         feed_dict=feed_dict)[0]
-
-    bootstrap_sf = np.zeros_like(sf_o) if done else sf_o
-
-    feed_dict = {self.local_network.observation: np.stack(observations, axis=0)}
-    fi = self.sess.run(self.local_network.fi,
-                       feed_dict=feed_dict)
-
-    sf_plus = np.asarray(fi.tolist() + [bootstrap_sf])
-    discounted_sf = discount(sf_plus, self.config.discount)[:-1]
-
-    feed_dict = {self.local_network.target_sf: np.stack(discounted_sf, axis=0),
-                 self.local_network.observation: np.stack(observations, axis=0),
-                 self.local_network.options_placeholder: np.stack(options, axis=0)}
-
-    _, ms, sf_loss = \
-      self.sess.run([self.local_network.apply_grads_sf,
-                     self.local_network.merged_summary_sf,
-                     self.local_network.sf_loss],
-                    feed_dict=feed_dict)
-
-    return ms, sf_loss
-
-  def train_aux(self):
-    minibatch = random.sample(self.aux_episode_buffer, self.config.batch_size)
-    rollout = np.array(minibatch)
-    observations = rollout[:, 0]
-    next_observations = rollout[:, 1]
-    actions = rollout[:, 2]
-
-    feed_dict = {self.local_network.observation: np.stack(observations, axis=0),
-                 self.local_network.target_next_obs: np.stack(next_observations, axis=0),
-                 self.local_network.actions_placeholder: actions}
-
-    aux_loss, _, ms = \
-      self.sess.run([self.local_network.aux_loss, self.local_network.apply_grads_aux,
-                     self.local_network.merged_summary_aux],
-                    feed_dict=feed_dict)
-    return ms, aux_loss
+  # def train_aux(self):
+  #   minibatch = random.sample(self.aux_episode_buffer, self.config.batch_size)
+  #   rollout = np.array(minibatch)
+  #   observations = rollout[:, 0]
+  #   next_observations = rollout[:, 1]
+  #   actions = rollout[:, 2]
+  #
+  #   feed_dict = {self.local_network.observation: np.stack(observations, axis=0),
+  #                self.local_network.target_next_obs: np.stack(next_observations, axis=0),
+  #                self.local_network.actions_placeholder: actions}
+  #
+  #   aux_loss, _, ms = \
+  #     self.sess.run([self.local_network.aux_loss, self.local_network.apply_grads_aux,
+  #                    self.local_network.merged_summary_aux],
+  #                   feed_dict=feed_dict)
+  #   return ms, aux_loss
 
   def train_reward_prediction(self):
     minibatch = random.sample(self.reward_pred_episode_buffer, self.config.batch_size)
@@ -371,12 +369,12 @@ class TuriAgent(BaseAgent):
     r = rollout[:, 2]
     r_i = rollout[:, 3]
     o = rollout[:, 4]
-    primitive = rollout[:, 5]
+    a = rollout[:, 5]
+    primitive = rollout[:, 6]
 
     feed_dict = {self.local_network.observation: np.stack(observations, axis=0),
                  self.local_network.target_next_obs: np.stack(next_observations, axis=0),
                  self.local_network.target_r: r}
-
 
     r_loss, _, ms_r = \
       self.sess.run([self.local_network.reward_loss,
@@ -393,10 +391,12 @@ class TuriAgent(BaseAgent):
       next_observations = next_observations[notprimitve]
       r_i = r_i[notprimitve]
       o = o[notprimitve]
+      a = a[notprimitve]
 
       feed_dict = {self.local_network.observation: np.stack(observations, axis=0),
                    self.local_network.target_next_obs: np.stack(next_observations, axis=0),
                    self.local_network.options_placeholder: o,
+                   self.local_network.actions_placeholder: a,
                    self.local_network.target_r_i: r_i}
 
       r_i_loss, _, ms_r_i = \
@@ -408,10 +408,10 @@ class TuriAgent(BaseAgent):
     return ms_r, ms_r_i, r_loss, r_i_loss
 
   def train_option(self, bootstrap_sf):
-    rollout = np.array(self.episode_buffer_sf)  # s, self.option, self.action, r, r_i
+    rollout = np.array(self.episode_buffer_option)  # s, self.option, self.action, r, r_i
     observations = rollout[:, 0]
     options = rollout[:, 1]
-    nest_observations = rollout[:, 2]
+    next_observations = rollout[:, 2]
     next_options = rollout[:, 3]
     actions = rollout[:, 4]
     primitive = rollout[:, 5]
@@ -423,30 +423,14 @@ class TuriAgent(BaseAgent):
     sf_plus = np.asarray(fi.tolist() + [bootstrap_sf])
     discounted_sf = discount(sf_plus, self.config.discount)[:-1]
 
-    #
-    #
-    # feed_dict = {self.local_network.target_sf: np.stack(discounted_sf, axis=0),
-    #              self.local_network.observation: np.stack(observations, axis=0),
-    #              self.local_network.options_placeholder: np.stack(options, axis=0)}  # ,
-    #
-    # self.sf_td_error = \
-    #   self.sess.run([self.local_network.apply_grads_sf,
-    #                  self.local_network.merged_summary_sf,
-    #                  self.local_network.sf_loss,
-    #                  self.local_network.sf_td_error],
-    #                 feed_dict=feed_dict)
-    #
-
     notprimitve = list(np.logical_not(primitive))
     observations = observations[notprimitve]
-
 
     if len(observations) == 0:
       option_loss = ms_option = None
     else:
       options = options[notprimitve]
       actions = actions[notprimitve]
-      # sf_td_error = self.sf_td_error[notprimitve]
       discounted_sf = discounted_sf[notprimitve]
 
       feed_dict = {self.local_network.target_sf: np.stack(discounted_sf, axis=0),
@@ -639,10 +623,10 @@ class TuriAgent(BaseAgent):
   def update_episode_stats(self):
     self.episode_rewards.append(self.episode_reward)
     self.episode_lengths.append(self.episode_len)
-    if len(self.episode_values) != 0:
-      self.episode_mean_values.append(np.mean(self.episode_values))
-    if len(self.episode_q_values) != 0:
-      self.episode_mean_q_values.append(np.mean(self.episode_q_values))
+    # if len(self.episode_values) != 0:
+    #   self.episode_mean_values.append(np.mean(self.episode_values))
+    # if len(self.episode_q_values) != 0:
+    #   self.episode_mean_q_values.append(np.mean(self.episode_q_values))
     if len(self.episode_oterm) != 0:
       self.episode_mean_oterms.append(get_mode(self.episode_oterm))
     if len(self.episode_options) != 0:

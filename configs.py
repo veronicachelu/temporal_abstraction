@@ -1,5 +1,6 @@
 from agents import SomAgent
-from agents import TuriAgent
+from agents import TargetAgent
+from agents import BehaviourAgent
 from agents import EigenOCAgent
 from agents import LinearSFAgent
 from agents import EigenOCAgentDyn
@@ -7,7 +8,7 @@ from agents import DynSRAgent
 from env_tools import GridWorld
 import functools
 from networks import SomNetwork
-from networks import TuriNetwork
+from networks import ExplorationNetwork
 from networks import EignOCNetwork
 from networks import LinearSFNetwork
 from networks import DynSRNetwork
@@ -31,13 +32,13 @@ def default():
   critic_coef = 1
   eigen_critic_coef = 1
   target_update_iter_aux = 1
-  target_update_iter_sf = 30
+  target_update_iter_sf = 1
   target_update_iter_option = 30
 
-  goal_locations = [(11, 7), (5, 2)]#, (1, 10), (2, 2), (6, 2)]
-  # goal_locations = [(1, 11), (3, 2)]
+  # goal_locations = [(11, 7), (5, 2)]#, (1, 10), (2, 2), (6, 2)]
+  goal_locations = [(1, 11), (3, 2)]
 
-  move_goal_nb_of_ep = 1000
+  move_goal_nb_of_ep = 500
 
   env = functools.partial(
     GridWorld, goal_locations, "./mdps/4rooms.mdp")
@@ -50,7 +51,8 @@ def default():
   episodes = 1e6  # 1M
 
   final_random_option_prob = 0.1
-  initial_random_option_prob = 1
+  initial_random_option_prob = 0.1
+  decrease_option_prob = False
   final_random_action_prob = 0.01
   explore_options_episodes = 2000
 
@@ -262,9 +264,14 @@ def som():
   include_primitive_options = True
   sr_matrix_size = 128
   sr_matrix = "static"
-  goal_locations = [(11, 7), (5, 2)]#, (1, 10), (2, 2), (6, 2)]
-  # goal_locations = [(1, 11), (3, 2)]
-  move_goal_nb_of_ep = 1000
+  # goal_locations = [(11, 7), (5, 2)]#, (1, 10), (2, 2), (6, 2)]
+  goal_locations = [(1, 11), (3, 2)]
+  move_goal_nb_of_ep = 500
+
+  final_random_option_prob = 0.1
+  initial_random_option_prob = 0.1
+  decrease_option_prob = False
+
   reward_update_freq = 1
   target_update_iter_reward = 1
   tau = 0.1
@@ -275,13 +282,14 @@ def som():
 
   return locals()
 
-def turi():
+def exploration():
   locals().update(default())
-  dif_agent = TuriAgent
+  dif_agent = TargetAgent
+  behaviour_agent = BehaviourAgent
   nb_options = 4
   num_agents = 12
   eigen = True
-  network = TuriNetwork
+  network = ExplorationNetwork
 
   fc_layers = 128,
   sf_layers = 128,
@@ -299,9 +307,9 @@ def turi():
   include_primitive_options = True
   sr_matrix_size = 128
   sr_matrix = "static"
-  goal_locations = [(11, 7), (5, 2)]#, (1, 10), (2, 2), (6, 2)]
-  # goal_locations = [(1, 11), (3, 2)]
-  move_goal_nb_of_ep = 1000
+  # goal_locations = [(11, 7), (5, 2)]#, (1, 10), (2, 2), (6, 2)]
+  goal_locations = [(1, 11), (3, 2)]
+  move_goal_nb_of_ep = 500
   reward_update_freq = 1
   target_update_iter_reward = 1
   tau = 0.1
@@ -309,6 +317,12 @@ def turi():
   reward_i_coef = 1
   adam_epsilon = 1e-08
   plot_every = 10
-  sf_update_freq = 1
+  # sf_update_freq = 1
+  behaviour_update_freq = 1
+  target_update_freq_sf = 1000
+
+  final_random_option_prob = 0.1
+  initial_random_option_prob = 0.1
+  decrease_option_prob = False
 
   return locals()
