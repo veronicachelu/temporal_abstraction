@@ -182,7 +182,7 @@ class EigenOCAgent(BaseAgent):
           self.write_eval_summary(eval_episodes_won, mean_ep_length)
 
         if self.episode_count % self.config.move_goal_nb_of_ep == 0 and \
-                self.name == 'worker_0' and self.episode_count != 0:
+                self.episode_count != 0:
           tf.logging.info("Moving GOAL....")
           self.env.set_goal(self.episode_count, self.config.move_goal_nb_of_ep)
 
