@@ -129,87 +129,90 @@ class SomAgent(BaseAgent):
     with sess.as_default(), sess.graph.as_default():
       self.init_play(sess, saver)
 
-      while not coord.should_stop():
-        if self.config.steps != -1 and (self.total_steps > self.config.steps and self.name == "worker_0"):
-          coord.request_stop()
-          return 0
+      with coord.stop_on_exception():
+        while not coord.should_stop():
+          if (self.config.steps != -1 and \
+              (self.total_steps > self.config.steps and self.name == "worker_0")) or \
+            self.total_steps > len(self.config.goal_locations) * self.config.move_goal_nb_of_ep:
+            coord.request_stop()
+            return 0
 
-        self.sync_threads()
-
-        if self.name == "worker_0" and self.episode_count > 0:
-          # plotting = self.episode_count % self.config.plot_every == 0
-          plotting = False
-          self.recompute_eigenvectors_classic(plotting)
-
-        self.load_directions()
-        self.init_episode()
-
-        s, s_idx = self.env.reset()
-        self.option_evaluation(s, s_idx)
-        while not self.done:
           self.sync_threads()
-          self.policy_evaluation(s)
 
-          s1, r, self.done, s1_idx = self.env.step(self.action)
+          if self.name == "worker_0" and self.episode_count > 0:
+            # plotting = self.episode_count % self.config.plot_every == 0
+            plotting = False
+            self.recompute_eigenvectors_classic(plotting)
 
-          r = np.clip(r, -1, 1)
-          if self.done:
-            s1 = s
+          self.load_directions()
+          self.init_episode()
 
-          self.store_general_info(s, s1, self.action, r)
-          self.store_reward_info(s, self.option, self.action, s1, r, self.primitive_action)
-          self.log_timestep()
+          s, s_idx = self.env.reset()
+          self.option_evaluation(s, s_idx)
+          while not self.done:
+            self.sync_threads()
+            self.policy_evaluation(s)
 
-          if self.total_steps > self.config.observation_steps:
-            self.next_frame_prediction()
-            self.reward_prediction()
-            self.old_option = self.option
+            s1, r, self.done, s1_idx = self.env.step(self.action)
 
-            if not self.done and (self.o_term or self.primitive_action):
-              if not self.primitive_action:
-                self.episode_options_lengths[self.option][-1] = self.episode_len - \
-                                                                self.episode_options_lengths[self.option][-1]
-              self.option_evaluation(s1, s1_idx)
+            r = np.clip(r, -1, 1)
+            if self.done:
+              s1 = s
 
-            self.SF_option_prediction(s, self.old_option, s1, self.option, self.action, self.primitive_action)
+            self.store_general_info(s, s1, self.action, r)
+            self.store_reward_info(s, self.option, self.action, s1, r, self.primitive_action)
+            self.log_timestep()
 
-            if self.total_steps % self.config.steps_checkpoint_interval == 0 and self.name == 'worker_0':
-              self.save_model()
+            if self.total_steps > self.config.observation_steps:
+              self.next_frame_prediction()
+              self.reward_prediction()
+              self.old_option = self.option
 
-            if self.total_steps % self.config.steps_summary_interval == 0 and self.name == 'worker_0':
-              self.write_step_summary(r)
+              if not self.done and (self.o_term or self.primitive_action):
+                if not self.primitive_action:
+                  self.episode_options_lengths[self.option][-1] = self.episode_len - \
+                                                                  self.episode_options_lengths[self.option][-1]
+                self.option_evaluation(s1, s1_idx)
 
-          s = s1
-          self.episode_len += 1
-          self.total_steps += 1
-          sess.run(self.increment_total_steps_tensor)
+              self.SF_option_prediction(s, self.old_option, s1, self.option, self.action, self.primitive_action)
 
-        self.log_episode()
-        self.update_episode_stats()
+              if self.total_steps % self.config.steps_checkpoint_interval == 0 and self.name == 'worker_0':
+                self.save_model()
 
-        # if self.episode_count % self.config.episode_eval_interval == 0 and \
-        #         self.name == 'worker_0' and self.episode_count != 0:
-        #   tf.logging.info("Evaluating agent....")
-        #   eval_episodes_won, mean_ep_length = self.evaluate_agent()
-        #   self.write_eval_summary(eval_episodes_won, mean_ep_length)
+              if self.total_steps % self.config.steps_summary_interval == 0 and self.name == 'worker_0':
+                self.write_step_summary(r)
 
-        if self.episode_count % self.config.move_goal_nb_of_ep == 0 and \
-                self.episode_count != 0:
-          tf.logging.info("Moving GOAL....")
-          self.barrier.wait()
-          self.env.set_goal(self.episode_count, self.config.move_goal_nb_of_ep)
+            s = s1
+            self.episode_len += 1
+            self.total_steps += 1
+            sess.run(self.increment_total_steps_tensor)
 
-        if self.episode_count % self.config.episode_checkpoint_interval == 0 and self.name == 'worker_0' and \
-                self.episode_count != 0:
-          self.save_model()
+          self.log_episode()
+          self.update_episode_stats()
 
-        if self.episode_count % self.config.episode_summary_interval == 0 and self.total_steps != 0 and \
-                self.name == 'worker_0' and self.episode_count != 0:
-          self.write_episode_summary(self.episode_reward)
+          # if self.episode_count % self.config.episode_eval_interval == 0 and \
+          #         self.name == 'worker_0' and self.episode_count != 0:
+          #   tf.logging.info("Evaluating agent....")
+          #   eval_episodes_won, mean_ep_length = self.evaluate_agent()
+          #   self.write_eval_summary(eval_episodes_won, mean_ep_length)
 
-        if self.name == 'worker_0':
-          sess.run(self.increment_global_step)
-        self.episode_count += 1
+          if self.episode_count % self.config.move_goal_nb_of_ep == 0 and \
+                  self.episode_count != 0:
+            tf.logging.info("Moving GOAL....")
+            self.barrier.wait()
+            self.env.set_goal(self.episode_count, self.config.move_goal_nb_of_ep)
+
+          if self.episode_count % self.config.episode_checkpoint_interval == 0 and self.name == 'worker_0' and \
+                  self.episode_count != 0:
+            self.save_model()
+
+          if self.episode_count % self.config.episode_summary_interval == 0 and self.total_steps != 0 and \
+                  self.name == 'worker_0' and self.episode_count != 0:
+            self.write_episode_summary(self.episode_reward)
+
+          if self.name == 'worker_0':
+            sess.run(self.increment_global_step)
+          self.episode_count += 1
 
   def option_evaluation(self, s, s_idx):
     feed_dict = {self.local_network.observation: np.stack([s])}

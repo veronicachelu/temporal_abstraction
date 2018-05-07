@@ -128,9 +128,9 @@ class SomNetwork(BaseNetwork):
       self.sf = tf.reshape(out, (-1, (self.nb_options + self.action_size), self.sf_layers[-1]))
 
   def build_option_q_val_net(self):
-    self.w = self.get_w()
+    self.w = tf.tile(self.get_w()[None, ...], (tf.shape(self.sf)[0], 1, 1))
     with tf.variable_scope("option_q_val"):
-      self.q_val = tf.map_fn(lambda x: tf.matmul(x, self.w), self.sf)
+      self.q_val = tf.matmul(self.sf, self.w)
       self.q_val = tf.squeeze(self.q_val, 2)
       self.summaries_option.append(tf.contrib.layers.summarize_activation(self.q_val))
       self.max_q_val = tf.reduce_max(self.q_val, 1)
