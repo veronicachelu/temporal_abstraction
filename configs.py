@@ -23,7 +23,6 @@ def default():
   input_size = (13, 13)
   history_size = 3
   network_optimizer = 'AdamOptimizer'
-  adam_epsilon = 1e-04
   lr = 0.0001
   discount = 0.99
   sf_coef = 1
@@ -32,7 +31,7 @@ def default():
   critic_coef = 1
   eigen_critic_coef = 1
   target_update_iter_aux = 1
-  target_update_iter_sf = 1
+  target_update_iter_sf = 30
   target_update_iter_option = 30
 
   goal_locations = [(11, 7), (5, 2)]#, (1, 10), (2, 2), (6, 2)]
@@ -159,6 +158,8 @@ def oc():
   goal_locations = [(11, 7), (5, 2), (1, 10), (2, 2), (6, 2)]
   #goal_locations = [(1, 11), (3, 2), (6, 2), (1, 4), (1, 1), (8, 1), (2, 5), (11, 10)]
   move_goal_nb_of_ep = 1000
+  env = functools.partial(
+    GridWorld, goal_locations, "./mdps/4rooms.mdp")
 
   return locals()
 
@@ -188,6 +189,8 @@ def eigenoc():
   goal_locations = [(11, 7), (5, 2)] #, (1, 10), (2, 2), (6, 2)]
   # goal_locations = [(1, 11), (3, 2)]
   move_goal_nb_of_ep = 1000
+  env = functools.partial(
+    GridWorld, goal_locations, "./mdps/4rooms.mdp")
   tau = 0.1
   return locals()
 
@@ -198,6 +201,8 @@ def eigenoc_dyn():
   sr_matrix = "dynamic"
   goal_locations = [(11, 7), (5, 2), (1, 10), (2, 2), (6, 2)]
   move_goal_nb_of_ep = 1000
+  env = functools.partial(
+    GridWorld, goal_locations, "./mdps/4rooms.mdp")
   return locals()
 
 def oc_dyn():
@@ -206,6 +211,8 @@ def oc_dyn():
   sr_matrix = None
   goal_locations = [(11, 7), (5, 2), (1, 10), (2, 2), (6, 2)]
   move_goal_nb_of_ep = 1000
+  env = functools.partial(
+    GridWorld, goal_locations, "./mdps/4rooms.mdp")
   return locals()
 
 def eigenoc_montezuma():
@@ -268,6 +275,8 @@ def som():
   goal_locations = [(11, 7), (5, 2)]#, (1, 10), (2, 2), (6, 2)]
   #goal_locations = [(1, 11), (3, 2)]
   move_goal_nb_of_ep = 500
+  env = functools.partial(
+    GridWorld, goal_locations, "./mdps/4rooms.mdp")
 
   final_random_option_prob = 0.1
   initial_random_option_prob = 0.1
@@ -311,6 +320,8 @@ def exploration():
   goal_locations = [(11, 7), (5, 2)]#, (1, 10), (2, 2), (6, 2)]
   #goal_locations = [(1, 11), (3, 2)]
   move_goal_nb_of_ep = 500
+  env = functools.partial(
+    GridWorld, goal_locations, "./mdps/4rooms.mdp")
   reward_update_freq = 1
   target_update_iter_reward = 1
   tau = 0.1
