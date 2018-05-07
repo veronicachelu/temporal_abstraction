@@ -224,12 +224,12 @@ class SomNetwork(BaseNetwork):
 
     with tf.name_scope('reward_loss'):
       reward_error = self.target_r - tf.squeeze(
-        tf.matmul(tf.expand_dims(tf.stop_gradient(self.fi_relu), 1), self.w[..., None]), axis=[1, 2])
+        tf.matmul(tf.expand_dims(tf.stop_gradient(self.fi), 1), self.w[..., None]), axis=[1, 2])
     self.reward_loss = tf.reduce_mean(self.config.reward_coef * huber_loss(reward_error))
 
     with tf.name_scope('reward_loss_i'):
       reward_i_error = self.target_r_i - tf.squeeze(
-        tf.matmul(tf.expand_dims(tf.stop_gradient(self.fi_relu), 1), wg_oa[..., None]), axis=[1, 2])
+        tf.matmul(tf.expand_dims(tf.stop_gradient(self.fi), 1), wg_oa[..., None]), axis=[1, 2])
     self.reward_i_loss = tf.reduce_mean(self.config.reward_i_coef * huber_loss(reward_i_error))
 
     with tf.name_scope('aux_loss'):
