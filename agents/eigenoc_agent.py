@@ -29,7 +29,7 @@ class EigenOCAgent(BaseAgent):
     self.episode_count = sess.run(self.global_step)
 
     if self.config.move_goal_nb_of_ep:
-      self.env.set_goal(self.episode_count, self.config.move_goal_nb_of_ep)
+      self.goal_position = self.env.set_goal(self.episode_count, self.config.move_goal_nb_of_ep)
 
     self.total_steps = sess.run(self.total_steps_tensor)
     self.eigen_q_value = None
@@ -37,6 +37,7 @@ class EigenOCAgent(BaseAgent):
     tf.logging.info("Starting worker " + str(self.thread_id))
     self.aux_episode_buffer = deque()
     self.ms_aux = self.ms_sf = self.ms_option = None
+
 
   def init_episode(self):
     self.episode_buffer_sf = []
@@ -187,7 +188,7 @@ class EigenOCAgent(BaseAgent):
                 self.episode_count != 0:
           tf.logging.info("Moving GOAL....")
           self.barrier.wait()
-          self.env.set_goal(self.episode_count, self.config.move_goal_nb_of_ep)
+          self.goal_position = self.env.set_goal(self.episode_count, self.config.move_goal_nb_of_ep)
 
         if self.episode_count % self.config.episode_checkpoint_interval == 0 and self.name == 'worker_0' and \
                 self.episode_count != 0:

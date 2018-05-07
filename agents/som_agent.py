@@ -20,11 +20,12 @@ import csv
 
 
 class SomAgent(BaseAgent):
-  def __init__(self, game, thread_id, global_step, config, global_network):
+  def __init__(self, game, thread_id, global_step, config, global_network, barrier):
     super(SomAgent, self).__init__(game, thread_id, global_step, config, global_network)
     self.update_local_vars_reward = update_target_graph_reward('global', self.name)
     self.stats_path = os.path.join(self.summary_path, 'stats')
     tf.gfile.MakeDirs(self.stats_path)
+    self.barrier = barrier
 
   def init_play(self, sess, saver):
     self.sess = sess
@@ -195,6 +196,7 @@ class SomAgent(BaseAgent):
         if self.episode_count % self.config.move_goal_nb_of_ep == 0 and \
                 self.episode_count != 0:
           tf.logging.info("Moving GOAL....")
+          self.barrier.wait()
           self.env.set_goal(self.episode_count, self.config.move_goal_nb_of_ep)
 
         if self.episode_count % self.config.episode_checkpoint_interval == 0 and self.name == 'worker_0' and \

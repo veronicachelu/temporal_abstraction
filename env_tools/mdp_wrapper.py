@@ -48,6 +48,8 @@ class GridWorld:
     self.goalX = goal_pair[0]
     self.goalY = goal_pair[1]
 
+    return k
+
   def render(self, s):
     # time.sleep(0.1)
     # s = self.pix_state

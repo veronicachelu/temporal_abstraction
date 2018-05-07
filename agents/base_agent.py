@@ -167,6 +167,7 @@ class BaseAgent():
       self.summary.value.add(tag='Perf/FreqActions', simple_value=last_frequent_action)
     # for op in range(self.config.nb_options):
     #   self.summary.value.add(tag='Perf/Option_length_{}'.format(op), simple_value=self.episode_mean_options_lengths[op])
+    self.summary.value.add(tag='Perf/Goal_position', simple_value=self.goal_position)
 
     self.summary_writer.add_summary(self.summary, self.episode_count)
     self.summary_writer.flush()

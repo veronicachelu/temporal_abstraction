@@ -82,8 +82,8 @@ class SomNetwork(BaseNetwork):
 
   def build_next_frame_prediction_net(self):
     with tf.variable_scope("aux_action_fc"):
-      self.actions_placeholder = tf.placeholder(shape=[None], dtype=tf.float32, name="Actions")
-      actions = layers.fully_connected(self.actions_placeholder[..., None], num_outputs=self.fc_layers[-1],
+      self.actions_placeholder = tf.placeholder(shape=[None], dtype=tf.int32, name="Actions")
+      actions = layers.fully_connected(tf.cast(self.actions_placeholder[..., None], tf.float32),  num_outputs=self.fc_layers[-1],
                                        activation_fn=None,
                                        variables_collections=tf.get_collection("variables"),
                                        outputs_collections="activations", scope="fc")
