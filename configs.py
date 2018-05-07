@@ -152,7 +152,7 @@ def oc():
   steps = -1  # 1M
   episodes = 1e6  # 1M
   eigen_exploration_steps = 16*4
-  max_length = 2000
+  max_length = 1000
   max_length_eval = 1000
   include_primitive_options = True
   sr_matrix_size = 169

@@ -10,6 +10,7 @@ import config_utility as utility
 from env_tools import env_wrappers
 import configs
 from env_tools import _create_environment
+from threading import Barrier, Thread
 
 def train(config, env_processes, logdir):
   tf.reset_default_graph()
@@ -25,21 +26,17 @@ def train(config, env_processes, logdir):
         envs = [_create_environment(config) for _ in range(config.num_agents)]
         action_size = envs[0].action_space.n
         global_network = config.network("global", config, action_size)
-
+        b = Barrier(config.num_agents)
         if FLAGS.task == "matrix":
-          agent = config.dif_agent(envs[0], 0, global_step, config, None)
+          agent = config.target_agent(envs[0], 0, global_step, config, None)
         elif FLAGS.task == "option":
-          agent = config.dif_agent(envs[0], 0, global_step, config, None)
+          agent = config.target_agent(envs[0], 0, global_step, config, None)
         elif FLAGS.task == "eigenoption":
-          agent = config.dif_agent(envs[0], 0, global_step, config, None)
+          agent = config.target_agent(envs[0], 0, global_step, config, None)
         elif FLAGS.task == "eval":
-          agent = config.dif_agent(envs[0], 0, global_step, config, global_network)
-        elif FLAGS.task == "exploration":
-          agents = [config.dif_agent(envs[i], i, global_step, config, global_network) for i in range(config.num_agents-1)]
-          agents.append(config.behaviour_agent(envs[config.num_agents-1], config.num_agents-1, global_step,
-                                               config, global_network))
+          agent = config.target_agent(envs[0], 0, global_step, config, global_network)
         else:
-          agents = [config.dif_agent(envs[i], i, global_step, config, global_network) for i in range(config.num_agents)]
+          agents = [config.target_agent(envs[i], i, global_step, config, global_network, b) for i in range(config.num_agents)]
 
       saver = loader = utility.define_saver(exclude=(r'.*_temporary/.*',))
       if FLAGS.resume:
@@ -53,6 +50,7 @@ def train(config, env_processes, logdir):
         sess.run([tf.global_variables_initializer(), tf.local_variables_initializer()])
 
       coord = tf.train.Coordinator()
+
 
       agent_threads = []
       if FLAGS.task == "matrix":
@@ -118,7 +116,7 @@ if __name__ == '__main__':
     'timestamp', datetime.datetime.now().strftime('%Y%m%dT%H%M%S'),
     'Sub directory to store logs.')
   tf.app.flags.DEFINE_string(
-    'config', "oc",
+    'config', "eigenoc",
     'Configuration to execute.')
   tf.app.flags.DEFINE_boolean(
     'env_processes', True,

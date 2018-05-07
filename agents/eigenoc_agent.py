@@ -14,12 +14,14 @@ sns.set()
 import random
 import matplotlib.pyplot as plt
 import copy
+from threading import Barrier, Thread
 FLAGS = tf.app.flags.FLAGS
 
 
 class EigenOCAgent(BaseAgent):
-  def __init__(self, game, thread_id, global_step, config, global_network):
+  def __init__(self, game, thread_id, global_step, config, global_network, barrier):
     super(EigenOCAgent, self).__init__(game, thread_id, global_step, config, global_network)
+    self.barrier = barrier
 
   def init_play(self, sess, saver):
     self.sess = sess
@@ -45,7 +47,7 @@ class EigenOCAgent(BaseAgent):
     self.episode_oterm = []
     self.episode_options = []
     self.episode_actions = []
-    self.episode_options_lengths = [[] for o in range(self.config.nb_options)]
+    # self.episode_options_lengths = [[] for o in range(self.config.nb_options)]
     self.episode_reward = 0
     # self.episode_option_histogram = np.zeros(self.config.nb_options)
     self.done = False
@@ -156,9 +158,9 @@ class EigenOCAgent(BaseAgent):
               self.option_prediction(s, s1, r)
 
               if not self.done and (self.o_term or self.primitive_action):
-                if not self.primitive_action:
-                  self.episode_options_lengths[self.option][-1] = self.episode_len - \
-                                                                  self.episode_options_lengths[self.option][-1]
+                # if not self.primitive_action:
+                #   self.episode_options_lengths[self.option][-1] = self.episode_len - \
+                #                                                   self.episode_options_lengths[self.option][-1]
                 self.option_evaluation(s1)
 
             if self.total_steps % self.config.steps_checkpoint_interval == 0 and self.name == 'worker_0':
@@ -184,6 +186,7 @@ class EigenOCAgent(BaseAgent):
         if self.episode_count % self.config.move_goal_nb_of_ep == 0 and \
                 self.episode_count != 0:
           tf.logging.info("Moving GOAL....")
+          self.barrier.wait()
           self.env.set_goal(self.episode_count, self.config.move_goal_nb_of_ep)
 
         if self.episode_count % self.config.episode_checkpoint_interval == 0 and self.name == 'worker_0' and \
@@ -204,8 +207,8 @@ class EigenOCAgent(BaseAgent):
       [self.local_network.current_option, self.local_network.primitive_action], feed_dict=feed_dict)
     self.option, self.primitive_action = self.option[0], self.primitive_action[0]
     self.episode_options.append(self.option)
-    if not self.primitive_action:
-      self.episode_options_lengths[self.option].append(self.episode_len)
+    # if not self.primitive_action:
+    #   self.episode_options_lengths[self.option].append(self.episode_len)
 
   def policy_evaluation(self, s):
     if self.total_steps > self.config.eigen_exploration_steps:
