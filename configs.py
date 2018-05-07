@@ -182,7 +182,7 @@ def eigenoc():
 
   alpha_r = 0.75
   eigen_exploration_steps = 16*4
-  max_length = 2000
+  max_length = 1000
   max_length_eval = 1000
   first_eigenoption = 1
   include_primitive_options = True
