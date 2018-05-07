@@ -10,17 +10,17 @@ import config_utility as utility
 from env_tools import env_wrappers
 import configs
 from env_tools import _create_environment
+from threading import Barrier, Thread
 
 def train(config, env_processes, logdir):
   tf.reset_default_graph()
   sess = tf.Session()
-  stage_logdir = os.path.join(logdir, "dif")
-  tf.gfile.MakeDirs(stage_logdir)
+  tf.gfile.MakeDirs(logdir)
   with sess:
     with tf.device("/cpu:0"):
       with config.unlocked:
         config.logdir = logdir
-        config.stage_logdir = stage_logdir
+        config.stage_logdir = logdir
         config.network_optimizer = getattr(tf.train, config.network_optimizer)
         global_step = tf.Variable(0, dtype=tf.int32, name='global_step', trainable=False)
         envs = [_create_environment(config) for _ in range(config.num_agents)]
@@ -28,15 +28,15 @@ def train(config, env_processes, logdir):
         global_network = config.network("global", config, action_size)
 
         if FLAGS.task == "matrix":
-          agent = config.dif_agent(envs[0], 0, global_step, config, None)
+          agent = config.target_agent(envs[0], 0, global_step, config, None)
         elif FLAGS.task == "option":
-          agent = config.dif_agent(envs[0], 0, global_step, config, None)
+          agent = config.target_agent(envs[0], 0, global_step, config, None)
         elif FLAGS.task == "eigenoption":
-          agent = config.dif_agent(envs[0], 0, global_step, config, None)
+          agent = config.target_agent(envs[0], 0, global_step, config, None)
         elif FLAGS.task == "eval":
-          agent = config.dif_agent(envs[0], 0, global_step, config, global_network)
+          agent = config.target_agent(envs[0], 0, global_step, config, global_network)
         else:
-          agents = [config.dif_agent(envs[i], i, global_step, config, global_network) for i in range(config.num_agents)]
+          agents = [config.target_agent(envs[i], i, global_step, config, global_network, b) for i in range(config.num_agents)]
 
       saver = loader = utility.define_saver(exclude=(r'.*_temporary/.*',))
       if FLAGS.resume:
@@ -50,6 +50,7 @@ def train(config, env_processes, logdir):
         sess.run([tf.global_variables_initializer(), tf.local_variables_initializer()])
 
       coord = tf.train.Coordinator()
+      
 
       agent_threads = []
       if FLAGS.task == "matrix":
