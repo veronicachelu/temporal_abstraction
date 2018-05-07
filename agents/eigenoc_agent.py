@@ -10,11 +10,13 @@ import matplotlib.pylab as plt
 import numpy as np
 from collections import deque
 import seaborn as sns
+
 sns.set()
 import random
 import matplotlib.pyplot as plt
 import copy
 from threading import Barrier, Thread
+
 FLAGS = tf.app.flags.FLAGS
 
 
@@ -37,7 +39,6 @@ class EigenOCAgent(BaseAgent):
     tf.logging.info("Starting worker " + str(self.thread_id))
     self.aux_episode_buffer = deque()
     self.ms_aux = self.ms_sf = self.ms_option = None
-
 
   def init_episode(self):
     self.episode_buffer_sf = []
@@ -63,7 +64,7 @@ class EigenOCAgent(BaseAgent):
     if self.config.eigen and (self.sf_counter == self.config.max_update_freq or self.done):
       feed_dict = {self.local_network.observation: np.stack([s1])}
       sf = self.sess.run(self.local_network.sf,
-                    feed_dict=feed_dict)[0]
+                         feed_dict=feed_dict)[0]
       bootstrap_sf = np.zeros_like(sf) if self.done else sf
       self.ms_sf, self.sf_loss = self.train_sf(bootstrap_sf)
       self.episode_buffer_sf = []
@@ -127,7 +128,7 @@ class EigenOCAgent(BaseAgent):
       with coord.stop_on_exception():
         while not coord.should_stop():
           if (self.config.steps != -1 and \
-              (self.total_steps > self.config.steps and self.name == "worker_0")) or \
+                  (self.total_steps > self.config.steps and self.name == "worker_0")) or \
               (self.episode_count > len(self.config.goal_locations) * self.config.move_goal_nb_of_ep and
                    self.name == "worker_0"):
             coord.request_stop()
@@ -225,13 +226,13 @@ class EigenOCAgent(BaseAgent):
 
       if self.config.eigen:
         tensor_list = [self.local_network.options, self.local_network.v, self.local_network.q_val,
-                  self.local_network.termination, self.local_network.eigen_q_val, self.local_network.eigenv]
+                       self.local_network.termination, self.local_network.eigen_q_val, self.local_network.eigenv]
         options, value, q_value, o_term, eigen_q_value, evalue = self.sess.run(tensor_list, feed_dict=feed_dict)
         if not self.primitive_action:
           self.eigen_q_value = eigen_q_value[0, self.option]
           pi = options[0, self.option]
           self.action = np.random.choice(pi, p=pi)
-          self.action = np.argmax(pi==self.action)
+          self.action = np.argmax(pi == self.action)
           self.o_term = o_term[0, self.option] > np.random.uniform()
           self.evalue = evalue[0]
         else:
@@ -242,7 +243,7 @@ class EigenOCAgent(BaseAgent):
 
       else:
         tensor_list = [self.local_network.options, self.local_network.v, self.local_network.q_val,
-                  self.local_network.termination]
+                       self.local_network.termination]
         options, value, q_value, o_term = self.sess.run(tensor_list, feed_dict=feed_dict)
 
         if self.config.include_primitive_options and self.primitive_action:
@@ -300,7 +301,8 @@ class EigenOCAgent(BaseAgent):
 
           sf_norm = np.linalg.norm(sf)
           sf_normalized = sf / (sf_norm + 1e-8)
-          new_eigenvectors[ci] = self.config.tau * sf_normalized + (1 - self.config.tau) * self.global_network.directions[ci]
+          new_eigenvectors[ci] = self.config.tau * sf_normalized + (1 - self.config.tau) * \
+                                                                   self.global_network.directions[ci]
 
       # feed_dict = {self.local_network.matrix_sf: [matrix_sf]}
       # eigenval, eigenvect = self.sess.run([self.local_network.eigenvalues, self.local_network.eigenvectors],
@@ -328,8 +330,8 @@ class EigenOCAgent(BaseAgent):
 
   def recompute_eigenvectors_svd(self):
     if self.config.eigen:
-      new_eigenvectors = copy.deepcopy(self.global_network.directions)
-      matrix_sf = []
+      # new_eigenvectors = copy.deepcopy(self.global_network.directions)
+      # matrix_sf = []
       states = []
       for idx in range(self.nb_states):
         s, ii, jj = self.env.fake_get_state(idx)
@@ -340,7 +342,8 @@ class EigenOCAgent(BaseAgent):
       sfs = self.sess.run(self.local_network.sf, feed_dict=feed_dict)
       _, eigenval, eigenvect = np.linalg.svd(sfs, full_matrices=False)
 
-      new_eigenvectors = eigenvect[self.config.first_eigenoption:self.config.nb_options + self.config.first_eigenoption]
+      new_eigenvectors = copy.deepcopy(
+        eigenvect[self.config.first_eigenoption:self.config.nb_options + self.config.first_eigenoption])
 
       min_similarity = np.min(
         [self.cosine_similarity(a, b) for a, b in zip(self.global_network.directions, new_eigenvectors)])
@@ -410,7 +413,7 @@ class EigenOCAgent(BaseAgent):
     rewards_plus = np.asarray(rewards.tolist() + [bootstrap_value])
     discounted_returns = reward_discount(rewards_plus, self.config.discount)[:-1]
 
-    options_primitive, options_highlevel, actions_primitive, actions_highlevel,\
+    options_primitive, options_highlevel, actions_primitive, actions_highlevel, \
     discounted_returns_primitive, discounted_returns_highlevel, \
     observations_primitive, observations_highlevel = [], [], [], [], [], [], [], []
 
@@ -517,10 +520,10 @@ class EigenOCAgent(BaseAgent):
         if episode_length > self.config.max_length_eval:
           break
 
-        # if i == 0 and self.episode_count > 500:
-        #   images = np.array(episode_frames)
-        #   make_gif(images[:100], os.path.join(self.test_path, 'eval_episode_{}.gif'.format(self.episode_count)),
-        #            duration=len(images[:100]) * 0.1, true_image=True)
+          # if i == 0 and self.episode_count > 500:
+          #   images = np.array(episode_frames)
+          #   make_gif(images[:100], os.path.join(self.test_path, 'eval_episode_{}.gif'.format(self.episode_count)),
+          #            duration=len(images[:100]) * 0.1, true_image=True)
 
       episodes_won += episode_reward
       episode_lengths.append(episode_length)
@@ -586,4 +589,3 @@ class EigenOCAgent(BaseAgent):
       # make_gif(images, os.path.join(self.test_path, 'test_episodes.gif'),
       #          duration=len(images) * 1.0, true_image=True)
       tf.logging.info("Won {} episodes of {}".format(ep_rewards.count(1), self.config.nb_test_ep))
-
