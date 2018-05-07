@@ -68,11 +68,13 @@ def default():
   episode_checkpoint_interval = 10
   episode_eval_interval = 10
 
+  logging = False
+
   return locals()
 
 def linear_sf():
   locals().update(default())
-  dif_agent = LinearSFAgent
+  target_agent = LinearSFAgent
   num_agents = 8
   nb_options = 4
   network = LinearSFNetwork
@@ -109,7 +111,7 @@ def linear_sf():
 
 def dynamic_SR():
   locals().update(default())
-  dif_agent = DynSRAgent
+  target_agent = DynSRAgent
   num_agents = 8
   network = DynSRNetwork
 
@@ -135,7 +137,7 @@ def dynamic_SR():
 def oc():
   locals().update(default())
   nb_options = 4
-  dif_agent = EigenOCAgent
+  target_agent = EigenOCAgent
   eigen = False
   network = EignOCNetwork
 
@@ -165,7 +167,7 @@ def oc():
 
 def eigenoc():
   locals().update(default())
-  dif_agent = EigenOCAgent
+  target_agent = EigenOCAgent
   nb_options = 4
   eigen = True
   network = EignOCNetwork
@@ -196,7 +198,7 @@ def eigenoc():
 
 def eigenoc_dyn():
   locals().update(eigenoc())
-  dif_agent = EigenOCAgentDyn
+  target_agent = EigenOCAgentDyn
   sf_matrix_size = 5000
   sr_matrix = "dynamic"
   goal_locations = [(11, 7), (5, 2), (1, 10), (2, 2), (6, 2)]
@@ -207,7 +209,7 @@ def eigenoc_dyn():
 
 def oc_dyn():
   locals().update(oc())
-  dif_agent = EigenOCAgentDyn
+  target_agent = EigenOCAgentDyn
   sr_matrix = None
   goal_locations = [(11, 7), (5, 2), (1, 10), (2, 2), (6, 2)]
   move_goal_nb_of_ep = 1000
@@ -217,7 +219,7 @@ def oc_dyn():
 
 def eigenoc_montezuma():
   locals().update(default())
-  dif_agent = EigenOCAgentDyn
+  target_agent = EigenOCAgentDyn
   eigen = True
   network = EignOCMontezumaNetwork
 
@@ -250,7 +252,7 @@ def eigenoc_montezuma():
 
 def som():
   locals().update(default())
-  dif_agent = SomAgent
+  target_agent = SomAgent
   nb_options = 4
   num_agents = 12
   eigen = True
@@ -294,7 +296,7 @@ def som():
 
 def exploration():
   locals().update(default())
-  dif_agent = TargetAgent
+  target_agent = TargetAgent
   behaviour_agent = BehaviourAgent
   nb_options = 4
   num_agents = 12

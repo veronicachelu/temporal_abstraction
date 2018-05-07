@@ -77,12 +77,12 @@ class BaseAgent():
         self.sess.run(self.update_local_vars_option)
 
   def log_timestep(self):
-    if self.name == "worker_0":
+    if self.name == "worker_0" and self.config.logging:
       tf.logging.info(
         "Episode {} >> Step {} >> Length: {}".format(self.episode_count, self.total_steps, self.episode_len))
 
   def log_episode(self):
-    if self.name == "worker_0":
+    if self.name == "worker_0" and self.config.logging:
       tf.logging.info("Episode {} >> Step {} >> Length: {} >>> Reward: {}".format(self.episode_count,
                                                                                   self.total_steps, self.episode_len,
                                                                                   self.episode_reward))
@@ -102,9 +102,9 @@ class BaseAgent():
       self.episode_mean_options.append(get_mode(self.episode_options))
     if len(self.episode_actions) != 0:
       self.episode_mean_actions.append(get_mode(self.episode_actions))
-    for op, option_lengths in enumerate(self.episode_options_lengths):
-      if len(option_lengths) != 0:
-        self.episode_mean_options_lengths[op] = np.mean(option_lengths)
+    # for op, option_lengths in enumerate(self.episode_options_lengths):
+    #   if len(option_lengths) != 0:
+    #     self.episode_mean_options_lengths[op] = np.mean(option_lengths)
 
   def save_model(self):
     self.saver.save(self.sess, self.model_path + '/model-{}.{}.cptk'.format(self.episode_count, self.total_steps),
@@ -165,8 +165,8 @@ class BaseAgent():
     if len(self.episode_mean_options) != 0:
       last_frequent_action = self.episode_mean_actions[-1]
       self.summary.value.add(tag='Perf/FreqActions', simple_value=last_frequent_action)
-    for op in range(self.config.nb_options):
-      self.summary.value.add(tag='Perf/Option_length_{}'.format(op), simple_value=self.episode_mean_options_lengths[op])
+    # for op in range(self.config.nb_options):
+    #   self.summary.value.add(tag='Perf/Option_length_{}'.format(op), simple_value=self.episode_mean_options_lengths[op])
 
     self.summary_writer.add_summary(self.summary, self.episode_count)
     self.summary_writer.flush()
