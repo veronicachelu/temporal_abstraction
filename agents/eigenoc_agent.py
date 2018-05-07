@@ -135,7 +135,10 @@ class EigenOCAgent(BaseAgent):
           self.sync_threads()
 
           if self.name == "worker_0" and self.episode_count > 0:
-            self.recompute_eigenvectors_classic()
+            if self.config.eigen_approach == "SVD":
+              self.recompute_eigenvectors_svd()
+            else:
+              self.recompute_eigenvectors_classic()
 
           self.load_directions()
           self.init_episode()
@@ -305,6 +308,38 @@ class EigenOCAgent(BaseAgent):
       # _, eigenval, eigenvect = np.linalg.svd(matrix_sf, full_matrices=False)
       # eigenvalues = eigenval[self.config.first_eigenoption:self.config.nb_options + self.config.first_eigenoption]
       # new_eigenvectors = eigenvect[self.config.first_eigenoption:self.config.nb_options + self.config.first_eigenoption]
+
+      min_similarity = np.min(
+        [self.cosine_similarity(a, b) for a, b in zip(self.global_network.directions, new_eigenvectors)])
+      max_similarity = np.max(
+        [self.cosine_similarity(a, b) for a, b in zip(self.global_network.directions, new_eigenvectors)])
+      mean_similarity = np.mean(
+        [self.cosine_similarity(a, b) for a, b in zip(self.global_network.directions, new_eigenvectors)])
+      self.summary = tf.Summary()
+      self.summary.value.add(tag='Eigenvectors/Min similarity', simple_value=float(min_similarity))
+      self.summary.value.add(tag='Eigenvectors/Max similarity', simple_value=float(max_similarity))
+      self.summary.value.add(tag='Eigenvectors/Mean similarity', simple_value=float(mean_similarity))
+      self.summary_writer.add_summary(self.summary, self.episode_count)
+      self.summary_writer.flush()
+      # tf.logging.warning("Min cosine similarity between old eigenvectors and recomputed onesis {}".format(min_similarity))
+      self.global_network.directions = new_eigenvectors
+      self.directions = self.global_network.directions
+
+  def recompute_eigenvectors_svd(self):
+    if self.config.eigen:
+      new_eigenvectors = copy.deepcopy(self.global_network.directions)
+      matrix_sf = []
+      states = []
+      for idx in range(self.nb_states):
+        s, ii, jj = self.env.fake_get_state(idx)
+        if self.env.not_wall(ii, jj):
+          states.append(s)
+
+      feed_dict = {self.local_network.observation: states}
+      sfs = self.sess.run(self.local_network.sf, feed_dict=feed_dict)
+      _, eigenval, eigenvect = np.linalg.svd(sfs, full_matrices=False)
+
+      new_eigenvectors = eigenvect[self.config.first_eigenoption:self.config.nb_options + self.config.first_eigenoption]
 
       min_similarity = np.min(
         [self.cosine_similarity(a, b) for a, b in zip(self.global_network.directions, new_eigenvectors)])

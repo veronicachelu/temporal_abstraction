@@ -196,6 +196,7 @@ def eigenoc():
   env = functools.partial(
     GridWorld, goal_locations, "./mdps/4rooms.mdp")
   tau = 0.1
+  eigen_approach = "SVD"
   return locals()
 
 def eigenoc_dyn():
