@@ -26,7 +26,7 @@ def train(config, env_processes, logdir):
         envs = [_create_environment(config) for _ in range(config.num_agents)]
         action_size = envs[0].action_space.n
         global_network = config.network("global", config, action_size)
-
+        b = Barrier(config.num_agents)
         if FLAGS.task == "matrix":
           agent = config.target_agent(envs[0], 0, global_step, config, None)
         elif FLAGS.task == "option":
@@ -50,7 +50,7 @@ def train(config, env_processes, logdir):
         sess.run([tf.global_variables_initializer(), tf.local_variables_initializer()])
 
       coord = tf.train.Coordinator()
-      
+
 
       agent_threads = []
       if FLAGS.task == "matrix":
