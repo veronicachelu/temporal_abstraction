@@ -79,7 +79,7 @@ class EigenOCAgentDyn(EigenOCAgent):
         self.update_episode_stats()
 
         if self.episode_count % self.config.episode_eval_interval == 0 and \
-               self.name == 'worker_0' and self.episode_count != 0:
+               self.name == 'worker_0' and self.episode_count != 0 and self.config.evaluation:
          tf.logging.info("Evaluating agent....")
          eval_episodes_won, mean_ep_length = self.evaluate_agent()
          self.write_eval_summary(eval_episodes_won, mean_ep_length)

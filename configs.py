@@ -69,6 +69,7 @@ def default():
   episode_eval_interval = 10
 
   logging = False
+  evaluation = False
 
   return locals()
 
