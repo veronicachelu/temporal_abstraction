@@ -190,7 +190,7 @@ def eigenoc():
   sr_matrix = "static"
   goal_locations = [(11, 7), (5, 2)] #, (1, 10), (2, 2), (6, 2)]
   # goal_locations = [(1, 11), (3, 2)]
-  move_goal_nb_of_ep = 1000
+  move_goal_nb_of_ep = 300
   env = functools.partial(
     GridWorld, goal_locations, "./mdps/4rooms.mdp")
   tau = 0.1
