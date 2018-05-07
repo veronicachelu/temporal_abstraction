@@ -160,7 +160,7 @@ def oc():
   sr_matrix = "static"
   goal_locations = [(11, 7), (5, 2), (1, 10), (2, 2), (6, 2)]
   #goal_locations = [(1, 11), (3, 2), (6, 2), (1, 4), (1, 1), (8, 1), (2, 5), (11, 10)]
-  move_goal_nb_of_ep = 300
+  move_goal_nb_of_ep = 500
   env = functools.partial(
     GridWorld, goal_locations, "./mdps/4rooms.mdp")
 
@@ -189,9 +189,10 @@ def eigenoc():
   include_primitive_options = True
   sr_matrix_size = 169
   sr_matrix = "static"
-  goal_locations = [(11, 7), (5, 2)] #, (1, 10), (2, 2), (6, 2)]
+  # goal_locations = [(11, 7), (5, 2)] #, (1, 10), (2, 2), (6, 2)]
   # goal_locations = [(1, 11), (3, 2)]
-  move_goal_nb_of_ep = 300
+  goal_locations = [(11, 7), (5, 2), (1, 10), (2, 2), (6, 2)]
+  move_goal_nb_of_ep = 500
   env = functools.partial(
     GridWorld, goal_locations, "./mdps/4rooms.mdp")
   tau = 0.1
