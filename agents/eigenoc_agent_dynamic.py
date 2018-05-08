@@ -20,7 +20,7 @@ FLAGS = tf.app.flags.FLAGS
 
 class EigenOCAgentDyn(EigenOCAgent):
   def __init__(self, game, thread_id, global_step, config, global_network, barrier):
-    super(EigenOCAgentDyn, self).__init__(game, thread_id, global_step, config, global_network)
+    super(EigenOCAgentDyn, self).__init__(game, thread_id, global_step, config, global_network, barrier)
     self.sf_matrix_path = os.path.join(config.logdir, "sf_matrix.npy")
     # self.barrier = barrier
 

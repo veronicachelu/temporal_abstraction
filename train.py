@@ -41,8 +41,8 @@ def train(config, env_processes, logdir):
       saver = loader = utility.define_saver(exclude=(r'.*_temporary/.*',))
       if FLAGS.resume:
         sess.run(tf.global_variables_initializer())
-        print(os.path.join(os.path.join(FLAGS.load_from, "dif"), "models"))
-        ckpt = tf.train.get_checkpoint_state(os.path.join(os.path.join(FLAGS.load_from, "dif"), "models"))
+        print(os.path.join(FLAGS.load_from, "models"))
+        ckpt = tf.train.get_checkpoint_state(os.path.join(FLAGS.load_from, "models"))
         print("Loading Model from {}".format(ckpt.model_checkpoint_path))
         loader.restore(sess, ckpt.model_checkpoint_path)
         sess.run(tf.local_variables_initializer())
