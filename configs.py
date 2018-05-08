@@ -347,3 +347,10 @@ def exploration():
   decrease_option_prob = False
 
   return locals()
+
+
+def eigenoc_exploration():
+  locals().update(eigenoc())
+  behaviour_agent = BehaviourAgent
+  target_update_iter_aux_behaviour = 1000
+  target_update_iter_sf_behaviour = 1000

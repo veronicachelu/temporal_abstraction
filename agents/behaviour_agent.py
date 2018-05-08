@@ -19,15 +19,16 @@ FLAGS = tf.app.flags.FLAGS
 
 
 class BehaviourAgent(BaseAgent):
-  def __init__(self, game, thread_id, global_step, config, global_network):
+  def __init__(self, game, thread_id, global_step, config, global_network, barrier):
     super(BehaviourAgent, self).__init__(game, thread_id, global_step, config, global_network)
+    self.barrier = barrier
 
   def init_play(self, sess, saver):
     self.sess = sess
     self.saver = saver
     self.episode_count = sess.run(self.global_step)
 
-    if self.config.move_goal_nb_of_ep:
+    if self.config.move_goal_nb_of_ep and self.config.multi_task:
       self.env.set_goal(self.episode_count, self.config.move_goal_nb_of_ep)
 
     self.total_steps = sess.run(self.total_steps_tensor)
@@ -43,9 +44,9 @@ class BehaviourAgent(BaseAgent):
       self.sess.run(self.update_local_vars_aux)
       self.sess.run(self.update_local_vars_sf)
     else:
-      if self.total_steps % self.config.target_update_iter_aux == 0:
+      if self.total_steps % self.config.target_update_iter_aux_behaviour == 0:
         self.sess.run(self.update_local_vars_aux)
-      if self.total_steps % self.config.target_update_iter_sf == 0:
+      if self.total_steps % self.config.target_update_iter_sf_behaviour == 0:
         self.sess.run(self.update_local_vars_sf)
 
   def play(self, sess, coord, saver):
@@ -57,16 +58,14 @@ class BehaviourAgent(BaseAgent):
 
         if self.episode_count > 0:
           plotting = False
-          self.recompute_eigenvectors_classic(plotting)
+          self.recompute_eigenvectors_SVD(plotting)
 
         self.init_episode()
 
         s, s_idx = self.env.reset()
         self.option_evaluation(s, s_idx)
         while not self.done:
-
-          if self.total_steps % self.config.target_update_freq_sf == 0:
-            self.sync_threads()
+          self.sync_threads()
 
           self.policy_evaluation(s)
 
@@ -93,6 +92,7 @@ class BehaviourAgent(BaseAgent):
 
         if self.episode_count % self.config.move_goal_nb_of_ep == 0 and self.episode_count != 0:
           tf.logging.info("Moving GOAL....")
+          self.barrier.wait()
           self.env.set_goal(self.episode_count, self.config.move_goal_nb_of_ep)
 
         self.episode_count += 1
@@ -109,7 +109,7 @@ class BehaviourAgent(BaseAgent):
 
     self.behaviour_episode_buffer.append([s, o, s1, o1, a, r, d])
 
-  def recompute_eigenvectors_classic(self, plotting=False):
+  def recompute_eigenvectors_SVD(self, plotting=False):
     if self.config.eigen:
       self.new_eigenvectors = copy.deepcopy(self.global_network.directions)
       # matrix_sf = np.zeros((self.nb_states, self.config.sf_layers[-1]))
