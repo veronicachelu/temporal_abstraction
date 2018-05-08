@@ -354,3 +354,6 @@ def eigenoc_exploration():
   behaviour_agent = BehaviourAgent
   target_update_iter_aux_behaviour = 1000
   target_update_iter_sf_behaviour = 1000
+  behaviour_update_freq = 1
+
+  return locals()

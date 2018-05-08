@@ -12,13 +12,14 @@ import configs
 from env_tools import _create_environment
 from threading import Barrier, Thread
 
-def train(config, env_processes, logdir):
+def train(config, logdir):
   tf.reset_default_graph()
-  sess = tf.Session()
+  sess = tf.Session(config=tf.ConfigProto(
+      allow_soft_placement=True, log_device_placement=True))
   tf.gfile.MakeDirs(logdir)
   with sess:
-    with tf.device("/cpu:0"):
-      with config.unlocked:
+    with config.unlocked:
+      with tf.device("/cpu:0"):
         config.logdir = logdir
         config.stage_logdir = logdir
         config.network_optimizer = getattr(tf.train, config.network_optimizer)
@@ -27,55 +28,67 @@ def train(config, env_processes, logdir):
         action_size = envs[0].action_space.n
         global_network = config.network("global", config, action_size)
         b = Barrier(config.num_agents)
-        if FLAGS.task == "matrix":
-          agent = config.target_agent(envs[0], 0, global_step, config, None)
-        elif FLAGS.task == "option":
-          agent = config.target_agent(envs[0], 0, global_step, config, None)
-        elif FLAGS.task == "eigenoption":
-          agent = config.target_agent(envs[0], 0, global_step, config, None)
-        elif FLAGS.task == "eval":
-          agent = config.target_agent(envs[0], 0, global_step, config, global_network)
-        else:
-          agents = [config.target_agent(envs[i], i, global_step, config, global_network, b) for i in range(config.num_agents)]
-
-      saver = loader = utility.define_saver(exclude=(r'.*_temporary/.*',))
-      if FLAGS.resume:
-        sess.run(tf.global_variables_initializer())
-        print(os.path.join(FLAGS.load_from, "models"))
-        ckpt = tf.train.get_checkpoint_state(os.path.join(FLAGS.load_from, "models"))
-        print("Loading Model from {}".format(ckpt.model_checkpoint_path))
-        loader.restore(sess, ckpt.model_checkpoint_path)
-        sess.run(tf.local_variables_initializer())
-      else:
-        sess.run([tf.global_variables_initializer(), tf.local_variables_initializer()])
-
-      coord = tf.train.Coordinator()
-
-
-      agent_threads = []
       if FLAGS.task == "matrix":
-        thread = threading.Thread(target=(lambda: agent.build_matrix(sess, coord, saver)))
-        thread.start()
-        agent_threads.append(thread)
+        with tf.device("/cpu:0"):
+          agent = config.target_agent(envs[0], 0, global_step, config, None)
       elif FLAGS.task == "option":
-        thread = threading.Thread(target=(lambda: agent.plot_options(sess, coord, saver)))
-        thread.start()
-        agent_threads.append(thread)
+        with tf.device("/cpu:0"):
+          agent = config.target_agent(envs[0], 0, global_step, config, None)
       elif FLAGS.task == "eigenoption":
-        thread = threading.Thread(target=(lambda: agent.viz_options(sess, coord, saver)))
-        thread.start()
-        agent_threads.append(thread)
+        with tf.device("/cpu:0"):
+          agent = config.target_agent(envs[0], 0, global_step, config, None)
       elif FLAGS.task == "eval":
-        thread = threading.Thread(target=(lambda: agent.eval(sess, coord, saver)))
+        with tf.device("/cpu:0"):
+          agent = config.target_agent(envs[0], 0, global_step, config, global_network)
+      else:
+        if config.behaviour_agent:
+          with tf.device("/cpu:0"):
+            agents = [config.target_agent(envs[i], i, global_step, config, global_network, b) for i in range(config.num_agents-1)]
+          with tf.device("/device:GPU:0"):
+            agents.append(config.behaviour_agent(envs[config.num_agents-1], "behaviour", global_step, config, global_network, b))
+        else:
+          with tf.device("/cpu:0"):
+            agents = [config.target_agent(envs[i], i, global_step, config, global_network, b) for i in
+                    range(config.num_agents)]
+
+    saver = loader = utility.define_saver(exclude=(r'.*_temporary/.*',))
+    if FLAGS.resume:
+      sess.run(tf.global_variables_initializer())
+      print(os.path.join(FLAGS.load_from, "models"))
+      ckpt = tf.train.get_checkpoint_state(os.path.join(FLAGS.load_from, "models"))
+      print("Loading Model from {}".format(ckpt.model_checkpoint_path))
+      loader.restore(sess, ckpt.model_checkpoint_path)
+      sess.run(tf.local_variables_initializer())
+    else:
+      sess.run([tf.global_variables_initializer(), tf.local_variables_initializer()])
+
+    coord = tf.train.Coordinator()
+
+
+    agent_threads = []
+    if FLAGS.task == "matrix":
+      thread = threading.Thread(target=(lambda: agent.build_matrix(sess, coord, saver)))
+      thread.start()
+      agent_threads.append(thread)
+    elif FLAGS.task == "option":
+      thread = threading.Thread(target=(lambda: agent.plot_options(sess, coord, saver)))
+      thread.start()
+      agent_threads.append(thread)
+    elif FLAGS.task == "eigenoption":
+      thread = threading.Thread(target=(lambda: agent.viz_options(sess, coord, saver)))
+      thread.start()
+      agent_threads.append(thread)
+    elif FLAGS.task == "eval":
+      thread = threading.Thread(target=(lambda: agent.eval(sess, coord, saver)))
+      thread.start()
+      agent_threads.append(thread)
+    else:
+      for agent in agents:
+        thread = threading.Thread(target=(lambda: agent.play(sess, coord, saver)))
         thread.start()
         agent_threads.append(thread)
-      else:
-        for agent in agents:
-          thread = threading.Thread(target=(lambda: agent.play(sess, coord, saver)))
-          thread.start()
-          agent_threads.append(thread)
 
-      coord.join(agent_threads)
+    coord.join(agent_threads)
 
 def recreate_directory_structure(logdir):
   if not tf.gfile.Exists(logdir):
@@ -104,7 +117,7 @@ def main(_):
   except IOError:
     config = tools.AttrDict(getattr(configs, FLAGS.config)())
     config = utility.save_config(config, logdir)
-  train(config, FLAGS.env_processes, logdir)
+  train(config, logdir)
 
 
 if __name__ == '__main__':
@@ -116,7 +129,7 @@ if __name__ == '__main__':
     'timestamp', datetime.datetime.now().strftime('%Y%m%dT%H%M%S'),
     'Sub directory to store logs.')
   tf.app.flags.DEFINE_string(
-    'config', "som",
+    'config', "eigenoc_exploration",
     'Configuration to execute.')
   tf.app.flags.DEFINE_boolean(
     'env_processes', True,

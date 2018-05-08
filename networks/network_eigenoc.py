@@ -67,8 +67,8 @@ class EignOCNetwork(BaseNetwork):
       self.build_intraoption_policies_nets()
       self.build_SF_net(layer_norm=False)
       self.build_next_frame_prediction_net()
+      self.build_placeholders(self.config.history_size)
 
       if self.scope != 'global':
-        self.build_placeholders(self.config.history_size)
         self.build_losses()
         self.gradients_and_summaries()
