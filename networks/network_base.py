@@ -26,7 +26,12 @@ class BaseNetwork():
       self.config.lr, name='network_optimizer')
 
     if scope == 'global' and self.config.sr_matrix is not None:
-      self.directions = np.zeros((config.nb_options, config.sf_layers[-1]))
+      self.directions_path = os.path.join(config.logdir, "eigen_directions.npy")
+      if os.path.exists(self.directions_path):
+        self.directions = np.load(self.directions_path)
+      else:
+        self.directions = np.zeros((config.nb_options, config.sf_layers[-1]))
+
       if self.config.sr_matrix == "dynamic":
         self.sf_matrix_path = os.path.join(config.logdir, "sf_matrix.npy")
         if os.path.exists(self.sf_matrix_path):

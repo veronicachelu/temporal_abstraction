@@ -21,7 +21,7 @@ FLAGS = tf.app.flags.FLAGS
 class EigenOCAgentDyn(EigenOCAgent):
   def __init__(self, game, thread_id, global_step, config, global_network, barrier):
     super(EigenOCAgentDyn, self).__init__(game, thread_id, global_step, config, global_network, barrier)
-    self.sf_matrix_path = os.path.join(config.logdir, "sf_matrix.npy")
+    # self.sf_matrix_path = os.path.join(config.logdir, "sf_matrix.npy")
     # self.barrier = barrier
 
   def play(self, sess, coord, saver):
@@ -40,8 +40,8 @@ class EigenOCAgentDyn(EigenOCAgent):
           if self.name == "worker_0" and self.episode_count > 0 and self.config.eigen:
             if self.config.eigen_approach == "SVD":
               self.recompute_eigenvectors_dynamic_SVD()
-            else:
-              self.recompute_eigenvectors_dynamic_NN()
+            # else:
+            #   self.recompute_eigenvectors_dynamic_NN()
 
           if self.config.sr_matrix is not None:
             self.load_directions()
@@ -114,8 +114,18 @@ class EigenOCAgentDyn(EigenOCAgent):
           self.episode_count += 1
 
   def add_SF(self, sf):
-    self.global_network.sf_matrix_buffer[0] = sf.copy()
-    self.global_network.sf_matrix_buffer = np.roll(self.global_network.sf_matrix_buffer, 1, 0)
+    if self.config.eigen_approach == "SVD":
+      self.global_network.sf_matrix_buffer[0] = sf.copy()
+      self.global_network.sf_matrix_buffer = np.roll(self.global_network.sf_matrix_buffer, 1, 0)
+    else:
+      ci = np.argmax(
+        [self.cosine_similarity(sf, d) for d in self.global_network.directions])
+
+      sf_norm = np.linalg.norm(sf)
+      sf_normalized = sf / (sf_norm + 1e-8)
+      self.global_network.directions[ci] = self.config.tau * sf_normalized + (1 - self.config.tau) * \
+                                                               self.global_network.directions[ci]
+      self.directions = self.global_network.directions
 
   def policy_evaluation(self, s):
     if self.total_steps > self.config.eigen_exploration_steps:
@@ -179,6 +189,8 @@ class EigenOCAgentDyn(EigenOCAgent):
 
     if self.config.sr_matrix is not None:
       self.save_SF_matrix()
+    if self.config.eigen:
+      self.save_eigen_directions()
 
   def recompute_eigenvectors_dynamic_SVD(self):
     if self.config.eigen:
@@ -204,31 +216,33 @@ class EigenOCAgentDyn(EigenOCAgent):
       self.global_network.directions = new_eigenvectors
       self.directions = self.global_network.directions
 
-  def recompute_eigenvectors_dynamic_NN(self):
-    if self.config.eigen:
-      feed_dict = {self.local_network.matrix_sf: [self.global_network.sf_matrix_buffer]}
-      eigenvect = self.sess.run(self.local_network.eigenvectors,
-                                          feed_dict=feed_dict)
-      eigenvect = eigenvect[0]
-
-      # eigenvalues = eigenval[self.config.first_eigenoption:self.config.nb_options + self.config.first_eigenoption]
-      new_eigenvectors = eigenvect[self.config.first_eigenoption:self.config.nb_options + self.config.first_eigenoption]
-      min_similarity = np.min(
-        [self.cosine_similarity(a, b) for a, b in zip(self.global_network.directions, new_eigenvectors)])
-      max_similarity = np.max(
-        [self.cosine_similarity(a, b) for a, b in zip(self.global_network.directions, new_eigenvectors)])
-      mean_similarity = np.mean(
-        [self.cosine_similarity(a, b) for a, b in zip(self.global_network.directions, new_eigenvectors)])
-      self.summary = tf.Summary()
-      self.summary.value.add(tag='Eigenvectors/Min similarity', simple_value=float(min_similarity))
-      self.summary.value.add(tag='Eigenvectors/Max similarity', simple_value=float(max_similarity))
-      self.summary.value.add(tag='Eigenvectors/Mean similarity', simple_value=float(mean_similarity))
-      self.summary_writer.add_summary(self.summary, self.episode_count)
-      self.summary_writer.flush()
-      self.global_network.directions = new_eigenvectors
-      self.directions = self.global_network.directions
+  # def recompute_eigenvectors_dynamic_NN(self):
+  #   if self.config.eigen:
+  #     feed_dict = {self.local_network.matrix_sf: [self.global_network.sf_matrix_buffer]}
+  #     eigenvect = self.sess.run(self.local_network.eigenvectors,
+  #                                         feed_dict=feed_dict)
+  #     eigenvect = eigenvect[0]
+  #
+  #     # eigenvalues = eigenval[self.config.first_eigenoption:self.config.nb_options + self.config.first_eigenoption]
+  #     new_eigenvectors = eigenvect[self.config.first_eigenoption:self.config.nb_options + self.config.first_eigenoption]
+  #     min_similarity = np.min(
+  #       [self.cosine_similarity(a, b) for a, b in zip(self.global_network.directions, new_eigenvectors)])
+  #     max_similarity = np.max(
+  #       [self.cosine_similarity(a, b) for a, b in zip(self.global_network.directions, new_eigenvectors)])
+  #     mean_similarity = np.mean(
+  #       [self.cosine_similarity(a, b) for a, b in zip(self.global_network.directions, new_eigenvectors)])
+  #     self.summary = tf.Summary()
+  #     self.summary.value.add(tag='Eigenvectors/Min similarity', simple_value=float(min_similarity))
+  #     self.summary.value.add(tag='Eigenvectors/Max similarity', simple_value=float(max_similarity))
+  #     self.summary.value.add(tag='Eigenvectors/Mean similarity', simple_value=float(mean_similarity))
+  #     self.summary_writer.add_summary(self.summary, self.episode_count)
+  #     self.summary_writer.flush()
+  #     self.global_network.directions = new_eigenvectors
+  #     self.directions = self.global_network.directions
 
 
   def save_SF_matrix(self):
-    np.save(self.sf_matrix_path, self.global_network.sf_matrix_buffer)
+    np.save(self.global_network.sf_matrix_path, self.global_network.sf_matrix_buffer)
 
+  def save_eigen_directions(self):
+    np.save(self.global_network.directions_path, self.global_network.directions)
