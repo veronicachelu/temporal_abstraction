@@ -70,6 +70,7 @@ def default():
 
   logging = False
   evaluation = False
+  multi_task = True
 
   return locals()
 
@@ -204,6 +205,7 @@ def eigenoc_dyn():
   target_agent = EigenOCAgentDyn
   sf_matrix_size = 5000
   sr_matrix = "dynamic"
+  eigen_approach = "NN"
   goal_locations = [(11, 7), (5, 2), (1, 10), (2, 2), (6, 2)]
   move_goal_nb_of_ep = 1000
   env = functools.partial(
@@ -251,6 +253,7 @@ def eigenoc_montezuma():
   sf_matrix_size = 50000
   sr_matrix = "dynamic"
   eigen_approach = "NN"
+  multi_task = False
 
   return locals()
 
