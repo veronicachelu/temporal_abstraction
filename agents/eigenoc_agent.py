@@ -140,7 +140,7 @@ class EigenOCAgent(BaseAgent):
             if self.config.eigen_approach == "SVD":
               self.recompute_eigenvectors_svd()
             else:
-              self.recompute_eigenvectors_classic()
+              self.recompute_eigenvectors_NN()
 
           self.load_directions()
           self.init_episode()
@@ -287,7 +287,7 @@ class EigenOCAgent(BaseAgent):
     self.episode_q_values.append(self.q_value)
     self.episode_oterm.append(self.o_term)
 
-  def recompute_eigenvectors_classic(self):
+  def recompute_eigenvectors_NN(self):
     if self.config.eigen:
       new_eigenvectors = copy.deepcopy(self.global_network.directions)
       # matrix_sf = np.zeros((self.nb_states, self.config.sf_layers[-1]))
@@ -340,7 +340,11 @@ class EigenOCAgent(BaseAgent):
 
       feed_dict = {self.local_network.observation: states}
       sfs = self.sess.run(self.local_network.sf, feed_dict=feed_dict)
-      _, eigenval, eigenvect = np.linalg.svd(sfs, full_matrices=False)
+      # _, eigenval, eigenvect = np.linalg.svd(sfs, full_matrices=False)
+      feed_dict = {self.local_network.matrix_sf: [sfs]}
+      eigenvect = self.sess.run(self.local_network.eigenvectors,
+                                feed_dict=feed_dict)
+      eigenvect = eigenvect[0]
 
       new_eigenvectors = copy.deepcopy(
         eigenvect[self.config.first_eigenoption:self.config.nb_options + self.config.first_eigenoption])

@@ -28,10 +28,10 @@ class EignOCMontezumaNetwork(BaseNetwork):
                                      variables_collections=tf.get_collection("variables"),
                                      outputs_collections="activations", scope="fc_{}".format(i))
         if i < len(self.fc_layers) - 1:
-          # out = tf.nn.relu(out)
           out = self.layer_norm_fn(out, relu=True)
         self.summaries_aux.append(tf.contrib.layers.summarize_activation(out))
       self.fi = out
+      self.fi_relu = tf.nn.relu(self.fi)
 
       return out
 
@@ -51,8 +51,7 @@ class EignOCMontezumaNetwork(BaseNetwork):
                                      activation_fn=None,
                                      variables_collections=tf.get_collection("variables"),
                                      outputs_collections="activations", scope="fc_{}".format(i))
-        if i > 0:
-          # out = tf.nn.relu(out)
+        if i < len(self.aux_fc_layers) - 1:
           out = self.layer_norm_fn(out, relu=True)
         self.summaries_aux.append(tf.contrib.layers.summarize_activation(out))
 

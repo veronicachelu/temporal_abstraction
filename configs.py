@@ -250,6 +250,7 @@ def eigenoc_montezuma():
   include_primitive_options = True
   sf_matrix_size = 50000
   sr_matrix = "dynamic"
+  eigen_approach = "NN"
 
   return locals()
 

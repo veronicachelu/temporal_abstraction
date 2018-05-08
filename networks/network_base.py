@@ -28,7 +28,7 @@ class BaseNetwork():
     if scope == 'global' and self.config.sr_matrix is not None:
       self.directions = np.zeros((config.nb_options, config.sf_layers[-1]))
       if self.config.sr_matrix == "dynamic":
-        self.sf_matrix_path = os.path.join(config.stage_logdir, "sf_matrix.npy")
+        self.sf_matrix_path = os.path.join(config.logdir, "sf_matrix.npy")
         if os.path.exists(self.sf_matrix_path):
           self.sf_matrix_buffer = np.load(self.sf_matrix_path)
         else:
@@ -147,11 +147,13 @@ class BaseNetwork():
 
     # self.matrix_sf = tf.placeholder(shape=[self.config.sf_matrix_size, self.sf_layers[-1]],
     #                                 dtype=tf.float32, name="matrix_sf")
-    if self.config.sf_matrix_size is None:
-      self.config.sf_matrix_size = self.nb_states
-    self.matrix_sf = tf.placeholder(shape=[1, self.config.sf_matrix_size, self.sf_layers[-1]],
+    if self.config.sr_matrix == "dynamic":
+      self.sf_matrix_size = self.config.sf_matrix_size
+    else:
+      self.sf_matrix_size = self.nb_states - 13 - 12 + 4
+    self.matrix_sf = tf.placeholder(shape=[1, self.sf_matrix_size, self.sf_layers[-1]],
                                     dtype=tf.float32, name="matrix_sf")
-    self.eigenvalues, _, ev = tf.svd(self.matrix_sf, full_matrices=True, compute_uv=True)
+    self.eigenvalues, _, ev = tf.svd(self.matrix_sf, full_matrices=False, compute_uv=True)
     self.eigenvectors = tf.transpose(tf.conj(ev), perm=[0, 2, 1])
 
     with tf.name_scope('sf_loss'):
