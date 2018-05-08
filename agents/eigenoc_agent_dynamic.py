@@ -37,7 +37,7 @@ class EigenOCAgentDyn(EigenOCAgent):
 
           self.sync_threads(force=True)
 
-          if self.name == "worker_0" and self.episode_count > 0:
+          if self.name == "worker_0" and self.episode_count > 0 and self.config.eigen:
             if self.config.eigen_approach == "SVD":
               self.recompute_eigenvectors_dynamic_SVD()
             else:

@@ -136,13 +136,14 @@ class EigenOCAgent(BaseAgent):
 
           self.sync_threads()
 
-          if self.name == "worker_0" and self.episode_count > 0:
+          if self.name == "worker_0" and self.episode_count > 0 and self.config.eigen:
             if self.config.eigen_approach == "SVD":
               self.recompute_eigenvectors_svd()
             else:
               self.recompute_eigenvectors_NN()
 
-          self.load_directions()
+          if self.config.sr_matrix is not None:
+            self.load_directions()
           self.init_episode()
 
           s, s_idx = self.env.reset()
