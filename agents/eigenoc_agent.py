@@ -30,7 +30,7 @@ class EigenOCAgent(BaseAgent):
     self.saver = saver
     self.episode_count = sess.run(self.global_step)
 
-    if self.config.move_goal_nb_of_ep:
+    if self.config.move_goal_nb_of_ep and self.config.multi_task:
       self.goal_position = self.env.set_goal(self.episode_count, self.config.move_goal_nb_of_ep)
 
     self.total_steps = sess.run(self.total_steps_tensor)
