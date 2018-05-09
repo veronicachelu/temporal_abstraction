@@ -147,8 +147,8 @@ class BaseAgent():
       last_reward = self.episode_rewards[-1]
       self.summary.value.add(tag='Perf/Reward', simple_value=float(last_reward))
     if len(self.episode_lengths) != 0:
-      last_length = self.episode_lengths[-1]
-      self.summary.value.add(tag='Perf/Length', simple_value=float(last_length))
+      mean_length = np.mean(self.episode_lengths[-self.config.episode_summary_interval:])
+      self.summary.value.add(tag='Perf/Length', simple_value=float(mean_length))
     if len(self.episode_mean_values) != 0:
       last_mean_value = self.episode_mean_values[-1]
       self.summary.value.add(tag='Perf/Value', simple_value=float(last_mean_value))
