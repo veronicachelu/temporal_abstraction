@@ -83,7 +83,7 @@ class BehaviourAgent(BaseAgent):
               self.option_evaluation(s1, s1_idx)
 
             self.store_general_info(s, self.old_option, s1, self.option, self.action, r, self.done)
-            self.train()
+            self.ms_aux, self.aux_loss, self.ms_sf, self.sf_loss = self.train()
 
             if self.total_steps % self.config.steps_summary_interval == 0:
               self.write_step_summary(self.ms_sf, self.ms_aux)
@@ -249,10 +249,12 @@ class BehaviourAgent(BaseAgent):
                   self.local_network.target_next_obs: np.stack(next_observations, axis=0),
                   self.local_network.actions_placeholder: actions}
 
-      aux_loss, _, sf_loss, _ = \
-        self.sess.run([self.local_network.aux_loss,
+      ms_aux, aux_loss, _, ms_sf, sf_loss, _ = \
+        self.sess.run([self.local_network.merged_summary_aux,
+                       self.local_network.aux_loss,
                        self.local_network.apply_grads_aux,
+                       self.local_network.merged_summary_sf,
                        self.local_network.sf_loss,
                        self.local_network.apply_grads_sf],
                       feed_dict=feed_dict)
-      return aux_loss, sf_loss
+      return ms_aux, aux_loss, ms_sf, sf_loss
