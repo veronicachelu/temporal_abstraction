@@ -66,7 +66,7 @@ class EigenOCAgentDyn(EigenOCAgent):
             self.log_timestep()
 
             if self.total_steps > self.config.observation_steps:
-              if self.config.behaviour_agent is None:
+              if self.config.behaviour_agent is None and self.config.eigen:
                 self.SF_prediction(s1)
               self.next_frame_prediction()
 
