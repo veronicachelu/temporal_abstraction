@@ -22,7 +22,7 @@ class EigenOCAgentDyn(EigenOCAgent):
   def __init__(self, game, thread_id, global_step, config, global_network, barrier):
     super(EigenOCAgentDyn, self).__init__(game, thread_id, global_step, config, global_network, barrier)
     # self.sf_matrix_path = os.path.join(config.logdir, "sf_matrix.npy")
-    # self.barrier = barrier
+    self.barrier = barrier
 
   def play(self, sess, coord, saver):
     with sess.as_default(), sess.graph.as_default():
@@ -31,7 +31,9 @@ class EigenOCAgentDyn(EigenOCAgent):
       with coord.stop_on_exception():
         while not coord.should_stop():
           if (self.config.steps != -1 and \
-                  (self.total_steps > self.config.steps and self.name == "worker_0")):
+                  (self.total_steps > self.config.steps and self.name == "worker_0")) or \
+              (self.episode_count > len(self.config.goal_locations) * self.config.move_goal_nb_of_ep and
+                   self.name == "worker_0" and self.config.multi_task):
             coord.request_stop()
             return 0
 
@@ -99,6 +101,7 @@ class EigenOCAgentDyn(EigenOCAgent):
           if self.episode_count % self.config.move_goal_nb_of_ep == 0 and \
                   self.episode_count != 0 and self.config.multi_task:
             tf.logging.info("Moving GOAL....")
+            self.barrier.wait()
             self.env.set_goal(self.episode_count, self.config.move_goal_nb_of_ep)
 
           if self.episode_count % self.config.episode_checkpoint_interval == 0 and self.name == 'worker_0' and \
