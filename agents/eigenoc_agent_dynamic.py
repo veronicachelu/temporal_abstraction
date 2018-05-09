@@ -39,7 +39,7 @@ class EigenOCAgentDyn(EigenOCAgent):
 
           self.sync_threads(force=True)
 
-          if self.name == "worker_0" and self.episode_count > 0 and self.config.eigen:
+          if self.name == "worker_0" and self.episode_count > 0 and self.config.eigen and self.config.behaviour_agent is None:
             if self.config.eigen_approach == "SVD":
               self.recompute_eigenvectors_dynamic_SVD()
             # else:
@@ -66,8 +66,9 @@ class EigenOCAgentDyn(EigenOCAgent):
             self.log_timestep()
 
             if self.total_steps > self.config.observation_steps:
+              if self.config.behaviour_agent is None:
+                self.SF_prediction(s1)
               self.next_frame_prediction()
-              self.SF_prediction(s1)
 
               if self.total_steps > self.config.eigen_exploration_steps:
                 self.option_prediction(s, s1, r)

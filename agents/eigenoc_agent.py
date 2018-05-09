@@ -163,8 +163,8 @@ class EigenOCAgent(BaseAgent):
 
             if self.total_steps > self.config.observation_steps:
               if self.config.behaviour_agent is None:
-                self.next_frame_prediction()
                 self.SF_prediction(s1)
+              self.next_frame_prediction()
 
               if self.total_steps > self.config.eigen_exploration_steps:
                 self.option_prediction(s, s1, r)

@@ -1,6 +1,7 @@
 from agents import SomAgent
 from agents import TargetAgent
 from agents import BehaviourAgent
+from agents import BehaviourDynAgent
 from agents import EigenOCAgent
 from agents import LinearSFAgent
 from agents import EigenOCAgentDyn
@@ -203,7 +204,7 @@ def eigenoc():
 def eigenoc_dyn():
   locals().update(eigenoc())
   target_agent = EigenOCAgentDyn
-  sf_matrix_size = 5000
+  sf_matrix_size = 10000
   sr_matrix = "dynamic"
   eigen_approach = "SVD"
   goal_locations = [(11, 7), (5, 2), (1, 10), (2, 2), (6, 2)]
@@ -352,6 +353,13 @@ def exploration():
 def eigenoc_exploration():
   locals().update(eigenoc())
   behaviour_agent = BehaviourAgent
+  target_update_iter_aux_behaviour = 1
+  target_update_iter_sf_behaviour = 1000
+  behaviour_update_freq = 1
+
+def eigenoc_dyn_exploration():
+  locals().update(eigenoc_dyn())
+  behaviour_agent = BehaviourDynAgent
   target_update_iter_aux_behaviour = 1
   target_update_iter_sf_behaviour = 1000
   behaviour_update_freq = 1

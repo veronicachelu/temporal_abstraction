@@ -66,15 +66,15 @@ class BaseAgent():
   def sync_threads(self, force=False):
     if force:
       if self.config.behaviour_agent is None:
-        self.sess.run(self.update_local_vars_aux)
         self.sess.run(self.update_local_vars_sf)
+      self.sess.run(self.update_local_vars_aux)
       self.sess.run(self.update_local_vars_option)
     else:
       if self.config.behaviour_agent is None:
-        if self.total_steps % self.config.target_update_iter_aux == 0:
-          self.sess.run(self.update_local_vars_aux)
         if self.total_steps % self.config.target_update_iter_sf == 0:
           self.sess.run(self.update_local_vars_sf)
+      if self.total_steps % self.config.target_update_iter_aux == 0:
+        self.sess.run(self.update_local_vars_aux)
       if self.total_steps % self.config.target_update_iter_option == 0:
         self.sess.run(self.update_local_vars_option)
 
