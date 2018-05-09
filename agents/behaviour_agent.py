@@ -29,11 +29,12 @@ class BehaviourAgent(BaseAgent):
     self.episode_count = sess.run(self.global_step)
 
     if self.config.move_goal_nb_of_ep and self.config.multi_task:
-      self.env.set_goal(self.episode_count, self.config.move_goal_nb_of_ep)
+      self.goal_position = self.env.set_goal(self.episode_count, self.config.move_goal_nb_of_ep)
 
     self.total_steps = sess.run(self.total_steps_tensor)
     tf.logging.info("Starting worker " + str(self.thread_id))
     self.behaviour_episode_buffer = deque()
+    self.ms_aux = self.ms_sf = None
 
   def init_episode(self):
     self.done = False
@@ -84,6 +85,9 @@ class BehaviourAgent(BaseAgent):
             self.store_general_info(s, self.old_option, s1, self.option, self.action, r, self.done)
             self.train()
 
+            if self.total_steps % self.config.steps_summary_interval == 0:
+              self.write_step_summary(self.ms_sf, self.ms_aux)
+
           s = s1
           self.episode_len += 1
           self.total_steps += 1
@@ -92,7 +96,10 @@ class BehaviourAgent(BaseAgent):
         if self.episode_count % self.config.move_goal_nb_of_ep == 0 and self.episode_count != 0:
           tf.logging.info("Moving GOAL....")
           self.barrier.wait()
-          self.env.set_goal(self.episode_count, self.config.move_goal_nb_of_ep)
+          self.goal_position = self.env.set_goal(self.episode_count, self.config.move_goal_nb_of_ep)
+
+        if self.episode_count % self.config.episode_summary_interval == 0 and self.total_steps != 0 and self.episode_count != 0:
+          self.write_episode_summary(self.ms_sf, self.ms_aux)
 
         self.episode_count += 1
 
@@ -107,6 +114,24 @@ class BehaviourAgent(BaseAgent):
       self.behaviour_episode_buffer.popleft()
 
     self.behaviour_episode_buffer.append([s, o, s1, o1, a, r, d])
+
+  def write_step_summary(self, ms_sf, ms_aux):
+    self.summary = tf.Summary()
+    if ms_sf is not None:
+      self.summary_writer.add_summary(ms_sf, self.total_steps)
+    if ms_aux is not None:
+      self.summary_writer.add_summary(ms_aux, self.total_steps)
+
+    self.summary_writer.add_summary(self.summary, self.total_steps)
+    self.summary_writer.flush()
+
+  def write_episode_summary(self, ms_sf, ms_aux):
+    self.summary = tf.Summary()
+    self.summary.value.add(tag='Perf/Goal_position', simple_value=self.goal_position)
+
+    self.summary_writer.add_summary(self.summary, self.episode_count)
+    self.summary_writer.flush()
+    self.write_step_summary(ms_sf, ms_aux)
 
   # def recompute_eigenvectors_SVD(self, plotting=False):
   #   if self.config.eigen:

@@ -102,7 +102,7 @@ class EigenOCAgentDyn(EigenOCAgent):
                   self.episode_count != 0 and self.config.multi_task:
             tf.logging.info("Moving GOAL....")
             self.barrier.wait()
-            self.env.set_goal(self.episode_count, self.config.move_goal_nb_of_ep)
+            self.goal_position = self.env.set_goal(self.episode_count, self.config.move_goal_nb_of_ep)
 
           if self.episode_count % self.config.episode_checkpoint_interval == 0 and self.name == 'worker_0' and \
                   self.episode_count != 0:
