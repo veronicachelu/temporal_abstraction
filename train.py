@@ -15,7 +15,7 @@ from threading import Barrier, Thread
 def train(config, logdir):
   tf.reset_default_graph()
   sess = tf.Session(config=tf.ConfigProto(
-      allow_soft_placement=True, log_device_placement=True))
+      allow_soft_placement=True, log_device_placement=False))
   tf.gfile.MakeDirs(logdir)
   with sess:
     with config.unlocked:
@@ -129,7 +129,7 @@ if __name__ == '__main__':
     'timestamp', datetime.datetime.now().strftime('%Y%m%dT%H%M%S'),
     'Sub directory to store logs.')
   tf.app.flags.DEFINE_string(
-    'config', "eigenoc_dyn",
+    'config', "oc_montezuma",
     'Configuration to execute.')
   tf.app.flags.DEFINE_boolean(
     'env_processes', True,

@@ -147,8 +147,8 @@ class TargetAgent(BaseAgent):
         self.load_directions()
         self.init_episode()
 
-        s, s_idx = self.env.reset()
-        self.option_evaluation(s, s_idx)
+        s = self.env.reset()
+        self.option_evaluation(s)
         while not self.done:
           self.sync_threads()
           self.policy_evaluation(s)
@@ -213,13 +213,13 @@ class TargetAgent(BaseAgent):
           sess.run(self.increment_global_step)
         self.episode_count += 1
 
-  def option_evaluation(self, s, s_idx):
+  def option_evaluation(self, s):
     feed_dict = {self.local_network.observation: np.stack([s])}
     self.option, self.primitive_action = self.sess.run(
       [self.local_network.current_option, self.local_network.primitive_action], feed_dict=feed_dict)
     self.option, self.primitive_action = self.option[0], self.primitive_action[0]
 
-    self.stats_options[s_idx][self.option] += 1
+    # self.stats_options[s_idx][self.option] += 1
 
     self.episode_options.append(self.option)
     if not self.primitive_action:

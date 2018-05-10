@@ -263,6 +263,8 @@ def oc_montezuma():
   locals().update(default())
   target_agent = EigenOCAgentDyn
   eigen = False
+  nb_options = 32
+  num_agents = 12
   network = EignOCMontezumaNetwork
 
   input_size = (84, 84)

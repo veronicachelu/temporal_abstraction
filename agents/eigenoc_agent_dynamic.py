@@ -50,7 +50,7 @@ class EigenOCAgentDyn(EigenOCAgent):
 
           self.init_episode()
 
-          s, s_idx = self.env.reset()
+          s = self.env.reset()
           self.option_evaluation(s)
           while not self.done:
             self.sync_threads()

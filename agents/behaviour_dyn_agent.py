@@ -76,8 +76,8 @@ class BehaviourDynAgent(BaseAgent):
 
         self.init_episode()
 
-        s, s_idx = self.env.reset()
-        self.option_evaluation(s, s_idx)
+        s = self.env.reset()
+        self.option_evaluation(s)
         while not self.done:
           self.sync_threads()
 
@@ -119,7 +119,7 @@ class BehaviourDynAgent(BaseAgent):
 
         self.episode_count += 1
 
-  def option_evaluation(self, s, s_idx):
+  def option_evaluation(self, s):
     self.option = np.random.choice(range(self.nb_options))
 
   def policy_evaluation(self, s):

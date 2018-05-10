@@ -131,10 +131,10 @@ class FrameHistory(object):
     return observ, reward, done, info
 
   def reset(self):
-    observ, info = self._env.reset()
+    observ = self._env.reset()
     self._buffer = np.repeat(observ[None, ...], self._capacity, 0)
     self._step = 0
-    return self._select_frames(), info
+    return self._select_frames()
 
   def _select_frames(self):
     indices = [
@@ -501,9 +501,9 @@ class ConvertTo32Bit(object):
     Returns:
       Converted observation.
     """
-    observ, info = self._env.reset()
+    observ = self._env.reset()
     observ = self._convert_observ(observ)
-    return observ, info
+    return observ
 
   def _convert_observ(self, observ):
     """Convert the observation to 32 bits.
@@ -606,13 +606,13 @@ class FrameHistoryGrayscaleResize(object):
     return observ, reward, done, info
 
   def reset(self):
-    observ, info = self._env.reset()
+    observ = self._env.reset()
     preprocessed_observ = self.get_preprocessed_frame(observ)
     if self._capacity == 1:
       preprocessed_observ = [..., None]
     self._buffer = np.repeat(preprocessed_observ[..., None], self._capacity, 2)
     self._step = 0
-    return self._select_frames(), info
+    return self._select_frames()
 
   def _select_frames(self):
     indices = [(self._step + index) % self._capacity for index in range(self._capacity)]
