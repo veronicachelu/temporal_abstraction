@@ -175,3 +175,41 @@ class BehaviourDynAgent(BaseAgent):
       self.global_network.directions = new_eigenvectors
       self.directions = self.global_network.directions
 
+  def train(self):
+    minibatch = random.sample(self.behaviour_episode_buffer, self.config.batch_size)
+    rollout = np.array(minibatch)
+    observations = rollout[:, 0]
+    options = rollout[:, 1]
+    next_observations = rollout[:, 2]
+    next_options = rollout[:, 3]
+    actions = rollout[:, 4]
+    rewards = rollout[:, 5]
+    done = rollout[:, 6]
+
+    feed_dict = {self.global_network.observation: np.stack(observations, axis=0)}
+    fi = self.sess.run(self.global_network.fi, feed_dict=feed_dict)
+
+    feed_dict2 = {self.global_network.observation: np.stack(next_observations, axis=0),
+                  self.global_network.options_placeholder: np.stack(next_options, axis=0)}
+    # next_sf = self.sess.run(self.global_network.sf_o, feed_dict=feed_dict2)
+    next_sf = self.sess.run(self.global_network.sf, feed_dict=feed_dict2)
+
+    bootstrap_sf = [np.zeros_like(next_sf[0]) if d else n_sf for d, n_sf in list(zip(done, next_sf))]
+    target_sf = fi + self.config.discount * np.asarray(bootstrap_sf)
+
+    feed_dict = {
+                self.local_network.options_placeholder: np.stack(options, axis=0),
+                self.local_network.target_sf: np.stack(target_sf, axis=0),
+                self.local_network.observation: np.stack(observations, axis=0),
+                self.local_network.target_next_obs: np.stack(next_observations, axis=0),
+                self.local_network.actions_placeholder: actions}
+
+    ms_aux, aux_loss, _, ms_sf, sf_loss, _ = \
+      self.sess.run([self.local_network.merged_summary_aux,
+                     self.local_network.aux_loss,
+                     self.local_network.apply_grads_aux,
+                     self.local_network.merged_summary_sf,
+                     self.local_network.sf_loss,
+                     self.local_network.apply_grads_sf],
+                    feed_dict=feed_dict)
+    return ms_aux, aux_loss, ms_sf, sf_loss

@@ -152,8 +152,9 @@ class EigenOCAgentDyn(EigenOCAgent):
         self.q_value = q_value[0, self.option]
         self.value = value[0]
 
-        sf = sf[0]
-        self.add_SF(sf)
+        if self.config.behaviour_agent is None:
+          sf = sf[0]
+          self.add_SF(sf)
       else:
         tensor_list = [self.local_network.options, self.local_network.v, self.local_network.q_val,
                        self.local_network.termination]
