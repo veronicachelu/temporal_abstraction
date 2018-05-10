@@ -72,9 +72,9 @@ class EignOCMontezumaNetwork(BaseNetwork):
       self.observation = tf.placeholder(shape=[None, self.config.input_size[0], self.config.input_size[1], self.config.history_size],
                                         dtype=tf.float32, name="Inputs")
       out = self.observation
-      out = self.build_feature_net(out)
-      out = self.build_option_term_net(out)
-      _ = self.build_option_q_val_net(out)
+      _ = self.build_feature_net(out)
+      _ = self.build_option_term_net()
+      _ = self.build_option_q_val_net()
 
       if self.config.eigen:
         self.build_eigen_option_q_val_net()
