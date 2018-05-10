@@ -255,6 +255,43 @@ def eigenoc_montezuma():
   sr_matrix = "dynamic"
   eigen_approach = "NN"
   multi_task = False
+  tau = 0.1
+
+  return locals()
+
+def oc_montezuma():
+  locals().update(default())
+  target_agent = EigenOCAgentDyn
+  eigen = False
+  network = EignOCMontezumaNetwork
+
+  input_size = (84, 84)
+  history_size = 4
+  channel_size = 1
+  conv_layers = (6, 2, 0, 64), (6, 2, 2, 64), (6, 2, 2, 64),
+  upconv_layers = (6, 2, 2, 64), (6, 2, 2, 64), (6, 2, 0, 1)
+  fc_layers = 1024, 2048
+  sf_layers = 2048, 1024, 2048
+  aux_fc_layers = 2048, 1024, 10 * 10 * 64
+  aux_upconv_reshape = (10, 10, 64)
+
+  env = "MontezumaRevenge-v0"
+  batch_size = 32
+  memory_size = 500000
+  observation_steps = 16 * 4
+  alpha_r = 0.75
+  steps = -1  # 10M
+  eigen_exploration_steps = 16 * 4
+  episode_eval_interval = 100
+  max_length_eval = 1000
+  nb_test_ep = 1
+  first_eigenoption = 1
+  include_primitive_options = True
+  sf_matrix_size = 50000
+  sr_matrix = None
+  eigen_approach = "NN"
+  multi_task = False
+  tau = 0.1
 
   return locals()
 
