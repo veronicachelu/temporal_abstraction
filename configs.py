@@ -301,7 +301,7 @@ def som():
   locals().update(default())
   target_agent = SomAgent
   nb_options = 4
-  num_agents = 12
+  num_agents = 8
   eigen = True
   network = SomNetwork
 
@@ -321,7 +321,7 @@ def som():
   include_primitive_options = True
   sr_matrix_size = 128
   sr_matrix = "static"
-  goal_locations = [(11, 7), (5, 2)]#, (1, 10), (2, 2), (6, 2)]
+  goal_locations = [(11, 7), (5, 2), (1, 10), (2, 2), (6, 2)]
   #goal_locations = [(1, 11), (3, 2)]
   move_goal_nb_of_ep = 1000
   env = functools.partial(
