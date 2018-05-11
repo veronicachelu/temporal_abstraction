@@ -1,7 +1,17 @@
 # EigenOption Critic with Successor Representations (EOC-SR)
 
-Temporal abstraction is key to learning goal-directed behavior in the framework of reinforcement learning (RL) in terms of an unstructured and very sparse signal from the environment. Automatic option discovery and subgoal identification using function approximation is still a challenge in high dimensional MDPs with unstructured reward signals. Recently, eigenoptions have been proposed as a solution to finding useful bottleneck states by using a low-dimensional eigendecomposition of the successor representations of states [[Eigenoption Discovery through the Deep Successor Representation - Marlos C. Machado, Clemens Rosenbaum, Xiaoxiao Guo, Miao Liu, Gerald Tesauro, Murray Campbell]](https://arxiv.org/abs/1710.11089)
-
+Hierarchical Reinfocement Learning is a key ingredient in scaling up the framework of general 
+purpose learning to complex behaviors. This is motivated by our understanding of human 
+reasoning at higher levels then mere primitive actions. Temporal abstraction leads to faster 
+learning and inductive transfer, especially in terms of an unstructured and very sparse signal
+ from the environment. Intrinsic motivation is believed to by essential to automatic decomposition
+  of a task into a hierarchy, however option discovery and subgoal identification using function
+   approximation is still a challenge in high dimensional MDPs with unstructured reward signals. 
+   Using a low-dimensional eigendecomposition of the successor representations of states 
+   [1] can be seen as a way to use intrinsic motivation to discover temporally 
+   abstract actions. In this report, we investigate combining the eigenoptions discovery with 
+   the option-critic framework [2] in order to learn options that explore the environment 
+   at the same time with a policy over options that optimizes for the goal. 
 ### Brief
 
 The idea of using the successor feature representation as a predictive model for encoding trajectories of information flow  is even more challenging in the presence of function approximation. Real world environments are very large in nature and their states cannot be enumerated or represented uniquely. As a result, this requires distributed feature representations using neural networks. To be able to correctly construct successor features representations, the network also needs to model a reconstruction loss of the next frame prediction as an auxiliary task. Finally, being able to find interesting options is not enough, since the agent's goal will usual be specified by a sparse reward structure which it must use correspondingly by optimizing the option sequence to achieve the goal.
@@ -190,3 +200,8 @@ https://drive.google.com/open?id=1cVNgB-VZrob31ZXsZJjn28htcAD2xviq
 
 https://drive.google.com/drive/folders/0B_qT_xcPy4w3N1VoYmhBWlhadEk?usp=sharing
 
+
+### References
+
+[1] [[Eigenoption Discovery through the Deep Successor Representation - Marlos C. Machado, Clemens Rosenbaum, Xiaoxiao Guo, Miao Liu, Gerald Tesauro, Murray Campbell]](https://arxiv.org/abs/1710.11089)
+[2] [[The Option-Critic Architecture - Pierre-Luc Bacon, Jean Harb, Doina Precup]](http://arxiv.org/abs/1609.05140)

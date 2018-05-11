@@ -17,6 +17,7 @@ import copy
 from tools.agent_utils import update_target_graph_reward
 FLAGS = tf.app.flags.FLAGS
 import csv
+from tools.timer import Timer
 
 
 class SomAgent(BaseAgent):
@@ -126,6 +127,7 @@ class SomAgent(BaseAgent):
         self.sess.run(self.update_local_vars_option)
 
   def play(self, sess, coord, saver):
+    _t = {'recompute_eigenvectors_classic': Timer(), "next_frame_prediction": Timer(), 'reward_prediction': Timer(), 'SF_option_prediction': Timer()}
     with sess.as_default(), sess.graph.as_default():
       self.init_play(sess, saver)
 
@@ -140,10 +142,12 @@ class SomAgent(BaseAgent):
 
           self.sync_threads()
 
-          # if self.name == "worker_0" and self.episode_count > 0:
-          #   # plotting = self.episode_count % self.config.plot_every == 0
-          #   plotting = False
-          self.recompute_eigenvectors_classic(False)
+          if self.name == "worker_0" and self.episode_count > 0:
+            # plotting = self.episode_count % self.config.plot_every == 0
+            plotting = False
+            _t['recompute_eigenvectors_classic'].tic()
+            self.recompute_eigenvectors_classic(False)
+            _t['recompute_eigenvectors_classic'].toc()
 
           self.load_directions()
           self.init_episode()
@@ -165,8 +169,12 @@ class SomAgent(BaseAgent):
             # self.log_timestep()
 
             if self.total_steps > self.config.observation_steps:
+              _t['next_frame_prediction'].tic()
               self.next_frame_prediction()
+              _t['next_frame_prediction'].toc()
+              _t['reward_prediction'].tic()
               self.reward_prediction()
+              _t['reward_prediction'].toc()
               self.old_option = self.option
               self.old_primitive_action = self.primitive_action
 
@@ -176,7 +184,9 @@ class SomAgent(BaseAgent):
                 #                                                   self.episode_options_lengths[self.option][-1]
                 self.option_evaluation(s1)
 
+              _t['SF_option_prediction'].tic()
               self.SF_option_prediction(s, self.old_option, s1, self.option, self.action, self.old_primitive_action)
+              _t['SF_option_prediction'].tic()
 
               if self.total_steps % self.config.steps_checkpoint_interval == 0 and self.name == 'worker_0':
                 self.save_model()
@@ -214,6 +224,10 @@ class SomAgent(BaseAgent):
 
           if self.name == 'worker_0':
             sess.run(self.increment_global_step)
+            tf.logging.info('recompute_eigenvectors_classic time is %f' % _t['recompute_eigenvectors_classic'].average_time)
+            tf.logging.info('next_frame_prediction time is %f' % _t['next_frame_prediction'].average_time)
+            tf.logging.info('reward_prediction time is %f' % _t['reward_prediction'].average_time)
+            tf.logging.info('SF_option_prediction time is %f' % _t['SF_option_prediction'].average_time)
           self.episode_count += 1
 
   def option_evaluation(self, s):
