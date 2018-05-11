@@ -331,8 +331,8 @@ def som():
   initial_random_option_prob = 0.1
   decrease_option_prob = False
 
-  reward_update_freq = 1
-  target_update_iter_reward = 1
+  reward_update_freq = 30
+  target_update_iter_reward = 30
   tau = 0.1
   reward_coef = 1
   reward_i_coef = 1
