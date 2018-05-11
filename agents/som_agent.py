@@ -178,8 +178,8 @@ class SomAgent(BaseAgent):
 
               self.SF_option_prediction(s, self.old_option, s1, self.option, self.action, self.old_primitive_action)
 
-              if self.total_steps % self.config.steps_checkpoint_interval == 0 and self.name == 'worker_0':
-                self.save_model()
+              # if self.total_steps % self.config.steps_checkpoint_interval == 0 and self.name == 'worker_0':
+              #   self.save_model()
 
               if self.total_steps % self.config.steps_summary_interval == 0 and self.name == 'worker_0':
                 self.write_step_summary(r)
@@ -573,7 +573,7 @@ class SomAgent(BaseAgent):
     # tf.logging.warning("Writing step summary....")
 
   def write_episode_summary(self, r):
-    self.write_episode_summary_stats()
+    # self.write_episode_summary_stats()
     self.summary = tf.Summary()
     if len(self.episode_rewards) != 0:
       last_reward = self.episode_rewards[-1]
