@@ -23,8 +23,8 @@ class SomAgent(BaseAgent):
   def __init__(self, game, thread_id, global_step, config, global_network, barrier):
     super(SomAgent, self).__init__(game, thread_id, global_step, config, global_network)
     self.update_local_vars_reward = update_target_graph_reward('global', self.name)
-    self.stats_path = os.path.join(self.summary_path, 'stats')
-    tf.gfile.MakeDirs(self.stats_path)
+    # self.stats_path = os.path.join(self.summary_path, 'stats')
+    # tf.gfile.MakeDirs(self.stats_path)
     self.barrier = barrier
 
   def init_play(self, sess, saver):
@@ -32,8 +32,8 @@ class SomAgent(BaseAgent):
     self.saver = saver
     self.episode_count = sess.run(self.global_step)
 
-    if self.config.move_goal_nb_of_ep:
-      self.env.set_goal(self.episode_count, self.config.move_goal_nb_of_ep)
+    if self.config.move_goal_nb_of_ep and self.config.multi_task:
+      self.goal_position = self.env.set_goal(self.episode_count, self.config.move_goal_nb_of_ep)
 
     self.total_steps = sess.run(self.total_steps_tensor)
     self.eigen_q_value = None
@@ -42,7 +42,7 @@ class SomAgent(BaseAgent):
     self.aux_episode_buffer = deque()
     self.reward_pred_episode_buffer = deque()
     self.ms_aux = self.ms_sf = self.ms_option = self.ms_reward = self.ms_reward_i = None
-    self.stats_options = np.zeros((self.nb_states, self.nb_options + self.action_size))
+    # self.stats_options = np.zeros((self.nb_states, self.nb_options + self.action_size))
 
   def init_episode(self):
     self.episode_buffer_sf = []
@@ -52,7 +52,7 @@ class SomAgent(BaseAgent):
     self.episode_oterm = []
     self.episode_options = []
     self.episode_actions = []
-    self.episode_options_lengths = [[] for o in range(self.config.nb_options)]
+    # self.episode_options_lengths = [[] for o in range(self.config.nb_options)]
     self.episode_reward = 0
     # self.episode_option_histogram = np.zeros(self.config.nb_options)
     self.done = False
@@ -61,8 +61,8 @@ class SomAgent(BaseAgent):
     self.R = 0
     self.eigen_R = 0
 
-    if self.config.decrease_option_prob:
-      self.sess.run(self.local_network.decrease_prob_of_random_option)
+    # if self.config.decrease_option_prob:
+    #   self.sess.run(self.local_network.decrease_prob_of_random_option)
     # self.stats_options = np.zeros((self.nb_states, self.nb_options + self.action_size))
     # self.ms_aux = self.ms_sf = self.ms_reward = self.ms_option = None
 
@@ -140,10 +140,10 @@ class SomAgent(BaseAgent):
 
           self.sync_threads()
 
-          if self.name == "worker_0" and self.episode_count > 0:
-            # plotting = self.episode_count % self.config.plot_every == 0
-            plotting = False
-            self.recompute_eigenvectors_classic(plotting)
+          # if self.name == "worker_0" and self.episode_count > 0:
+          #   # plotting = self.episode_count % self.config.plot_every == 0
+          #   plotting = False
+          self.recompute_eigenvectors_classic(False)
 
           self.load_directions()
           self.init_episode()
@@ -171,15 +171,15 @@ class SomAgent(BaseAgent):
               self.old_primitive_action = self.primitive_action
 
               if not self.done and (self.o_term or self.primitive_action):
-                if not self.primitive_action:
-                  self.episode_options_lengths[self.option][-1] = self.episode_len - \
-                                                                  self.episode_options_lengths[self.option][-1]
+                # if not self.primitive_action:
+                #   self.episode_options_lengths[self.option][-1] = self.episode_len - \
+                #                                                   self.episode_options_lengths[self.option][-1]
                 self.option_evaluation(s1)
 
               self.SF_option_prediction(s, self.old_option, s1, self.option, self.action, self.old_primitive_action)
 
-              # if self.total_steps % self.config.steps_checkpoint_interval == 0 and self.name == 'worker_0':
-              #   self.save_model()
+              if self.total_steps % self.config.steps_checkpoint_interval == 0 and self.name == 'worker_0':
+                self.save_model()
 
               if self.total_steps % self.config.steps_summary_interval == 0 and self.name == 'worker_0':
                 self.write_step_summary(r)
@@ -202,7 +202,7 @@ class SomAgent(BaseAgent):
                   self.episode_count != 0:
             tf.logging.info("Moving GOAL....")
             self.barrier.wait()
-            self.env.set_goal(self.episode_count, self.config.move_goal_nb_of_ep)
+            self.goal_position = self.env.set_goal(self.episode_count, self.config.move_goal_nb_of_ep)
 
           if self.episode_count % self.config.episode_checkpoint_interval == 0 and self.name == 'worker_0' and \
                   self.episode_count != 0:
@@ -224,9 +224,9 @@ class SomAgent(BaseAgent):
 
     # self.stats_options[s_idx][self.option] += 1
 
-    self.episode_options.append(self.option)
-    if not self.primitive_action:
-      self.episode_options_lengths[self.option].append(self.episode_len)
+    # self.episode_options.append(self.option)
+    # if not self.primitive_action:
+    #   self.episode_options_lengths[self.option].append(self.episode_len)
 
   def policy_evaluation(self, s):
     if self.total_steps > self.config.eigen_exploration_steps:
@@ -257,9 +257,57 @@ class SomAgent(BaseAgent):
 
     self.aux_episode_buffer.append([s, s1, a])
 
+  # def recompute_eigenvectors_classic(self, plotting=False):
+  #   if self.config.eigen:
+  #     self.new_eigenvectors = copy.deepcopy(self.global_network.directions)
+  #     # matrix_sf = np.zeros((self.nb_states, self.config.sf_layers[-1]))
+  #     states = []
+  #     for idx in range(self.nb_states):
+  #       s, ii, jj = self.env.fake_get_state(idx)
+  #       if self.env.not_wall(ii, jj):
+  #         states.append(s)
+  #
+  #
+  #     feed_dict = {self.local_network.observation: states}
+  #     sfs = self.sess.run(self.local_network.sf, feed_dict=feed_dict)
+  #
+  #     def move_option(sf):
+  #       sf = sf[:self.nb_options]
+  #       sf_norm = np.linalg.norm(sf, axis=1, keepdims=True)
+  #       sf_normalized = sf / (sf_norm + 1e-8)
+  #       # sf_normalized = tf.nn.l2_normalize(sf, axis=1)
+  #       self.new_eigenvectors = self.config.tau * sf_normalized + (1 - self.config.tau) * self.new_eigenvectors
+  #       new_eigenvectors_norm = np.linalg.norm(self.new_eigenvectors, axis=1, keepdims=True)
+  #       self.new_eigenvectors = self.new_eigenvectors / (new_eigenvectors_norm + 1e-8)
+  #
+  #     for sf in sfs:
+  #       move_option(sf)
+  #
+  #     if plotting:
+  #       # self.plot_sr_vectors(sfs, "sr_stats")
+  #       self.plot_sr_matrix(sfs, "sr_stats")
+  #
+  #     min_similarity = np.min(
+  #       [self.cosine_similarity(a, b) for a, b in zip(self.global_network.directions, self.new_eigenvectors)])
+  #     max_similarity = np.max(
+  #       [self.cosine_similarity(a, b) for a, b in zip(self.global_network.directions, self.new_eigenvectors)])
+  #     mean_similarity = np.mean(
+  #       [self.cosine_similarity(a, b) for a, b in zip(self.global_network.directions, self.new_eigenvectors)])
+  #     self.summary = tf.Summary()
+  #     self.summary.value.add(tag='Eigenvectors/Min similarity', simple_value=float(min_similarity))
+  #     self.summary.value.add(tag='Eigenvectors/Max similarity', simple_value=float(max_similarity))
+  #     self.summary.value.add(tag='Eigenvectors/Mean similarity', simple_value=float(mean_similarity))
+  #     self.summary_writer.add_summary(self.summary, self.episode_count)
+  #     self.summary_writer.flush()
+  #     self.global_network.directions = self.new_eigenvectors
+  #     self.directions = self.global_network.directions
+  #
+  #     if plotting:
+  #       self.plot_basis_functions(self.directions, "sr_stats")
+
   def recompute_eigenvectors_classic(self, plotting=False):
     if self.config.eigen:
-      self.new_eigenvectors = copy.deepcopy(self.global_network.directions)
+      # self.new_eigenvectors = copy.deepcopy(self.global_network.directions)
       # matrix_sf = np.zeros((self.nb_states, self.config.sf_layers[-1]))
       states = []
       for idx in range(self.nb_states):
@@ -267,43 +315,33 @@ class SomAgent(BaseAgent):
         if self.env.not_wall(ii, jj):
           states.append(s)
 
-
       feed_dict = {self.local_network.observation: states}
       sfs = self.sess.run(self.local_network.sf, feed_dict=feed_dict)
 
-      def move_option(sf):
-        sf = sf[:self.nb_options]
-        sf_norm = np.linalg.norm(sf, axis=1, keepdims=True)
-        sf_normalized = sf / (sf_norm + 1e-8)
-        # sf_normalized = tf.nn.l2_normalize(sf, axis=1)
-        self.new_eigenvectors = self.config.tau * sf_normalized + (1 - self.config.tau) * self.new_eigenvectors
-        new_eigenvectors_norm = np.linalg.norm(self.new_eigenvectors, axis=1, keepdims=True)
-        self.new_eigenvectors = self.new_eigenvectors / (new_eigenvectors_norm + 1e-8)
+      sfs = np.transpose(sfs, [1, 0, 2])
+      sfs = sfs[:self.nb_options]
 
-      for sf in sfs:
-        move_option(sf)
-
-      if plotting:
-        # self.plot_sr_vectors(sfs, "sr_stats")
-        self.plot_sr_matrix(sfs, "sr_stats")
+      feed_dict = {self.local_network.matrix_sf: sfs}
+      eigenvect = self.sess.run(self.local_network.eigenvectors,
+                                feed_dict=feed_dict)
+      new_eigenvectors = eigenvect[:, 0]
 
       min_similarity = np.min(
-        [self.cosine_similarity(a, b) for a, b in zip(self.global_network.directions, self.new_eigenvectors)])
+        [np.min(self.cosine_similarity_option(self.global_network.directions[:, i], new_eigenvectors[:, i])) for i in range(self.config.sf_layers[-1])])
       max_similarity = np.max(
-        [self.cosine_similarity(a, b) for a, b in zip(self.global_network.directions, self.new_eigenvectors)])
+        [np.max(self.cosine_similarity_option(self.global_network.directions[:, i], new_eigenvectors[:, i])) for i in range(self.config.sf_layers[-1])])
       mean_similarity = np.mean(
-        [self.cosine_similarity(a, b) for a, b in zip(self.global_network.directions, self.new_eigenvectors)])
+        [np.mean(self.cosine_similarity_option(self.global_network.directions[:, i], new_eigenvectors[:, i])) for i in range(self.config.sf_layers[-1])])
       self.summary = tf.Summary()
       self.summary.value.add(tag='Eigenvectors/Min similarity', simple_value=float(min_similarity))
       self.summary.value.add(tag='Eigenvectors/Max similarity', simple_value=float(max_similarity))
       self.summary.value.add(tag='Eigenvectors/Mean similarity', simple_value=float(mean_similarity))
       self.summary_writer.add_summary(self.summary, self.episode_count)
       self.summary_writer.flush()
-      self.global_network.directions = self.new_eigenvectors
+      # tf.logging.warning("Min cosine similarity between old eigenvectors and recomputed onesis {}".format(min_similarity))
+      self.global_network.directions = new_eigenvectors
       self.directions = self.global_network.directions
 
-      if plotting:
-        self.plot_basis_functions(self.directions, "sr_stats")
 
   def train_sf(self, bootstrap_sf):
     rollout = np.array(self.episode_buffer_sf)
@@ -382,8 +420,8 @@ class SomAgent(BaseAgent):
       o = o[notprimitve]
       a = a[notprimitve]
 
-      if np.any(np.array(o) >= 4):
-        print('ERROR reward!!!!!!!!!!!!!!!')
+      # if np.any(np.array(o) >= 4):
+      #   print('ERROR reward!!!!!!!!!!!!!!!')
       feed_dict = {self.local_network.observation: np.stack(observations, axis=0),
                    self.local_network.target_next_obs: np.stack(next_observations, axis=0),
                    self.local_network.options_placeholder: o,
@@ -416,8 +454,8 @@ class SomAgent(BaseAgent):
       actions_not_primitive = actions[notprimitve]
       sf_td_error_not_primitive = self.sf_td_error[notprimitve]
 
-      if np.any(np.array(options_not_primitive) >= 4):
-        print("ERROR option!!!!!!!!!")
+      # if np.any(np.array(options_not_primitive) >= 4):
+      #   print("ERROR option!!!!!!!!!")
       feed_dict = {self.local_network.sf_td_error_target: sf_td_error_not_primitive,
                    self.local_network.observation: np.stack(observations_not_primitive, axis=0),
                    self.local_network.options_placeholder: options_not_primitive,
@@ -618,9 +656,9 @@ class SomAgent(BaseAgent):
       self.episode_mean_options.append(get_mode(self.episode_options))
     if len(self.episode_actions) != 0:
       self.episode_mean_actions.append(get_mode(self.episode_actions))
-    for op, option_lengths in enumerate(self.episode_options_lengths):
-      if len(option_lengths) != 0:
-        self.episode_mean_options_lengths[op] = np.mean(option_lengths)
+    # for op, option_lengths in enumerate(self.episode_options_lengths):
+    #   if len(option_lengths) != 0:
+    #     self.episode_mean_options_lengths[op] = np.mean(option_lengths)
 
   def write_episode_summary_stats(self):
     # with open(os.path.join(self.stats_path, 'summary_stats.csv'), 'w', newline='') as csvfile:
@@ -721,3 +759,17 @@ class SomAgent(BaseAgent):
 
     plt.savefig(os.path.join(self.stats_path,  "Option_map.png"))
     plt.close()
+
+  def cosine_similarity_option(self, next_sf, evect):
+    sim = []
+    for option in range(len(next_sf)):
+      state_dif_norm = np.linalg.norm(next_sf[option])
+      state_dif_normalized = next_sf[option] / (state_dif_norm + 1e-8)
+
+      evect_norm = np.linalg.norm(evect[option])
+      evect_normalized = evect[option] / (evect_norm + 1e-8)
+      # evect_norm = np.linalg.norm(evect)
+      # evect_normalized = evect / (evect_norm + 1e-8)
+      res = np.dot(state_dif_normalized, evect_normalized)
+      sim.append(res)
+    return sim

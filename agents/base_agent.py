@@ -186,6 +186,8 @@ class BaseAgent():
     res = np.dot(state_dif_normalized, evect_normalized)
     return res
 
+
+
   def write_eval_summary(self, eval_episodes_won, mean_ep_length):
     self.summary = tf.Summary()
     self.summary.value.add(tag='Eval/Episodes_won(of 100)', simple_value=float(eval_episodes_won))

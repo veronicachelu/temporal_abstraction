@@ -170,9 +170,9 @@ class SomNetwork(BaseNetwork):
 
       _ = self.build_option_q_val_net()
 
-      self.decrease_prob_of_random_option = tf.assign_sub(self.random_option_prob, tf.constant(
-        (
-          self.config.initial_random_option_prob - self.config.final_random_option_prob) / self.config.explore_options_episodes))
+      # self.decrease_prob_of_random_option = tf.assign_sub(self.random_option_prob, tf.constant(
+      #   (
+      #     self.config.initial_random_option_prob - self.config.final_random_option_prob) / self.config.explore_options_episodes))
 
       if self.scope != 'global':
         self.build_placeholders(self.config.history_size)
@@ -217,7 +217,14 @@ class SomNetwork(BaseNetwork):
     #                                 dtype=tf.float32, name="matrix_sf")
     # self.eigenvalues, _, ev = tf.svd(self.matrix_sf, full_matrices=True, compute_uv=True)
     # self.eigenvectors = tf.transpose(tf.conj(ev), perm=[0, 2, 1])
-
+    if self.config.sr_matrix == "dynamic":
+      self.sf_matrix_size = self.config.sf_matrix_size
+    else:
+      self.sf_matrix_size = 104
+    self.matrix_sf = tf.placeholder(shape=[None, self.sf_matrix_size, self.sf_layers[-1]],
+                                    dtype=tf.float32, name="matrix_sf")
+    self.eigenvalues, _, ev = tf.svd(self.matrix_sf, full_matrices=False, compute_uv=True)
+    self.eigenvectors = tf.transpose(tf.conj(ev), perm=[0, 2, 1])
     with tf.name_scope('sf_loss'):
       self.sf_td_error = self.target_sf - self.sf_o
     self.sf_loss = tf.reduce_mean(self.config.sf_coef * huber_loss(self.sf_td_error))
