@@ -429,7 +429,7 @@ class SomAgent(BaseAgent):
 
     return ms_r, r_loss,
 
-  def train_reward_i_pred(self):
+  def train_reward_i_prediction(self):
     minibatch = random.sample(self.reward_i_pred_episode_buffer, self.config.batch_size)
     rollout = np.array(minibatch)
     observations = rollout[:, 0]
