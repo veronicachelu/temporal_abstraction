@@ -42,6 +42,7 @@ class SomAgent(BaseAgent):
     tf.logging.info("Starting worker " + str(self.thread_id))
     self.aux_episode_buffer = deque()
     self.reward_pred_episode_buffer = deque()
+    self.reward_i_pred_episode_buffer = deque()
     self.ms_aux = self.ms_sf = self.ms_option = self.ms_reward = self.ms_reward_i = None
     # self.stats_options = np.zeros((self.nb_states, self.nb_options + self.action_size))
 
@@ -96,13 +97,17 @@ class SomAgent(BaseAgent):
                          feed_dict=feed_dict)
       eigen_r = self.cosine_similarity((fi[1] - fi[0]), self.directions[o])
       r_i = self.config.alpha_r * eigen_r + (1 - self.config.alpha_r) * r
+      if len(self.reward_i_pred_episode_buffer) == self.config.memory_size:
+        self.reward_i_pred_episode_buffer.popleft()
+      self.reward_i_pred_episode_buffer.append([s, s1, r_i, o, a])
     else:
       r_i = r
 
     if len(self.reward_pred_episode_buffer) == self.config.memory_size:
       self.reward_pred_episode_buffer.popleft()
 
-    self.reward_pred_episode_buffer.append([s, s1, r, r_i, o, a, primitive])
+    self.reward_pred_episode_buffer.append([s, s1, r])
+
 
   def reward_prediction(self):
     if len(self.reward_pred_episode_buffer) > self.config.observation_steps and \
@@ -407,10 +412,6 @@ class SomAgent(BaseAgent):
     observations = rollout[:, 0]
     next_observations = rollout[:, 1]
     r = rollout[:, 2]
-    r_i = rollout[:, 3]
-    o = rollout[:, 4]
-    a = rollout[:, 5]
-    primitive = rollout[:, 6]
 
     feed_dict = {self.local_network.observation: np.stack(observations, axis=0),
                  self.local_network.target_next_obs: np.stack(next_observations, axis=0),
@@ -423,30 +424,25 @@ class SomAgent(BaseAgent):
                      self.local_network.merged_summary_reward],
                     feed_dict=feed_dict)
 
-    notprimitve = list(np.logical_not(primitive))
-    observations = observations[notprimitve]
-    if len(observations) == 0:
-      ms_r_i = None
-      r_i_loss = None
-    else:
-      next_observations = next_observations[notprimitve]
-      r_i = r_i[notprimitve]
-      o = o[notprimitve]
-      a = a[notprimitve]
+    minibatch = random.sample(self.reward_i_pred_episode_buffer, self.config.batch_size)
+    rollout = np.array(minibatch)
+    observations = rollout[:, 0]
+    next_observations = rollout[:, 1]
+    r_i = rollout[:, 2]
+    o = rollout[:, 3]
+    a = rollout[:, 4]
 
-      # if np.any(np.array(o) >= 4):
-      #   print('ERROR reward!!!!!!!!!!!!!!!')
-      feed_dict = {self.local_network.observation: np.stack(observations, axis=0),
-                   self.local_network.target_next_obs: np.stack(next_observations, axis=0),
-                   self.local_network.options_placeholder: o,
-                   self.local_network.actions_placeholder: a,
-                   self.local_network.target_r_i: r_i}
+    feed_dict = {self.local_network.observation: np.stack(observations, axis=0),
+                 self.local_network.target_next_obs: np.stack(next_observations, axis=0),
+                 self.local_network.options_placeholder: o,
+                 self.local_network.actions_placeholder: a,
+                 self.local_network.target_r_i: r_i}
 
-      r_i_loss, _, ms_r_i = \
-        self.sess.run([self.local_network.reward_i_loss,
-                       self.local_network.apply_grads_reward_i,
-                       self.local_network.merged_summary_reward_i],
-                      feed_dict=feed_dict)
+    r_i_loss, _, ms_r_i = \
+      self.sess.run([self.local_network.reward_i_loss,
+                     self.local_network.apply_grads_reward_i,
+                     self.local_network.merged_summary_reward_i],
+                    feed_dict=feed_dict)
 
     return ms_r, ms_r_i, r_loss, r_i_loss
 
