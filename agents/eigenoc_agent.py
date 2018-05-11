@@ -140,9 +140,11 @@ class EigenOCAgent(BaseAgent):
 
           if self.name == "worker_0" and self.episode_count > 0 and self.config.eigen and self.config.behaviour_agent is None:
             if self.config.eigen_approach == "SVD":
-              _t['recompute_eigenvectors_classic'].tic()
+              if self.config.logging:
+                _t['recompute_eigenvectors_classic'].tic()
               self.recompute_eigenvectors_svd()
-              _t['recompute_eigenvectors_classic'].toc()
+              if self.config.logging:
+                _t['recompute_eigenvectors_classic'].toc()
             else:
               self.recompute_eigenvectors_NN()
 
@@ -167,17 +169,23 @@ class EigenOCAgent(BaseAgent):
 
             if self.total_steps > self.config.observation_steps:
               if self.config.behaviour_agent is None and self.config.eigen:
-                _t['SF_prediction'].tic()
+                if self.config.logging:
+                  _t['SF_prediction'].tic()
                 self.SF_prediction(s1)
-                _t['SF_prediction'].toc()
-              _t['next_frame_prediction'].tic()
+                if self.config.logging:
+                  _t['SF_prediction'].toc()
+              if self.config.logging:
+                _t['next_frame_prediction'].tic()
               self.next_frame_prediction()
-              _t['next_frame_prediction'].toc()
+              if self.config.logging:
+                _t['next_frame_prediction'].toc()
 
               if self.total_steps > self.config.eigen_exploration_steps:
-                _t['option_prediction'].tic()
+                if self.config.logging:
+                  _t['option_prediction'].tic()
                 self.option_prediction(s, s1, r)
-                _t['option_prediction'].tic()
+                if self.config.logging:
+                  _t['option_prediction'].tic()
 
                 if not self.done and (self.o_term or self.primitive_action):
                   # if not self.primitive_action:
@@ -221,11 +229,12 @@ class EigenOCAgent(BaseAgent):
 
           if self.name == 'worker_0':
             sess.run(self.increment_global_step)
-            tf.logging.info(
-              'recompute_eigenvectors_classic time is %f' % _t['recompute_eigenvectors_classic'].average_time)
-            tf.logging.info('next_frame_prediction time is %f' % _t['next_frame_prediction'].average_time)
-            tf.logging.info('option_prediction time is %f' % _t['option_prediction'].average_time)
-            tf.logging.info('SF_prediction time is %f' % _t['SF_prediction'].average_time)
+            if self.config.logging:
+              tf.logging.info(
+                'recompute_eigenvectors_classic time is %f' % _t['recompute_eigenvectors_classic'].average_time)
+              tf.logging.info('next_frame_prediction time is %f' % _t['next_frame_prediction'].average_time)
+              tf.logging.info('option_prediction time is %f' % _t['option_prediction'].average_time)
+              tf.logging.info('SF_prediction time is %f' % _t['SF_prediction'].average_time)
 
           self.episode_count += 1
 
