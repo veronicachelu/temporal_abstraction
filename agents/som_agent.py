@@ -112,7 +112,10 @@ class SomAgent(BaseAgent):
   def reward_prediction(self):
     if len(self.reward_pred_episode_buffer) > self.config.observation_steps and \
                 self.total_steps % self.config.reward_update_freq == 0:
-      self.ms_reward, self.ms_reward_i, self.r_loss, self.r_i_loss = self.train_reward_prediction()
+      self.ms_reward, self.r_loss = self.train_reward_prediction()
+    if len(self.reward_i_pred_episode_buffer) > self.config.observation_steps and \
+                self.total_steps % self.config.reward_update_freq == 0:
+      self.ms_reward_i, self.r_i_loss = self.train_reward_i_prediction()
 
 
   def sync_threads(self, force=False):
@@ -424,6 +427,9 @@ class SomAgent(BaseAgent):
                      self.local_network.merged_summary_reward],
                     feed_dict=feed_dict)
 
+    return ms_r, r_loss,
+
+  def train_reward_i_pred(self):
     minibatch = random.sample(self.reward_i_pred_episode_buffer, self.config.batch_size)
     rollout = np.array(minibatch)
     observations = rollout[:, 0]
@@ -444,7 +450,7 @@ class SomAgent(BaseAgent):
                      self.local_network.merged_summary_reward_i],
                     feed_dict=feed_dict)
 
-    return ms_r, ms_r_i, r_loss, r_i_loss
+    return ms_r_i, r_i_loss
 
   def train_option(self):
     rollout = np.array(self.episode_buffer_sf)  # s, self.option, self.action, r, r_i
