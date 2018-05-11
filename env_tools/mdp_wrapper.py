@@ -92,7 +92,7 @@ class GridWorld:
     screen = self.build_screen()
     stateIdx = self.get_state_index(self.agentX, self.agentY)
 
-    return screen, stateIdx
+    return screen
 
   def read_file(self, load_path):
     with open(load_path, "r") as f:

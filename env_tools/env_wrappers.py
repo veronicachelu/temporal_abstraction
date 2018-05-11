@@ -662,10 +662,10 @@ class FrameResize(object):
       return observ, reward, done, info
 
     def reset(self):
-      observ, info = self._env.reset()
+      observ = self._env.reset()
       # preprocessed_observ = self.get_preprocessed_frame(observ)
       self._step = 0
-      return observ, info
+      return observ
 
 # if __name__ == '__main__':
 #   env = gym.make("Breakout-v0")

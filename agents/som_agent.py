@@ -162,20 +162,21 @@ class SomAgent(BaseAgent):
 
             self.store_general_info(s, s1, self.action, r)
             self.store_reward_info(s, self.option, self.action, s1, r, self.primitive_action)
-            self.log_timestep()
+            # self.log_timestep()
 
             if self.total_steps > self.config.observation_steps:
               self.next_frame_prediction()
               self.reward_prediction()
               self.old_option = self.option
+              self.old_primitive_action = self.primitive_action
 
               if not self.done and (self.o_term or self.primitive_action):
                 if not self.primitive_action:
                   self.episode_options_lengths[self.option][-1] = self.episode_len - \
                                                                   self.episode_options_lengths[self.option][-1]
-                self.option_evaluation(s1, s1_idx)
+                self.option_evaluation(s1)
 
-              self.SF_option_prediction(s, self.old_option, s1, self.option, self.action, self.primitive_action)
+              self.SF_option_prediction(s, self.old_option, s1, self.option, self.action, self.old_primitive_action)
 
               if self.total_steps % self.config.steps_checkpoint_interval == 0 and self.name == 'worker_0':
                 self.save_model()
@@ -188,7 +189,7 @@ class SomAgent(BaseAgent):
             self.total_steps += 1
             sess.run(self.increment_total_steps_tensor)
 
-          self.log_episode()
+          # self.log_episode()
           self.update_episode_stats()
 
           # if self.episode_count % self.config.episode_eval_interval == 0 and \
@@ -215,7 +216,7 @@ class SomAgent(BaseAgent):
             sess.run(self.increment_global_step)
           self.episode_count += 1
 
-  def option_evaluation(self, s, s_idx):
+  def option_evaluation(self, s):
     feed_dict = {self.local_network.observation: np.stack([s])}
     self.option, self.primitive_action = self.sess.run(
       [self.local_network.current_option, self.local_network.primitive_action], feed_dict=feed_dict)
@@ -381,6 +382,8 @@ class SomAgent(BaseAgent):
       o = o[notprimitve]
       a = a[notprimitve]
 
+      if np.any(np.array(o) >= 4):
+        print('ERROR reward!!!!!!!!!!!!!!!')
       feed_dict = {self.local_network.observation: np.stack(observations, axis=0),
                    self.local_network.target_next_obs: np.stack(next_observations, axis=0),
                    self.local_network.options_placeholder: o,
@@ -405,18 +408,20 @@ class SomAgent(BaseAgent):
     primitive = rollout[:, 5]
 
     notprimitve = list(np.logical_not(primitive))
-    observations = observations[notprimitve]
-    if len(observations) == 0:
+    observations_not_primitive = observations[notprimitve]
+    if len(observations_not_primitive) == 0:
       option_loss = ms_option = None
     else:
-      options = options[notprimitve]
-      actions = actions[notprimitve]
-      sf_td_error = self.sf_td_error[notprimitve]
+      options_not_primitive = options[notprimitve]
+      actions_not_primitive = actions[notprimitve]
+      sf_td_error_not_primitive = self.sf_td_error[notprimitve]
 
-      feed_dict = {self.local_network.sf_td_error_target: np.stack(sf_td_error, axis=0),
-                   self.local_network.observation: np.stack(observations, axis=0),
-                   self.local_network.options_placeholder: options,
-                   self.local_network.actions_placeholder: actions}
+      if np.any(np.array(options_not_primitive) >= 4):
+        print("ERROR option!!!!!!!!!")
+      feed_dict = {self.local_network.sf_td_error_target: sf_td_error_not_primitive,
+                   self.local_network.observation: np.stack(observations_not_primitive, axis=0),
+                   self.local_network.options_placeholder: options_not_primitive,
+                   self.local_network.actions_placeholder: actions_not_primitive}
 
       _, option_loss, ms_option = self.sess.run([
                 self.local_network.apply_grads_option,

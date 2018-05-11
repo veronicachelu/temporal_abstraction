@@ -126,14 +126,8 @@ if __name__ == '__main__':
     'logdir', './logdir',
     'Base directory to store logs.')
   tf.app.flags.DEFINE_string(
-    'timestamp', datetime.datetime.now().strftime('%Y%m%dT%H%M%S'),
-    'Sub directory to store logs.')
-  tf.app.flags.DEFINE_string(
-    'config', "oc_montezuma",
+    'config', "som",
     'Configuration to execute.')
-  tf.app.flags.DEFINE_boolean(
-    'env_processes', True,
-    'Step environments in separate processes to circumvent the GIL.')
   tf.app.flags.DEFINE_boolean(
     'train', True,
     'Training.')
@@ -141,9 +135,6 @@ if __name__ == '__main__':
     'resume', False,
     #'resume', True,
     'Resume.')
-  tf.app.flags.DEFINE_boolean(
-    'show_training', False,
-    'Show gym envs.')
   tf.app.flags.DEFINE_string(
     'task', "sf",
     'Task nature')
