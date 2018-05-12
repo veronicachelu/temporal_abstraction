@@ -1,4 +1,4 @@
-from agents import SomAgent
+from agents import IntegratedAgent
 from agents import TargetAgent
 from agents import BehaviourAgent
 from agents import BehaviourDynAgent
@@ -8,7 +8,7 @@ from agents import EigenOCAgentDyn
 from agents import DynSRAgent
 from env_tools import GridWorld
 import functools
-from networks import SomNetwork
+from networks import IntegratedNetwork
 from networks import ExplorationNetwork
 from networks import EignOCNetwork
 from networks import LinearSFNetwork
@@ -297,13 +297,13 @@ def oc_montezuma():
 
   return locals()
 
-def som():
+def integrated():
   locals().update(default())
-  target_agent = SomAgent
+  target_agent = IntegratedAgent
   nb_options = 4
   num_agents = 8
   eigen = True
-  network = SomNetwork
+  network = IntegratedNetwork
 
   fc_layers = 128,
   sf_layers = 128,

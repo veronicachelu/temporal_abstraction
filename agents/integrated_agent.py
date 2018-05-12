@@ -20,9 +20,9 @@ import csv
 from tools.timer import Timer
 
 
-class SomAgent(BaseAgent):
+class IntegratedAgent(BaseAgent):
   def __init__(self, game, thread_id, global_step, config, global_network, barrier):
-    super(SomAgent, self).__init__(game, thread_id, global_step, config, global_network)
+    super(IntegratedAgent, self).__init__(game, thread_id, global_step, config, global_network)
     self.update_local_vars_reward = update_target_graph_reward('global', self.name)
     # self.stats_path = os.path.join(self.summary_path, 'stats')
     # tf.gfile.MakeDirs(self.stats_path)
@@ -78,7 +78,7 @@ class SomAgent(BaseAgent):
 
       bootstrap_sf = np.zeros_like(sf_o) if self.done else sf_o
       self.ms_sf, self.sf_loss = self.train_sf(bootstrap_sf)
-      self.ms_option, self.option_loss = self.train_option()
+      # self.ms_option, self.option_loss = self.train_option()
 
       self.episode_buffer_sf = []
       self.sf_counter = 0
@@ -336,8 +336,6 @@ class SomAgent(BaseAgent):
 
   def recompute_eigenvectors_classic(self, plotting=False):
     if self.config.eigen:
-      # self.new_eigenvectors = copy.deepcopy(self.global_network.directions)
-      # matrix_sf = np.zeros((self.nb_states, self.config.sf_layers[-1]))
       states = []
       for idx in range(self.nb_states):
         s, ii, jj = self.env.fake_get_state(idx)
@@ -367,7 +365,6 @@ class SomAgent(BaseAgent):
       self.summary.value.add(tag='Eigenvectors/Mean similarity', simple_value=float(mean_similarity))
       self.summary_writer.add_summary(self.summary, self.episode_count)
       self.summary_writer.flush()
-      # tf.logging.warning("Min cosine similarity between old eigenvectors and recomputed onesis {}".format(min_similarity))
       self.global_network.directions = new_eigenvectors
       self.directions = self.global_network.directions
 
@@ -381,7 +378,6 @@ class SomAgent(BaseAgent):
     feed_dict = {self.local_network.observation: np.stack(observations, axis=0)}
     fi = self.sess.run(self.local_network.fi,
                        feed_dict=feed_dict)
-    # fi = fi[np.arange(len(observations)), np.stack(options, axis=0)]
 
     sf_plus = np.asarray(fi.tolist() + [bootstrap_sf])
     discounted_sf = discount(sf_plus, self.config.discount)[:-1]

@@ -1,5 +1,5 @@
 from .base_agent import BaseAgent
-from .som_agent import SomAgent
+from .integrated_agent import integratedAgent
 from .target_agent import TargetAgent
 from .behaviour_agent import BehaviourAgent
 from .behaviour_dyn_agent import BehaviourDynAgent
