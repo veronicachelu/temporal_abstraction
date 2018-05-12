@@ -10,11 +10,13 @@ import matplotlib.pylab as plt
 import numpy as np
 from collections import deque
 import seaborn as sns
+
 sns.set()
 import random
 # import matplotlib.pyplot as plt
 import copy
 from tools.agent_utils import update_target_graph_reward
+
 FLAGS = tf.app.flags.FLAGS
 import csv
 from tools.timer import Timer
@@ -72,13 +74,13 @@ class IntegratedAgent(BaseAgent):
     self.episode_buffer_sf.append((s, o, s1, o1, a, primitive))
     self.sf_counter += 1
     if self.config.eigen and (self.sf_counter == self.config.max_update_freq or self.done or (
-            self.o_term and self.sf_counter >= self.config.min_update_freq)):
+          self.o_term and self.sf_counter >= self.config.min_update_freq)):
       feed_dict = {self.local_network.observation: [s1], self.local_network.options_placeholder: [o1]}
       sf_o = self.sess.run(self.local_network.sf_o, feed_dict=feed_dict)[0]
 
       bootstrap_sf = np.zeros_like(sf_o) if self.done else sf_o
       self.ms_sf, self.sf_loss = self.train_sf(bootstrap_sf)
-      # self.ms_option, self.option_loss = self.train_option()
+      self.ms_option, self.option_loss = self.train_option()
 
       self.episode_buffer_sf = []
       self.sf_counter = 0
@@ -99,14 +101,11 @@ class IntegratedAgent(BaseAgent):
       if len(self.reward_i_pred_episode_buffer) == self.config.memory_size:
         self.reward_i_pred_episode_buffer.popleft()
       self.reward_i_pred_episode_buffer.append([s, s1, r_i, o, a])
-    else:
-      r_i = r
 
     if len(self.reward_pred_episode_buffer) == self.config.memory_size:
       self.reward_pred_episode_buffer.popleft()
 
     self.reward_pred_episode_buffer.append([s, s1, r])
-
 
   def reward_prediction(self):
     if len(self.reward_pred_episode_buffer) > self.config.observation_steps and \
@@ -115,7 +114,6 @@ class IntegratedAgent(BaseAgent):
     if len(self.reward_i_pred_episode_buffer) > self.config.observation_steps and \
                 self.total_steps % self.config.reward_update_freq == 0:
       self.ms_reward_i, self.r_i_loss = self.train_reward_i_prediction()
-
 
   def sync_threads(self, force=False):
     if force:
@@ -134,14 +132,15 @@ class IntegratedAgent(BaseAgent):
         self.sess.run(self.update_local_vars_option)
 
   def play(self, sess, coord, saver):
-    _t = {'recompute_eigenvectors_classic': Timer(), "next_frame_prediction": Timer(), 'reward_prediction': Timer(), 'SF_option_prediction': Timer()}
+    _t = {'recompute_eigenvectors_classic': Timer(), "next_frame_prediction": Timer(), 'reward_prediction': Timer(),
+          'SF_option_prediction': Timer()}
     with sess.as_default(), sess.graph.as_default():
       self.init_play(sess, saver)
 
       with coord.stop_on_exception():
         while not coord.should_stop():
           if (self.config.steps != -1 and \
-              (self.total_steps > self.config.steps and self.name == "worker_0")) or \
+                  (self.total_steps > self.config.steps and self.name == "worker_0")) or \
               (self.episode_count > len(self.config.goal_locations) * self.config.move_goal_nb_of_ep and
                    self.name == "worker_0"):
             coord.request_stop()
@@ -240,7 +239,8 @@ class IntegratedAgent(BaseAgent):
           if self.name == 'worker_0':
             sess.run(self.increment_global_step)
             if self.config.logging:
-              tf.logging.info('recompute_eigenvectors_classic time is %f' % _t['recompute_eigenvectors_classic'].average_time)
+              tf.logging.info(
+                'recompute_eigenvectors_classic time is %f' % _t['recompute_eigenvectors_classic'].average_time)
               tf.logging.info('next_frame_prediction time is %f' % _t['next_frame_prediction'].average_time)
               tf.logging.info('reward_prediction time is %f' % _t['reward_prediction'].average_time)
               tf.logging.info('SF_option_prediction time is %f' % _t['SF_option_prediction'].average_time)
@@ -263,12 +263,12 @@ class IntegratedAgent(BaseAgent):
       feed_dict = {self.local_network.observation: np.stack([s])}
 
       tensor_list = [self.local_network.options, self.local_network.v, self.local_network.q_val,
-                self.local_network.termination]
+                     self.local_network.termination]
       options, value, q_value, o_term = self.sess.run(tensor_list, feed_dict=feed_dict)
       if not self.primitive_action or not self.config.include_primitive_options:
         pi = options[0, self.option]
         self.action = np.random.choice(pi, p=pi)
-        self.action = np.argmax(pi==self.action)
+        self.action = np.argmax(pi == self.action)
         self.o_term = o_term[0, self.option] > np.random.uniform()
       else:
         self.action = self.option - self.nb_options
@@ -355,11 +355,14 @@ class IntegratedAgent(BaseAgent):
       new_eigenvectors = eigenvect[:, 0]
 
       min_similarity = np.min(
-        [np.min(self.cosine_similarity_option(self.global_network.directions[:, i], new_eigenvectors[:, i])) for i in range(self.config.sf_layers[-1])])
+        [np.min(self.cosine_similarity_option(self.global_network.directions[:, i], new_eigenvectors[:, i])) for i in
+         range(self.config.sf_layers[-1])])
       max_similarity = np.max(
-        [np.max(self.cosine_similarity_option(self.global_network.directions[:, i], new_eigenvectors[:, i])) for i in range(self.config.sf_layers[-1])])
+        [np.max(self.cosine_similarity_option(self.global_network.directions[:, i], new_eigenvectors[:, i])) for i in
+         range(self.config.sf_layers[-1])])
       mean_similarity = np.mean(
-        [np.mean(self.cosine_similarity_option(self.global_network.directions[:, i], new_eigenvectors[:, i])) for i in range(self.config.sf_layers[-1])])
+        [np.mean(self.cosine_similarity_option(self.global_network.directions[:, i], new_eigenvectors[:, i])) for i in
+         range(self.config.sf_layers[-1])])
       self.summary = tf.Summary()
       self.summary.value.add(tag='Eigenvectors/Min similarity', simple_value=float(min_similarity))
       self.summary.value.add(tag='Eigenvectors/Max similarity', simple_value=float(max_similarity))
@@ -368,7 +371,6 @@ class IntegratedAgent(BaseAgent):
       self.summary_writer.flush()
       self.global_network.directions = new_eigenvectors
       self.directions = self.global_network.directions
-
 
   def train_sf(self, bootstrap_sf):
     rollout = np.array(self.episode_buffer_sf)
@@ -431,7 +433,6 @@ class IntegratedAgent(BaseAgent):
                  self.local_network.target_next_obs: np.stack(next_observations, axis=0),
                  self.local_network.target_r: r}
 
-
     r_loss, _, ms_r = \
       self.sess.run([self.local_network.reward_loss,
                      self.local_network.apply_grads_reward,
@@ -489,10 +490,10 @@ class IntegratedAgent(BaseAgent):
                    self.local_network.actions_placeholder: actions_not_primitive}
 
       _, option_loss, ms_option = self.sess.run([
-                self.local_network.apply_grads_option,
-                self.local_network.option_loss,
-                self.local_network.merged_summary_option,
-                ], feed_dict=feed_dict)
+        self.local_network.apply_grads_option,
+        self.local_network.option_loss,
+        self.local_network.merged_summary_option,
+      ], feed_dict=feed_dict)
     return ms_option, option_loss
 
   def evaluate_agent(self):
@@ -542,10 +543,10 @@ class IntegratedAgent(BaseAgent):
         if episode_length > self.config.max_length_eval:
           break
 
-        # if i == 0 and self.episode_count > 500:
-        #   images = np.array(episode_frames)
-        #   make_gif(images[:100], os.path.join(self.test_path, 'eval_episode_{}.gif'.format(self.episode_count)),
-        #            duration=len(images[:100]) * 0.1, true_image=True)
+          # if i == 0 and self.episode_count > 500:
+          #   images = np.array(episode_frames)
+          #   make_gif(images[:100], os.path.join(self.test_path, 'eval_episode_{}.gif'.format(self.episode_count)),
+          #            duration=len(images[:100]) * 0.1, true_image=True)
 
       episodes_won += episode_reward
       episode_lengths.append(episode_length)
@@ -683,9 +684,9 @@ class IntegratedAgent(BaseAgent):
       self.episode_mean_options.append(get_mode(self.episode_options))
     if len(self.episode_actions) != 0:
       self.episode_mean_actions.append(get_mode(self.episode_actions))
-    # for op, option_lengths in enumerate(self.episode_options_lengths):
-    #   if len(option_lengths) != 0:
-    #     self.episode_mean_options_lengths[op] = np.mean(option_lengths)
+      # for op, option_lengths in enumerate(self.episode_options_lengths):
+      #   if len(option_lengths) != 0:
+      #     self.episode_mean_options_lengths[op] = np.mean(option_lengths)
 
   def write_episode_summary_stats(self):
     # with open(os.path.join(self.stats_path, 'summary_stats.csv'), 'w', newline='') as csvfile:
@@ -694,8 +695,8 @@ class IntegratedAgent(BaseAgent):
     #   writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
     #
     #   writer.writeheader()
-      # total_timesteps_in_state = np.sum(self.stats_options, axis=1)[..., None]
-      # stats_options = self.stats_options / (total_timesteps_in_state + 1e-12)
+    # total_timesteps_in_state = np.sum(self.stats_options, axis=1)[..., None]
+    # stats_options = self.stats_options / (total_timesteps_in_state + 1e-12)
     most_chosen_options = np.argmax(self.stats_options, axis=1)
     #   for s in range(self.nb_states):
     #     writer.writerow({'State': str(s), 'Option_0': self.stats_options[s, 0], 'Option_1': self.stats_options[s, 1],
@@ -737,9 +738,9 @@ class IntegratedAgent(BaseAgent):
       )
 
       x, y = self.env.get_state_xy(idx)
-      states = [] #up, right, down, leftƒpo
+      states = []  # up, right, down, leftƒpo
       if x - 1 > 0:
-        states.append((x-1, y))
+        states.append((x - 1, y))
       if y + 1 < self.config.input_size[1]:
         states.append((x, y + 1))
       if x + 1 < self.config.input_size[0]:
@@ -761,7 +762,7 @@ class IntegratedAgent(BaseAgent):
         cosine_sims = [self.cosine_similarity(d, self.directions[o]) for d in fi_diffs]
         a = np.argmax(cosine_sims)
 
-      if a  == 0:  # up
+      if a == 0:  # up
         dy = 0.35
       elif a == 1:  # right
         dx = 0.35
@@ -784,7 +785,7 @@ class IntegratedAgent(BaseAgent):
       plt.axhline(j, color='k', linestyle=':')
     plt.axhline(self.config.input_size[0], color='k', linestyle=':')
 
-    plt.savefig(os.path.join(self.stats_path,  "Option_map.png"))
+    plt.savefig(os.path.join(self.stats_path, "Option_map.png"))
     plt.close()
 
   def cosine_similarity_option(self, next_sf, evect):

@@ -10,6 +10,7 @@ class IntegratedNetwork(BaseNetwork):
   def __init__(self, scope, config, action_size, total_steps_tensor=None):
     super(IntegratedNetwork, self).__init__(scope, config, action_size, total_steps_tensor)
     self.summaries_reward = []
+    self.summaries_reward_i = []
     self.random_option_prob = tf.Variable(self.config.initial_random_option_prob, trainable=False,
                                           name="prob_of_random_option", dtype=tf.float32)
     self.build_network()
@@ -33,34 +34,52 @@ class IntegratedNetwork(BaseNetwork):
       return out
 
   def build_reward_pred_net(self):
-    with tf.variable_scope("reward"):
-      out = tf.stop_gradient(self.fi_relu)
-      out = layers.fully_connected(out, num_outputs=self.fc_layers[-1],
-                                   activation_fn=None,
-                                   variables_collections=tf.get_collection("variables"),
-                                   outputs_collections="activations", scope="wg")
-      self.summaries_reward.append(tf.contrib.layers.summarize_activation(out))
-      self.w = out
+    out = tf.stop_gradient(self.fi_relu)
+    self.r = layers.fully_connected(out, num_outputs=1,
+                                    activation_fn=None, biases_initializer=None,
+                                    variables_collections=tf.get_collection("variables"),
+                                    outputs_collections="activations", scope="reward")
+    self.summaries_reward.append(tf.contrib.layers.summarize_activation(self.r))
 
-      out = tf.stop_gradient(self.fi_relu)
-      out = layers.fully_connected(out, num_outputs=self.nb_options * self.action_size * self.fc_layers[-1],
-                                   activation_fn=None,
-                                   variables_collections=tf.get_collection("variables"),
-                                   outputs_collections="activations", scope="wg_i")
-      self.summaries_reward.append(tf.contrib.layers.summarize_activation(out))
-      self.wg_i = tf.reshape(out, (-1, self.nb_options, self.action_size, self.fc_layers[-1]))
+    self.options_placeholder = tf.placeholder(shape=[None], dtype=tf.int32, name="options")
+    self.option_fc = layers.fully_connected(tf.cast(self.options_placeholder[..., None], tf.float32),
+                                            num_outputs=self.fc_layers[-1],
+                                            activation_fn=None,
+                                            variables_collections=tf.get_collection("variables"),
+                                            outputs_collections="activations", scope="reward_fc")
+    out = tf.add(tf.stop_gradient(self.fi_actions), self.option_fc)
+    self.r_i = layers.fully_connected(out, num_outputs=1,
+                                      activation_fn=None, biases_initializer=None,
+                                      variables_collections=tf.get_collection("variables"),
+                                      outputs_collections="activations", scope="reward_i")
+    self.summaries_reward_i.append(tf.contrib.layers.summarize_activation(self.r_i))
+
+    self.w = self.get_w()
+    self.w_i = self.get_wi()
+
+  def get_w(self):
+    with tf.variable_scope("reward", reuse=True):
+      v = tf.get_variable("weights")
+    return v
+
+  def get_wi(self):
+    with tf.variable_scope("reward_i", reuse=True):
+      v = tf.get_variable("weights")
+      # v = tf.reshape(v, (self.nb_options, self.action_size, self.fc_layers[-1]))
+    return v
 
   def build_next_frame_prediction_net(self):
     with tf.variable_scope("aux_action_fc"):
       self.actions_placeholder = tf.placeholder(shape=[None], dtype=tf.int32, name="Actions")
-      actions = layers.fully_connected(tf.cast(self.actions_placeholder[..., None], tf.float32),
-                                       num_outputs=self.fc_layers[-1],
-                                       activation_fn=None,
-                                       variables_collections=tf.get_collection("variables"),
-                                       outputs_collections="activations", scope="fc")
+      self.fc_actions = layers.fully_connected(tf.cast(self.actions_placeholder[..., None], tf.float32),
+                                               num_outputs=self.fc_layers[-1],
+                                               activation_fn=None,
+                                               variables_collections=tf.get_collection("variables"),
+                                               outputs_collections="activations", scope="fc")
 
     with tf.variable_scope("aux_next_frame"):
-      out = tf.add(self.fi, actions)
+      self.fi_actions = tf.add(self.fi, self.fc_actions)
+      out = self.fi_actions
       for i, nb_filt in enumerate(self.aux_fc_layers):
         out = layers.fully_connected(out, num_outputs=nb_filt,
                                      activation_fn=None,
@@ -92,7 +111,8 @@ class IntegratedNetwork(BaseNetwork):
   def build_option_q_val_net(self):
     with tf.variable_scope("q_val"):
       self.q_val = tf.reduce_sum(tf.stop_gradient(self.sf) *
-                                 tf.tile(tf.expand_dims(self.w, 1), [1, self.nb_options + self.action_size, 1]), axis=2)
+                                 tf.tile((tf.squeeze(self.w, 1)[None, ...])[None, ...],
+                                         [tf.shape(self.sf)[0], self.nb_options + self.action_size, 1]), axis=2)
       self.summaries_option.append(tf.contrib.layers.summarize_activation(self.q_val))
       self.max_q_val = tf.reduce_max(self.q_val, 1)
       self.max_options = tf.cast(tf.argmax(self.q_val, 1), dtype=tf.int32)
@@ -140,7 +160,6 @@ class IntegratedNetwork(BaseNetwork):
     self.target_next_obs = tf.placeholder(
       shape=[None, self.config.input_size[0], self.config.input_size[1], next_frame_channel_size], dtype=tf.float32,
       name="target_next_obs")
-    self.options_placeholder = tf.placeholder(shape=[None], dtype=tf.int32, name="options")
     self.target_r = tf.placeholder(shape=[None], dtype=tf.float32)
     self.target_r_i = tf.placeholder(shape=[None], dtype=tf.float32)
     self.sf_td_error_target = tf.placeholder(shape=[None, self.sf_layers[-1]], dtype=tf.float32,
@@ -153,7 +172,7 @@ class IntegratedNetwork(BaseNetwork):
 
     q_val = self.get_q(self.options_placeholder)
     o_term = self.get_o_term(self.options_placeholder)
-    wg_oa = self.get_wg_oa(self.options_placeholder, self.actions_placeholder)
+    # wi_oa = self.get_wi_oa(self.options_placeholder, self.actions_placeholder)
 
     self.image_summaries.append(
       tf.summary.image('next', tf.concat([self.next_obs, self.target_next_obs], 2), max_outputs=30))
@@ -172,11 +191,11 @@ class IntegratedNetwork(BaseNetwork):
       self.sf_loss = tf.reduce_mean(0.5 * self.config.sf_coef * tf.square(self.sf_td_error))
 
     with tf.name_scope('reward_loss'):
-      reward_error = self.target_r - tf.reduce_sum(tf.stop_gradient(self.fi) * self.w, axis=1)
+      reward_error = self.target_r - self.r
       self.reward_loss = tf.reduce_mean(self.config.reward_coef * huber_loss(reward_error))
 
     with tf.name_scope('reward_loss_i'):
-      reward_i_error = self.target_r_i - tf.reduce_sum(tf.stop_gradient(self.fi) * wg_oa, axis=1)
+      reward_i_error = self.target_r_i - self.r_i
       self.reward_i_loss = tf.reduce_mean(self.config.reward_i_coef * huber_loss(reward_i_error))
 
     with tf.name_scope('aux_loss'):
@@ -192,7 +211,9 @@ class IntegratedNetwork(BaseNetwork):
                                                                             tf.log(self.policies + 1e-7),
                                                                             axis=1))
     with tf.name_scope('policy_loss'):
-      self.advantage = tf.reduce_sum(self.sf_td_error_target * wg_oa, axis=1)
+      self.advantage = tf.reduce_sum(
+        self.sf_td_error_target * tf.tile(tf.squeeze(self.w_i, 1)[None, ...], [tf.shape(self.sf_td_error_target)[0], 1]),
+        axis=1)
       self.policy_loss = -tf.reduce_mean(tf.log(self.responsible_actions + 1e-7) * tf.stop_gradient(self.advantage))
 
     self.option_loss = self.policy_loss - self.entropy_loss + self.term_loss
@@ -232,7 +253,7 @@ class IntegratedNetwork(BaseNetwork):
       tf.summary.scalar('gradient_norm_reward', grads_reward_norm),
       gradient_summaries(zip(grads_reward, local_vars))])
 
-    self.merged_summary_reward_i = tf.summary.merge(self.summaries_reward + [
+    self.merged_summary_reward_i = tf.summary.merge(self.summaries_reward_i + [
       tf.summary.scalar('avg_reward_i_loss', self.reward_i_loss),
       tf.summary.scalar('gradient_norm_reward_i', grads_reward_i_norm),
       gradient_summaries(zip(grads_reward_i, local_vars))])
@@ -243,8 +264,7 @@ class IntegratedNetwork(BaseNetwork):
 
     return sf_o
 
-  def get_wg_oa(self, o, a):
+  def get_wi_oa(self, o, a):
     indices = tf.stack([tf.range(tf.shape(o)[0]), o, a], axis=1)
-    wg_o_a = tf.gather_nd(self.wg_i, indices, name="wg_o_a")
-    return wg_o_a
-
+    wi_o_a = tf.gather_nd(tf.tile(self.w_i[None, ...], [tf.shape(o)[0], 1, 1, 1]), indices, name="wi_o_a")
+    return wi_o_a
