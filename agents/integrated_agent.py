@@ -187,6 +187,7 @@ class IntegratedAgent(BaseAgent):
               self.reward_prediction()
               if self.config.logging:
                 _t['reward_prediction'].toc()
+
               self.old_option = self.option
               self.old_primitive_action = self.primitive_action
 
@@ -386,12 +387,19 @@ class IntegratedAgent(BaseAgent):
                  self.local_network.observation: np.stack(observations, axis=0),
                  self.local_network.options_placeholder: np.stack(options, axis=0)}  # ,
 
+    # feed_dict_global = {self.global_network.observation: np.stack(observations, axis=0),
+    #                     self.global_network.options_placeholder: np.stack(options, axis=0)}
+
+    # old_global_sf_loss = self.sess.run(self.global_network.sf_loss, feed_dict_global)
+
     _, ms, sf_loss, self.sf_td_error = \
       self.sess.run([self.local_network.apply_grads_sf,
                      self.local_network.merged_summary_sf,
                      self.local_network.sf_loss,
                      self.local_network.sf_td_error],
                     feed_dict=feed_dict)
+
+    # global_sf_loss = self.sess.run(self.global_network.sf_loss, feed_dict_global)
 
     return ms, sf_loss
 

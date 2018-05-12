@@ -33,21 +33,22 @@ class IntegratedNetwork(BaseNetwork):
       return out
 
   def build_reward_pred_net(self):
-    out = tf.stop_gradient(self.fi_relu)
-    out = layers.fully_connected(out, num_outputs=self.fc_layers[-1],
-                                 activation_fn=None,
-                                 variables_collections=tf.get_collection("variables"),
-                                 outputs_collections="activations", scope="wg")
-    self.summaries_reward.append(tf.contrib.layers.summarize_activation(out))
-    self.w = out
+    with tf.variable_scope("reward"):
+      out = tf.stop_gradient(self.fi_relu)
+      out = layers.fully_connected(out, num_outputs=self.fc_layers[-1],
+                                   activation_fn=None,
+                                   variables_collections=tf.get_collection("variables"),
+                                   outputs_collections="activations", scope="wg")
+      self.summaries_reward.append(tf.contrib.layers.summarize_activation(out))
+      self.w = out
 
-    out = tf.stop_gradient(self.fi_relu)
-    out = layers.fully_connected(out, num_outputs=self.nb_options * self.action_size * self.fc_layers[-1],
-                                 activation_fn=None,
-                                 variables_collections=tf.get_collection("variables"),
-                                 outputs_collections="activations", scope="wg_i")
-    self.summaries_reward.append(tf.contrib.layers.summarize_activation(out))
-    self.wg_i = tf.reshape(out, (-1, self.nb_options, self.action_size, self.fc_layers[-1]))
+      out = tf.stop_gradient(self.fi_relu)
+      out = layers.fully_connected(out, num_outputs=self.nb_options * self.action_size * self.fc_layers[-1],
+                                   activation_fn=None,
+                                   variables_collections=tf.get_collection("variables"),
+                                   outputs_collections="activations", scope="wg_i")
+      self.summaries_reward.append(tf.contrib.layers.summarize_activation(out))
+      self.wg_i = tf.reshape(out, (-1, self.nb_options, self.action_size, self.fc_layers[-1]))
 
   def build_next_frame_prediction_net(self):
     with tf.variable_scope("aux_action_fc"):
@@ -89,8 +90,9 @@ class IntegratedNetwork(BaseNetwork):
       self.sf = tf.reshape(out, (-1, (self.nb_options + self.action_size), self.sf_layers[-1]))
 
   def build_option_q_val_net(self):
-    with tf.variable_scope("option_q_val"):
-      self.q_val = tf.reduce_sum(tf.stop_gradient(self.sf) * tf.tile(tf.expand_dims(self.w, 1), [1, self.nb_options + self.action_size, 1]), axis=2)
+    with tf.variable_scope("q_val"):
+      self.q_val = tf.reduce_sum(tf.stop_gradient(self.sf) *
+                                 tf.tile(tf.expand_dims(self.w, 1), [1, self.nb_options + self.action_size, 1]), axis=2)
       self.summaries_option.append(tf.contrib.layers.summarize_activation(self.q_val))
       self.max_q_val = tf.reduce_max(self.q_val, 1)
       self.max_options = tf.cast(tf.argmax(self.q_val, 1), dtype=tf.int32)
@@ -127,9 +129,9 @@ class IntegratedNetwork(BaseNetwork):
       self.build_reward_pred_net()
 
       _ = self.build_option_q_val_net()
+      self.build_placeholders(self.config.history_size)
 
       if self.scope != 'global':
-        self.build_placeholders(self.config.history_size)
         self.build_losses()
         self.gradients_and_summaries()
 
@@ -167,15 +169,15 @@ class IntegratedNetwork(BaseNetwork):
 
     with tf.name_scope('sf_loss'):
       self.sf_td_error = self.target_sf - self.sf_o
-    self.sf_loss = tf.reduce_mean(self.config.sf_coef * huber_loss(self.sf_td_error))
+      self.sf_loss = tf.reduce_mean(0.5 * self.config.sf_coef * tf.square(self.sf_td_error))
 
     with tf.name_scope('reward_loss'):
       reward_error = self.target_r - tf.reduce_sum(tf.stop_gradient(self.fi) * self.w, axis=1)
-    self.reward_loss = tf.reduce_mean(self.config.reward_coef * huber_loss(reward_error))
+      self.reward_loss = tf.reduce_mean(self.config.reward_coef * huber_loss(reward_error))
 
     with tf.name_scope('reward_loss_i'):
       reward_i_error = self.target_r_i - tf.reduce_sum(tf.stop_gradient(self.fi) * wg_oa, axis=1)
-    self.reward_i_loss = tf.reduce_mean(self.config.reward_i_coef * huber_loss(reward_i_error))
+      self.reward_i_loss = tf.reduce_mean(self.config.reward_i_coef * huber_loss(reward_i_error))
 
     with tf.name_scope('aux_loss'):
       aux_error = self.next_obs - self.target_next_obs
@@ -203,6 +205,9 @@ class IntegratedNetwork(BaseNetwork):
     grads_sf, grads_reward, grads_reward_i, grads_aux, grads_option = grads_list
     grads_sf_norm, grads_reward_norm, grads_reward_i_norm, grads_aux_norm, grads_option_norm = grad_norm_list
     self.apply_grads_sf, self.apply_grads_reward, self.apply_grads_reward_i, self.apply_grads_aux, self.apply_grads_option = apply_grads_list
+
+    self.grads_sf = grads_sf
+    self.grads_sf_norm = grads_sf_norm
 
     self.merged_summary_sf = tf.summary.merge(
       self.summaries_sf + [tf.summary.scalar('avg_sf_loss', self.sf_loss),
