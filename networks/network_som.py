@@ -229,7 +229,7 @@ class SomNetwork(BaseNetwork):
       self.sf_td_error = self.target_sf - self.sf_o
     self.sf_loss = tf.reduce_mean(self.config.sf_coef * huber_loss(self.sf_td_error))
 
-    with tf.name_scope('reward_loss'):
+    with tf.nƒame_scope('reward_loss'):
       reward_error = self.target_r - tf.reduce_sum(tf.stop_gradient(self.fi) * self.w, axis=1)
     self.reward_loss = tf.reduce_mean(self.config.reward_coef * huber_loss(reward_error))
 

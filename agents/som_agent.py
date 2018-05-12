@@ -74,8 +74,7 @@ class SomAgent(BaseAgent):
     if self.config.eigen and (self.sf_counter == self.config.max_update_freq or self.done or (
             self.o_term and self.sf_counter >= self.config.min_update_freq)):
       feed_dict = {self.local_network.observation: [s1], self.local_network.options_placeholder: [o1]}
-      sf_o = self.sess.run(self.local_network.sf_o,
-                    feed_dict=feed_dict)[0]
+      sf_o = self.sess.run(self.local_network.sf_o, feed_dict=feed_dict)[0]
 
       bootstrap_sf = np.zeros_like(sf_o) if self.done else sf_o
       self.ms_sf, self.sf_loss = self.train_sf(bootstrap_sf)
