@@ -152,8 +152,11 @@ class GridWorld:
     action = ["up", "right", "down", "left", 'terminate']
     nextX, nextY = self.agentX, self.agentY
 
-    if action[a] == 'terminate':
-      return -1, -1
+    try:
+      if action[a] == 'terminate':
+        return -1, -1
+    except:
+      print("ERROR")
 
     if self.MDP[self.agentX][self.agentY] != -1:
       if action[a] == 'up' and self.agentX > 0:

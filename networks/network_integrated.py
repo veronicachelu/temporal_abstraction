@@ -90,7 +90,7 @@ class IntegratedNetwork(BaseNetwork):
 
   def build_option_q_val_net(self):
     with tf.variable_scope("option_q_val"):
-      self.q_val = tf.reduce_sum(tf.stop_gradient(self.sf) * self.w, axis=1)
+      self.q_val = tf.reduce_sum(tf.stop_gradient(self.sf) * tf.tile(tf.expand_dims(self.w, 1), [1, self.nb_options + self.action_size, 1]), axis=2)
       self.summaries_option.append(tf.contrib.layers.summarize_activation(self.q_val))
       self.max_q_val = tf.reduce_max(self.q_val, 1)
       self.max_options = tf.cast(tf.argmax(self.q_val, 1), dtype=tf.int32)
@@ -169,7 +169,7 @@ class IntegratedNetwork(BaseNetwork):
       self.sf_td_error = self.target_sf - self.sf_o
     self.sf_loss = tf.reduce_mean(self.config.sf_coef * huber_loss(self.sf_td_error))
 
-    with tf.nƒame_scope('reward_loss'):
+    with tf.name_scope('reward_loss'):
       reward_error = self.target_r - tf.reduce_sum(tf.stop_gradient(self.fi) * self.w, axis=1)
     self.reward_loss = tf.reduce_mean(self.config.reward_coef * huber_loss(reward_error))
 

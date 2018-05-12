@@ -62,6 +62,7 @@ def default():
   gradient_clip_norm_value = 40
   clip_option_grad_by_value = False
   clip_by_value = 5
+  include_primitive_options = True
 
   steps_summary_interval = 1000
   episode_summary_interval = 10
