@@ -372,14 +372,11 @@ class IntegratedAgent(BaseAgent):
       new_eigenvectors = self.associate_closest_vectors(self.global_network.directions, eigenvect, sfs)
 
       min_similarity = np.min(
-        [np.min(self.cosine_similarity_option(self.global_network.directions[:, i], new_eigenvectors[:, i])) for i in
-         range(self.config.sf_layers[-1])])
+        [self.cosine_similarity(a, b) for a, b in zip(self.global_network.directions, new_eigenvectors)])
       max_similarity = np.max(
-        [np.max(self.cosine_similarity_option(self.global_network.directions[:, i], new_eigenvectors[:, i])) for i in
-         range(self.config.sf_layers[-1])])
+        [self.cosine_similarity(a, b) for a, b in zip(self.global_network.directions, new_eigenvectors)])
       mean_similarity = np.mean(
-        [np.mean(self.cosine_similarity_option(self.global_network.directions[:, i], new_eigenvectors[:, i])) for i in
-         range(self.config.sf_layers[-1])])
+        [self.cosine_similarity(a, b) for a, b in zip(self.global_network.directions, new_eigenvectors)])
       self.summary = tf.Summary()
       self.summary.value.add(tag='Eigenvectors/Min similarity', simple_value=float(min_similarity))
       self.summary.value.add(tag='Eigenvectors/Max similarity', simple_value=float(max_similarity))
