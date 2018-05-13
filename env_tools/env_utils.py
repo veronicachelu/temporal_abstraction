@@ -18,6 +18,7 @@ def _create_environment(config):
   if config.history_size == 3:
     env = wrappers.FrameResize(env, config.input_size)
   else:
+    env = wrappers.ActionRepeat(env, config.history_size)
     env = wrappers.FrameHistoryGrayscaleResize(env, config.input_size)
 
   # env = tools.wrappers.ClipAction(env)

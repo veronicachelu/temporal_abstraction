@@ -15,12 +15,12 @@ def _create_environment(config):
   else:
     env = config.env()
   if config.max_length:
-    env = wrappers.LimitDuration(env, config.max_length, (not config.multi_task))
+    env = wrappers.LimitDuration(env, config.max_length)
   if config.history_size == 3:
-    env = wrappers.FrameResize(env, config.input_size, (not config.multi_task))
+    env = wrappers.FrameResize(env, config.input_size)
   else:
-    env = wrappers.FrameHistoryGrayscaleResize(env, config.input_size, (not config.multi_task))
+    env = wrappers.FrameHistoryGrayscaleResize(env, config.input_size)
 
   # env = tools.wrappers.ClipAction(env)
-  env = wrappers.ConvertTo32Bit(env, (not config.multi_task))
+  env = wrappers.ConvertTo32Bit(env)
   return env

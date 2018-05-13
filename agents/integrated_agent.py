@@ -269,9 +269,18 @@ class IntegratedAgent(BaseAgent):
 
   def option_evaluation(self, s):
     feed_dict = {self.local_network.observation: np.stack([s])}
-    self.option, self.primitive_action = self.sess.run(
-      [self.local_network.current_option, self.local_network.primitive_action], feed_dict=feed_dict)
+    self.option, self.primitive_action, value, q_value, o_term = self.sess.run(
+      [self.local_network.current_option, self.local_network.primitive_action, self.local_network.v,
+       self.local_network.q_val, self.local_network.termination], feed_dict=feed_dict)
     self.option, self.primitive_action = self.option[0], self.primitive_action[0]
+
+    self.q_value = q_value[0, self.option]
+    self.value = value[0]
+
+    if not self.primitive_action or not self.config.include_primitive_options:
+      self.o_term = o_term[0, self.option] > np.random.uniform()
+    else:
+      self.o_term = True
 
     # self.option = np.random.choice(range(self.nb_options + self.action_size))
     # self.primitive_action = self.option >= self.nb_options
@@ -300,16 +309,10 @@ class IntegratedAgent(BaseAgent):
     #   self.q_value = q_value[0, self.option]
     #   self.value = value[0]
     # else:
-    feed_dict = {self.local_network.observation: np.stack([s])}
-    tensor_list = [self.local_network.v, self.local_network.q_val]
-    value, q_value = self.sess.run(tensor_list, feed_dict=feed_dict)
-    self.q_value = q_value[0, self.option]
-    self.value = value[0]
     if self.primitive_action:
       self.action = self.option - self.nb_options
     else:
       self.action = np.random.choice(range(self.action_size))
-    self.o_term = np.random.uniform() > 0.5
 
     self.episode_actions.append(self.action)
 
