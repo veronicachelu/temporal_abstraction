@@ -278,10 +278,13 @@ class BaseNetwork():
     return primitive_actions
 
   def get_o_term(self, o, boolean_value=False):
-    options_taken_one_hot = tf.one_hot(o, self.config.nb_options,
-                                       name="options_one_hot")
-    o_term = tf.reduce_sum(tf.multiply(self.termination, options_taken_one_hot),
-                           reduction_indices=1, name="o_terminations")
+    indices = tf.stack([tf.range(tf.shape(o)[0]), o], axis=1)
+    o_term = tf.gather_nd(self.termination, indices)
+
+    # options_taken_one_hot = tf.one_hot(o, self.config.nb_options,
+    #                                    name="options_one_hot")
+    # o_term = tf.reduce_sum(tf.multiply(self.termination, options_taken_one_hot),
+    #                        reduction_indices=1, name="o_terminations")
     if boolean_value:
       local_random = tf.random_uniform(shape=[], minval=0., maxval=1., dtype=tf.float32, name="rand_o_term")
       o_term = o_term > local_random

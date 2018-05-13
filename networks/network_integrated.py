@@ -181,16 +181,16 @@ class IntegratedNetwork(BaseNetwork):
       name="target_next_obs")
     self.target_r = tf.placeholder(shape=[None], dtype=tf.float32)
     self.target_r_i = tf.placeholder(shape=[None], dtype=tf.float32)
-    # self.sf_td_error_target = tf.placeholder(shape=[None, self.sf_layers[-1]], dtype=tf.float32,
-    #                                          name="sf_td_error_target")
+    self.sf_td_error_target = tf.placeholder(shape=[None, self.sf_layers[-1]], dtype=tf.float32,
+                                             name="sf_td_error_target")
     self.sf_o = self.get_sf_o(self.options_placeholder)
 
   def build_losses(self):
-    # self.policies = self.get_intra_option_policies(self.options_placeholder)
-    # self.responsible_actions = self.get_responsible_actions(self.policies, self.actions_placeholder)
+    self.policies = self.get_intra_option_policies(self.options_placeholder)
+    self.responsible_actions = self.get_responsible_actions(self.policies, self.actions_placeholder)
 
-    # q_val = self.get_q(self.options_placeholder)
-    # o_term = self.get_o_term(self.options_placeholder)
+    q_val = self.get_q(self.options_placeholder)
+    o_term = self.get_o_term(self.options_placeholder)
     # wi_oa = self.get_wi_oa(self.options_placeholder, self.actions_placeholder)
 
     self.image_summaries.append(
@@ -206,8 +206,8 @@ class IntegratedNetwork(BaseNetwork):
     self.eigenvectors = tf.transpose(tf.conj(ev), perm=[0, 2, 1])
 
     with tf.name_scope('sf_loss'):
-      sf_td_error = self.target_sf - self.sf_o
-    self.sf_loss = tf.reduce_mean(self.config.sf_coef * huber_loss(sf_td_error))
+      self.sf_td_error = self.target_sf - self.sf_o
+    self.sf_loss = tf.reduce_mean(self.config.sf_coef * huber_loss(self.sf_td_error))
 
     with tf.name_scope('reward_loss'):
       reward_error = self.target_r - self.r
@@ -221,40 +221,40 @@ class IntegratedNetwork(BaseNetwork):
       aux_error = self.next_obs - self.target_next_obs
     self.aux_loss = tf.reduce_mean(self.config.aux_coef * huber_loss(aux_error))
 
-    # with tf.name_scope('termination_loss'):
-    #   self.term_loss = tf.reduce_mean(
-    #     o_term * (tf.stop_gradient(q_val) - tf.stop_gradient(self.v) + 0.01))
-    #
-    # with tf.name_scope('entropy_loss'):
-    #   self.entropy_loss = -self.entropy_coef * tf.reduce_mean(tf.reduce_sum(self.policies *
-    #                                                                         tf.log(self.policies + 1e-7),
-    #                                                                         axis=1))
-    # with tf.name_scope('policy_loss'):
-    #   self.advantage = tf.reduce_sum(
-    #     self.sf_td_error_target * tf.tile(tf.squeeze(self.w_i, 1)[None, ...], [tf.shape(self.sf_td_error_target)[0], 1]),
-    #     axis=1)
-    #   self.policy_loss = -tf.reduce_mean(tf.log(self.responsible_actions + 1e-7) * tf.stop_gradient(self.advantage))
-    #
-    # self.option_loss = self.policy_loss - self.entropy_loss + self.term_loss
+    with tf.name_scope('termination_loss'):
+      self.term_loss = tf.reduce_mean(
+        o_term * (tf.stop_gradient(q_val) - tf.stop_gradient(self.v) + 0.01))
+
+    with tf.name_scope('entropy_loss'):
+      self.entropy_loss = -self.entropy_coef * tf.reduce_mean(tf.reduce_sum(self.policies *
+                                                                            tf.log(self.policies + 1e-7),
+                                                                            axis=1))
+    with tf.name_scope('policy_loss'):
+      self.advantage = tf.reduce_sum(
+        self.sf_td_error_target * tf.tile(tf.squeeze(self.w_i, 1)[None, ...], [tf.shape(self.sf_td_error_target)[0], 1]),
+        axis=1)
+      self.policy_loss = -tf.reduce_mean(tf.log(self.responsible_actions + 1e-7) * tf.stop_gradient(self.advantage))
+
+    self.option_loss = self.policy_loss - self.entropy_loss + self.term_loss
 
   def gradients_and_summaries(self):
     local_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, self.scope)
 
     grads_list, grad_norm_list, apply_grads_list = self.compute_gradients(
-      [self.sf_loss, self.reward_loss, self.reward_i_loss, self.aux_loss])#, self.option_loss])
-    # grads_sf, grads_reward, grads_reward_i, grads_aux, grads_option = grads_list
-    grads_sf, grads_reward, grads_reward_i, grads_aux = grads_list
-    # grads_sf_norm, grads_reward_norm, grads_reward_i_norm, grads_aux_norm, grads_option_norm = grad_norm_list
-    grads_sf_norm, grads_reward_norm, grads_reward_i_norm, grads_aux_norm = grad_norm_list
-    # self.apply_grads_sf, self.apply_grads_reward, self.apply_grads_reward_i, self.apply_grads_aux, self.apply_grads_option = apply_grads_list
-    self.apply_grads_sf, self.apply_grads_reward, self.apply_grads_reward_i, self.apply_grads_aux = apply_grads_list
+      [self.sf_loss, self.reward_loss, self.reward_i_loss, self.aux_loss, self.option_loss])
+    grads_sf, grads_reward, grads_reward_i, grads_aux, grads_option = grads_list
+    # grads_sf, grads_reward, grads_reward_i, grads_aux = grads_list
+    grads_sf_norm, grads_reward_norm, grads_reward_i_norm, grads_aux_norm, grads_option_norm = grad_norm_list
+    # grads_sf_norm, grads_reward_norm, grads_reward_i_norm, grads_aux_norm = grad_norm_list
+    self.apply_grads_sf, self.apply_grads_reward, self.apply_grads_reward_i, self.apply_grads_aux, self.apply_grads_option = apply_grads_list
+    # self.apply_grads_sf, self.apply_grads_reward, self.apply_grads_reward_i, self.apply_grads_aux = apply_grads_list
 
     self.grads_sf = grads_sf
     self.grads_sf_norm = grads_sf_norm
 
     self.merged_summary_sf = tf.summary.merge(
       self.summaries_sf + [tf.summary.scalar('avg_sf_loss', self.sf_loss),
-                           # tf.summary.scalar('avg_sf_td_error', tf.reduce_mean(self.sf_td_error)),
+                           tf.summary.scalar('avg_sf_td_error', tf.reduce_mean(self.sf_td_error)),
                            tf.summary.scalar('gradient_norm_sf', grads_sf_norm),
                            gradient_summaries(zip(grads_sf, local_vars))])
     self.merged_summary_aux = tf.summary.merge(self.image_summaries + self.summaries_aux +
@@ -262,14 +262,14 @@ class IntegratedNetwork(BaseNetwork):
                                                 tf.summary.scalar('gradient_norm_aux',
                                                                   grads_aux_norm),
                                                 gradient_summaries(zip(grads_aux, local_vars))])
-    # self.merged_summary_option = tf.summary.merge(self.summaries_option + [
-    #   tf.summary.scalar('avg_termination_loss', self.term_loss),
-    #   tf.summary.scalar('avg_entropy_loss', self.entropy_loss),
-    #   tf.summary.scalar('avg_policy_loss', self.policy_loss),
-    #   tf.summary.scalar('advantage', tf.reduce_mean(self.advantage)),
-    #   tf.summary.scalar('avg_option_loss', self.option_loss),
-    #   tf.summary.scalar('gradient_norm_option', grads_option_norm),
-    #   gradient_summaries(zip(grads_option, local_vars))])
+    self.merged_summary_option = tf.summary.merge(self.summaries_option + [
+      tf.summary.scalar('avg_termination_loss', self.term_loss),
+      tf.summary.scalar('avg_entropy_loss', self.entropy_loss),
+      tf.summary.scalar('avg_policy_loss', self.policy_loss),
+      tf.summary.scalar('advantage', tf.reduce_mean(self.advantage)),
+      tf.summary.scalar('avg_option_loss', self.option_loss),
+      tf.summary.scalar('gradient_norm_option', grads_option_norm),
+      gradient_summaries(zip(grads_option, local_vars))])
     self.merged_summary_reward = tf.summary.merge(self.summaries_reward + [
       tf.summary.scalar('avg_reward_loss', self.reward_loss),
       tf.summary.scalar('gradient_norm_reward', grads_reward_norm),

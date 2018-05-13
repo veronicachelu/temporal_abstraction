@@ -70,17 +70,17 @@ class IntegratedAgent(BaseAgent):
     # self.stats_options = np.zeros((self.nb_states, self.nb_options + self.action_size))
     # self.ms_aux = self.ms_sf = self.ms_reward = self.ms_option = None
 
-  def SF_prediction(self, s, s1, a):
-    self.episode_buffer_sf.append([s, s1, a])
-    self.sf_counter += 1
-    if self.config.eigen and (self.sf_counter == self.config.max_update_freq or self.done):
-      feed_dict = {self.local_network.observation: np.stack([s1])}
-      sf = self.sess.run(self.local_network.sf,
-                         feed_dict=feed_dict)[0]
-      bootstrap_sf = np.zeros_like(sf) if self.done else sf
-      self.ms_sf, self.sf_loss = self.train_sf(bootstrap_sf)
-      self.episode_buffer_sf = []
-      self.sf_counter = 0
+  # def SF_prediction(self, s, s1, a):
+  #   self.episode_buffer_sf.append([s, s1, a])
+  #   self.sf_counter += 1
+  #   if self.config.eigen and (self.sf_counter == self.config.max_update_freq or self.done):
+  #     feed_dict = {self.local_network.observation: np.stack([s1])}
+  #     sf = self.sess.run(self.local_network.sf,
+  #                        feed_dict=feed_dict)[0]
+  #     bootstrap_sf = np.zeros_like(sf) if self.done else sf
+  #     self.ms_sf, self.sf_loss = self.train_sf(bootstrap_sf)
+  #     self.episode_buffer_sf = []
+  #     self.sf_counter = 0
 
   def SF_option_prediction(self, s, o, s1, o1, a, primitive):
     self.episode_buffer_sf.append((s, o, s1, o1, a, primitive))
@@ -98,8 +98,8 @@ class IntegratedAgent(BaseAgent):
       else:
         bootstrap_sf = sf_o
 
-      self.ms_sf, self.sf_loss = self.train_sf(bootstrap_sf)
-      # self.ms_option, self.option_loss = self.train_option()
+      self.ms_sf, self.sf_loss, self.sf_td_error = self.train_sf(bootstrap_sf)
+      self.ms_option, self.option_loss = self.train_option()
 
       self.episode_buffer_sf = []
       self.sf_counter = 0
@@ -173,7 +173,7 @@ class IntegratedAgent(BaseAgent):
             plotting = False
             if self.config.logging:
               _t['recompute_eigenvectors_classic'].tic()
-            # self.recompute_eigenvectors_classic(False)
+            self.recompute_eigenvectors_SVD(False)
             if self.config.logging:
               _t['recompute_eigenvectors_classic'].toc()
 
@@ -292,25 +292,17 @@ class IntegratedAgent(BaseAgent):
     #   self.episode_options_lengths[self.option].append(self.episode_len)
 
   def policy_evaluation(self, s):
-    # if self.total_steps > self.config.eigen_exploration_steps:
-    #   feed_dict = {self.local_network.observation: np.stack([s])}
-    #
-    #   tensor_list = [self.local_network.options, self.local_network.v, self.local_network.q_val,
-    #                  self.local_network.termination]
-    #   options, value, q_value, o_term = self.sess.run(tensor_list, feed_dict=feed_dict)
-    #   if not self.primitive_action or not self.config.include_primitive_options:
-    #     pi = options[0, self.option]
-    #     self.action = np.random.choice(pi, p=pi)
-    #     self.action = np.argmax(pi == self.action)
-    #     self.o_term = o_term[0, self.option] > np.random.uniform()
-    #   else:
-    #     self.action = self.option - self.nb_options
-    #     self.o_term = True
-    #   self.q_value = q_value[0, self.option]
-    #   self.value = value[0]
-    # else:
-    if self.primitive_action:
-      self.action = self.option - self.nb_options
+    if self.total_steps > self.config.eigen_exploration_steps:
+      feed_dict = {self.local_network.observation: np.stack([s])}
+
+      options = self.sess.run(self.local_network.options, feed_dict=feed_dict)
+      if not self.primitive_action or not self.config.include_primitive_options:
+        pi = options[self.option]
+        self.action = np.random.choice(pi, p=pi)
+        self.action = np.argmax(pi == self.action)
+      else:
+        self.action = self.option - self.nb_options
+        self.o_term = True
     else:
       self.action = np.random.choice(range(self.action_size))
 
@@ -359,6 +351,59 @@ class IntegratedAgent(BaseAgent):
       self.global_network.directions = new_eigenvectors
       self.directions = self.global_network.directions
 
+  def recompute_eigenvectors_SVD(self, plotting=False):
+    if self.config.eigen:
+      states = []
+      for idx in range(self.nb_states):
+        s, ii, jj = self.env.fake_get_state(idx)
+        if self.env.not_wall(ii, jj):
+          states.append(s)
+
+      feed_dict = {self.local_network.observation: states}
+      sfs = self.sess.run(self.local_network.sf, feed_dict=feed_dict)
+
+      sfs = np.transpose(sfs, [1, 0, 2])
+      sfs = sfs[:self.nb_options]
+
+      feed_dict = {self.local_network.matrix_sf: sfs}
+      eigenvect = self.sess.run(self.local_network.eigenvectors,
+                                feed_dict=feed_dict)
+
+      new_eigenvectors = self.associate_closest_vectors(self.global_network.directions, eigenvect, sfs)
+
+      min_similarity = np.min(
+        [np.min(self.cosine_similarity_option(self.global_network.directions[:, i], new_eigenvectors[:, i])) for i in
+         range(self.config.sf_layers[-1])])
+      max_similarity = np.max(
+        [np.max(self.cosine_similarity_option(self.global_network.directions[:, i], new_eigenvectors[:, i])) for i in
+         range(self.config.sf_layers[-1])])
+      mean_similarity = np.mean(
+        [np.mean(self.cosine_similarity_option(self.global_network.directions[:, i], new_eigenvectors[:, i])) for i in
+         range(self.config.sf_layers[-1])])
+      self.summary = tf.Summary()
+      self.summary.value.add(tag='Eigenvectors/Min similarity', simple_value=float(min_similarity))
+      self.summary.value.add(tag='Eigenvectors/Max similarity', simple_value=float(max_similarity))
+      self.summary.value.add(tag='Eigenvectors/Mean similarity', simple_value=float(mean_similarity))
+      self.summary_writer.add_summary(self.summary, self.episode_count)
+      self.summary_writer.flush()
+      self.global_network.directions = new_eigenvectors
+      self.directions = self.global_network.directions
+
+  def associate_closest_vectors(self, old, new, sf_matrix):
+    to_return = copy.deepcopy(old)
+    featured = new[:, self.config.first_eigenoption] #self.config.first_eigenoption: self.config.nb_options + self.config.first_eigenoption]
+
+    for i, v in enumerate(featured):
+      sign = np.argmax(
+        [np.sum([np.sign(np.dot(v, x)) * (np.dot(v, x) ** 2) for x in sf_matrix[i]]),
+         np.sum([np.sign(np.dot((-1) * v, x)) * (np.dot(v, x) ** 2) for x in self.global_network.sf_matrix_buffer])])
+      if sign == 1:
+        v = (-1) * v
+
+      to_return[i] = v
+
+    return to_return
+
   def train_sf(self, bootstrap_sf):
     rollout = np.array(self.episode_buffer_sf)
 
@@ -375,15 +420,15 @@ class IntegratedAgent(BaseAgent):
                  self.local_network.observation: np.stack(observations, axis=0),
                  self.local_network.options_placeholder: np.stack(options, axis=0)}  # ,
 
-    _, ms, sf_loss = \
+    _, ms, sf_loss, sf_td_error = \
       self.sess.run([self.local_network.apply_grads_sf,
                      self.local_network.merged_summary_sf,
-                     self.local_network.sf_loss
-                     # self.local_network.sf_td_error,
+                     self.local_network.sf_loss,
+                     self.local_network.sf_td_error,
                      ],
                     feed_dict=feed_dict)
 
-    return ms, sf_loss
+    return ms, sf_loss, sf_td_error
 
   # def train_sf(self, bootstrap_sf):
   #   rollout = np.array(self.episode_buffer_sf)
