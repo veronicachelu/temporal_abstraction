@@ -411,8 +411,8 @@ class IntegratedAgent(BaseAgent):
                     feed_dict=feed_dict)
 
     # global_sf_loss = self.sess.run(self.global_network.sf_loss, feed_dict_global)
-    if sf_loss > 100:
-      print("ERROR")
+    # if sf_loss > 100:
+    #   print("ERROR")
     return ms, sf_loss
 
   def train_aux(self):
