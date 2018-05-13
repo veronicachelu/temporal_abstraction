@@ -209,7 +209,7 @@ class IntegratedAgent(BaseAgent):
 
               self.old_option = self.option
               self.old_primitive_action = self.primitive_action
-              self.o_term = self.option_terminate(s1)
+              self.option_terminate(s1)
 
               if not self.done and (self.o_term or self.primitive_action):
                 self.option_evaluation(s1)
