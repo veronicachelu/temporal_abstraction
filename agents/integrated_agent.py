@@ -268,13 +268,13 @@ class IntegratedAgent(BaseAgent):
           self.episode_count += 1
 
   def option_evaluation(self, s):
-    # feed_dict = {self.local_network.observation: np.stack([s])}
-    # self.option, self.primitive_action = self.sess.run(
-    #   [self.local_network.current_option, self.local_network.primitive_action], feed_dict=feed_dict)
-    # self.option, self.primitive_action = self.option[0], self.primitive_action[0]
+    feed_dict = {self.local_network.observation: np.stack([s])}
+    self.option, self.primitive_action = self.sess.run(
+      [self.local_network.current_option, self.local_network.primitive_action], feed_dict=feed_dict)
+    self.option, self.primitive_action = self.option[0], self.primitive_action[0]
 
-    self.option = np.random.choice(range(self.nb_options + self.action_size))
-    self.primitive_action = self.option >= self.nb_options
+    # self.option = np.random.choice(range(self.nb_options + self.action_size))
+    # self.primitive_action = self.option >= self.nb_options
 
     # self.stats_options[s_idx][self.option] += 1
 
