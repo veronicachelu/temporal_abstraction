@@ -210,6 +210,7 @@ class IntegratedAgent(BaseAgent):
               self.old_option = self.option
               self.old_primitive_action = self.primitive_action
 
+              self.o_term = self.option_terminate(s1)
               if not self.done and (self.o_term or self.primitive_action):
                 # if not self.primitive_action:
                 #   self.episode_options_lengths[self.option][-1] = self.episode_len - \
@@ -269,18 +270,14 @@ class IntegratedAgent(BaseAgent):
 
   def option_evaluation(self, s):
     feed_dict = {self.local_network.observation: np.stack([s])}
-    self.option, self.primitive_action, value, q_value, o_term = self.sess.run(
+    self.option, self.primitive_action, value, q_value = self.sess.run(
       [self.local_network.current_option, self.local_network.primitive_action, self.local_network.v,
-       self.local_network.q_val, self.local_network.termination], feed_dict=feed_dict)
+       self.local_network.q_val], feed_dict=feed_dict)
     self.option, self.primitive_action = self.option[0], self.primitive_action[0]
 
     self.q_value = q_value[0, self.option]
     self.value = value[0]
 
-    if not self.primitive_action or not self.config.include_primitive_options:
-      self.o_term = o_term[0, self.option] > np.random.uniform()
-    else:
-      self.o_term = True
 
     # self.option = np.random.choice(range(self.nb_options + self.action_size))
     # self.primitive_action = self.option >= self.nb_options
@@ -290,6 +287,14 @@ class IntegratedAgent(BaseAgent):
     # self.episode_options.append(self.option)
     # if not self.primitive_action:
     #   self.episode_options_lengths[self.option].append(self.episode_len)
+
+  def option_terminate(self, s1):
+    feed_dict = {self.local_network.observation: np.stack([s1])}
+    o_term = self.sess.run(self.local_network.termination, feed_dict=feed_dict)
+    if not self.primitive_action or not self.config.include_primitive_options:
+      self.o_term = o_term[0, self.option] > np.random.uniform()
+    else:
+      self.o_term = True
 
   def policy_evaluation(self, s):
     if self.total_steps > self.config.eigen_exploration_steps:
