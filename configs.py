@@ -241,7 +241,8 @@ def eigenoc_montezuma():
   aux_upconv_reshape = (10, 10, 64)
 
   env = "MontezumaRevenge-v0"
-  batch_size = 32
+  lr = 0.0007
+  batch_size = 16
   memory_size = 500000
   observation_steps = 16*4
   alpha_r = 0.75
@@ -264,10 +265,11 @@ def oc_montezuma():
   locals().update(default())
   target_agent = EigenOCAgentDyn
   eigen = False
-  nb_options = 32
-  num_agents = 12
+  nb_options = 8
+  num_agents = 16
   network = EignOCMontezumaNetwork
 
+  lr = 0.0007
   input_size = (84, 84)
   history_size = 4
   channel_size = 1
