@@ -209,26 +209,24 @@ class IntegratedAgent(BaseAgent):
 
               self.old_option = self.option
               self.old_primitive_action = self.primitive_action
-
               self.o_term = self.option_terminate(s1)
+
               if not self.done and (self.o_term or self.primitive_action):
-                # if not self.primitive_action:
-                #   self.episode_options_lengths[self.option][-1] = self.episode_len - \
-                #                                                   self.episode_options_lengths[self.option][-1]
                 self.option_evaluation(s1)
 
-              if self.config.logging:
-                _t['SF_option_prediction'].tic()
-              # self.SF_prediction(s, s1, self.action)
-              self.SF_option_prediction(s, self.old_option, s1, self.option, self.action, self.old_primitive_action)
-              if self.config.logging:
-                _t['SF_option_prediction'].tic()
+              if self.total_steps > self.config.eigen_exploration_steps:
+                if self.config.logging:
+                  _t['SF_option_prediction'].tic()
+                # self.SF_prediction(s, s1, self.action)
+                self.SF_option_prediction(s, self.old_option, s1, self.option, self.action, self.old_primitive_action)
+                if self.config.logging:
+                  _t['SF_option_prediction'].tic()
 
-              if self.total_steps % self.config.steps_checkpoint_interval == 0 and self.name == 'worker_0':
-                self.save_model()
+                if self.total_steps % self.config.steps_checkpoint_interval == 0 and self.name == 'worker_0':
+                  self.save_model()
 
-              if self.total_steps % self.config.steps_summary_interval == 0 and self.name == 'worker_0':
-                self.write_step_summary(r)
+                if self.total_steps % self.config.steps_summary_interval == 0 and self.name == 'worker_0':
+                  self.write_step_summary(r)
 
             s = s1
             self.episode_len += 1
@@ -307,7 +305,6 @@ class IntegratedAgent(BaseAgent):
         self.action = np.argmax(pi == self.action)
       else:
         self.action = self.option - self.nb_options
-        self.o_term = True
     else:
       self.action = np.random.choice(range(self.action_size))
 
