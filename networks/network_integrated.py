@@ -91,28 +91,11 @@ class IntegratedNetwork(BaseNetwork):
       self.next_obs = tf.reshape(out,
                                  (-1, self.config.input_size[0], self.config.input_size[1], self.config.history_size))
 
-  # def build_SF_net(self, layer_norm=False):
-  #   with tf.variable_scope("sf"):
-  #     out = tf.stop_gradient(self.fi_relu)
-  #     for i, nb_filt in enumerate(self.sf_layers):
-  #       out = layers.fully_connected(out, num_outputs=nb_filt * (self.nb_options + self.action_size),
-  #                                    activation_fn=None,
-  #                                    biases_initializer=None,
-  #                                    variables_collections=tf.get_collection("variables"),
-  #                                    outputs_collections="activations", scope="sf_{}".format(i))
-  #       if i < len(self.sf_layers) - 1:
-  #         if layer_norm:
-  #           out = self.layer_norm_fn(out, relu=True)
-  #         else:
-  #           out = tf.nn.relu(out)
-  #       self.summaries_sf.append(tf.contrib.layers.summarize_activation(out))
-  #     self.sf = tf.reshape(out, (-1, (self.nb_options + self.action_size), self.sf_layers[-1]))
-
   def build_SF_net(self, layer_norm=False):
     with tf.variable_scope("sf"):
       out = tf.stop_gradient(self.fi_relu)
       for i, nb_filt in enumerate(self.sf_layers):
-        out = layers.fully_connected(out, num_outputs=nb_filt,
+        out = layers.fully_connected(out, num_outputs=nb_filt * (self.nb_options + self.action_size),
                                      activation_fn=None,
                                      biases_initializer=None,
                                      variables_collections=tf.get_collection("variables"),
@@ -123,7 +106,24 @@ class IntegratedNetwork(BaseNetwork):
           else:
             out = tf.nn.relu(out)
         self.summaries_sf.append(tf.contrib.layers.summarize_activation(out))
-      self.sf = out
+      self.sf = tf.reshape(out, (-1, (self.nb_options + self.action_size), self.sf_layers[-1]))
+
+  # def build_SF_net(self, layer_norm=False):
+  #   with tf.variable_scope("sf"):
+  #     out = tf.stop_gradient(self.fi_relu)
+  #     for i, nb_filt in enumerate(self.sf_layers):
+  #       out = layers.fully_connected(out, num_outputs=nb_filt,
+  #                                    activation_fn=None,
+  #                                    biases_initializer=None,
+  #                                    variables_collections=tf.get_collection("variables"),
+  #                                    outputs_collections="activations", scope="sf_{}".format(i))
+  #       if i < len(self.sf_layers) - 1:
+  #         if layer_norm:
+  #           out = self.layer_norm_fn(out, relu=True)
+  #         else:
+  #           out = tf.nn.relu(out)
+  #       self.summaries_sf.append(tf.contrib.layers.summarize_activation(out))
+  #     self.sf = out
 
   def build_option_q_val_net(self):
     with tf.variable_scope("q_val"):
@@ -183,8 +183,8 @@ class IntegratedNetwork(BaseNetwork):
     self.target_r_i = tf.placeholder(shape=[None], dtype=tf.float32)
     # self.sf_td_error_target = tf.placeholder(shape=[None, self.sf_layers[-1]], dtype=tf.float32,
     #                                          name="sf_td_error_target")
-    # self.sf_o = self.get_sf_o(self.options_placeholder)
-    self.sf_o = self.sf
+    self.sf_o = self.get_sf_o(self.options_placeholder)
+    # self.sf_o = self.sf
 
   def build_losses(self):
     # self.policies = self.get_intra_option_policies(self.options_placeholder)
@@ -207,7 +207,7 @@ class IntegratedNetwork(BaseNetwork):
     self.eigenvectors = tf.transpose(tf.conj(ev), perm=[0, 2, 1])
 
     with tf.name_scope('sf_loss'):
-      sf_td_error = self.target_sf - self.sf
+      sf_td_error = self.target_sf - self.sf_o
     self.sf_loss = tf.reduce_mean(self.config.sf_coef * huber_loss(sf_td_error))
 
     with tf.name_scope('reward_loss'):
