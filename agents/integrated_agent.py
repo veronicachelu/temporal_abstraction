@@ -295,7 +295,7 @@ class IntegratedAgent(BaseAgent):
     if self.total_steps > self.config.eigen_exploration_steps:
       feed_dict = {self.local_network.observation: np.stack([s])}
 
-      options = self.sess.run(self.local_network.options, feed_dict=feed_dict)
+      options = self.sess.run(self.local_network.options, feed_dict=feed_dict)[0]
       if not self.primitive_action or not self.config.include_primitive_options:
         pi = options[self.option]
         self.action = np.random.choice(pi, p=pi)
