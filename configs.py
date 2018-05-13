@@ -335,8 +335,9 @@ def integrated():
   reward_update_freq = 30
   target_update_iter_reward = 30
   target_update_iter_aux = 30
-  target_update_iter_sf = 30
+  target_update_iter_sf = 1
   aux_update_freq = 30
+  min_update_freq = 1
   tau = 0.1
   reward_coef = 1
   reward_i_coef = 1
