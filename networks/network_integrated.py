@@ -130,6 +130,8 @@ class IntegratedNetwork(BaseNetwork):
       self.summaries_option.append(tf.contrib.layers.summarize_activation(self.current_option))
       self.v = self.max_q_val * (1 - self.random_option_prob) + \
                self.random_option_prob * tf.reduce_mean(self.q_val, axis=1)
+      self.exp_sf = self.get_sf_o(self.max_options) * (1 - self.random_option_prob) + \
+               self.random_option_prob * tf.reduce_mean(self.sf, axis=1)
       self.summaries_option.append(tf.contrib.layers.summarize_activation(self.v))
 
   def build_network(self):

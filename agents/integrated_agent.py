@@ -76,9 +76,15 @@ class IntegratedAgent(BaseAgent):
     if self.config.eigen and (self.sf_counter == self.config.max_update_freq or self.done or (
           self.o_term and self.sf_counter >= self.config.min_update_freq)):
       feed_dict = {self.local_network.observation: [s1], self.local_network.options_placeholder: [o1]}
-      sf_o = self.sess.run(self.local_network.sf_o, feed_dict=feed_dict)[0]
+      sf_o, exp_sf = self.sess.run([self.local_network.sf_o, self.local_network.exp_sf], feed_dict=feed_dict)
 
-      bootstrap_sf = np.zeros_like(sf_o) if self.done else sf_o
+      if self.done:
+        bootstrap_sf = np.zeros_like(sf_o)
+      elif self.o_term:
+        bootstrap_sf = exp_sf
+      else:
+        bootstrap_sf = sf_o
+
       self.ms_sf, self.sf_loss = self.train_sf(bootstrap_sf)
       self.ms_option, self.option_loss = self.train_option()
 
@@ -402,7 +408,8 @@ class IntegratedAgent(BaseAgent):
                     feed_dict=feed_dict)
 
     # global_sf_loss = self.sess.run(self.global_network.sf_loss, feed_dict_global)
-
+    if sf_loss > 100:
+      print("ERROR")
     return ms, sf_loss
 
   def train_aux(self):
