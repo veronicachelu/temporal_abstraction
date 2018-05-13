@@ -76,18 +76,18 @@ class IntegratedAgent(BaseAgent):
     if self.config.eigen and (self.sf_counter == self.config.max_update_freq or self.done or (
           self.o_term and self.sf_counter >= self.config.min_update_freq)):
       feed_dict = {self.local_network.observation: [s1], self.local_network.options_placeholder: [o1]}
-      sf_o, exp_sf = self.sess.run([self.local_network.sf_o, self.local_network.exp_sf], feed_dict=feed_dict)
-      sf_o = sf_o[0]
-      exp_sf = exp_sf[0]
+      # sf_o, exp_sf = self.sess.run([self.local_network.sf_o, self.local_network.exp_sf], feed_dict=feed_dict)
+      sf_o = self.sess.run(self.local_network.sf_o, feed_dict=feed_dict)[0]
+      # exp_sf = exp_sf[0]
       if self.done:
         bootstrap_sf = np.zeros_like(sf_o)
-      elif self.o_term:
-        bootstrap_sf = exp_sf
+      # elif self.o_term:
+      #   bootstrap_sf = exp_sf
       else:
         bootstrap_sf = sf_o
 
       self.ms_sf, self.sf_loss = self.train_sf(bootstrap_sf)
-      self.ms_option, self.option_loss = self.train_option()
+      # self.ms_option, self.option_loss = self.train_option()
 
       self.episode_buffer_sf = []
       self.sf_counter = 0
@@ -160,7 +160,7 @@ class IntegratedAgent(BaseAgent):
             plotting = False
             if self.config.logging:
               _t['recompute_eigenvectors_classic'].tic()
-            self.recompute_eigenvectors_classic(False)
+            # self.recompute_eigenvectors_classic(False)
             if self.config.logging:
               _t['recompute_eigenvectors_classic'].toc()
 
@@ -180,7 +180,7 @@ class IntegratedAgent(BaseAgent):
               s1 = s
 
             self.store_general_info(s, s1, self.action, r)
-            self.store_reward_info(s, self.option, self.action, s1, r, self.primitive_action)
+            # self.store_reward_info(s, self.option, self.action, s1, r, self.primitive_action)
             # self.log_timestep()
 
             if self.total_steps > self.config.observation_steps:
@@ -190,7 +190,7 @@ class IntegratedAgent(BaseAgent):
               if self.config.logging:
                 _t['next_frame_prediction'].toc()
                 _t['reward_prediction'].tic()
-              self.reward_prediction()
+              # self.reward_prediction()
               if self.config.logging:
                 _t['reward_prediction'].toc()
 
@@ -254,10 +254,13 @@ class IntegratedAgent(BaseAgent):
           self.episode_count += 1
 
   def option_evaluation(self, s):
-    feed_dict = {self.local_network.observation: np.stack([s])}
-    self.option, self.primitive_action = self.sess.run(
-      [self.local_network.current_option, self.local_network.primitive_action], feed_dict=feed_dict)
-    self.option, self.primitive_action = self.option[0], self.primitive_action[0]
+    # feed_dict = {self.local_network.observation: np.stack([s])}
+    # self.option, self.primitive_action = self.sess.run(
+    #   [self.local_network.current_option, self.local_network.primitive_action], feed_dict=feed_dict)
+    # self.option, self.primitive_action = self.option[0], self.primitive_action[0]
+
+    self.option = np.random.choice(range(self.nb_options + self.action_size))
+    self.primitive_action = self.option >= self.nb_options
 
     # self.stats_options[s_idx][self.option] += 1
 
@@ -266,24 +269,28 @@ class IntegratedAgent(BaseAgent):
     #   self.episode_options_lengths[self.option].append(self.episode_len)
 
   def policy_evaluation(self, s):
-    if self.total_steps > self.config.eigen_exploration_steps:
-      feed_dict = {self.local_network.observation: np.stack([s])}
-
-      tensor_list = [self.local_network.options, self.local_network.v, self.local_network.q_val,
-                     self.local_network.termination]
-      options, value, q_value, o_term = self.sess.run(tensor_list, feed_dict=feed_dict)
-      if not self.primitive_action or not self.config.include_primitive_options:
-        pi = options[0, self.option]
-        self.action = np.random.choice(pi, p=pi)
-        self.action = np.argmax(pi == self.action)
-        self.o_term = o_term[0, self.option] > np.random.uniform()
-      else:
-        self.action = self.option - self.nb_options
-        self.o_term = True
-      self.q_value = q_value[0, self.option]
-      self.value = value[0]
+    # if self.total_steps > self.config.eigen_exploration_steps:
+    #   feed_dict = {self.local_network.observation: np.stack([s])}
+    #
+    #   tensor_list = [self.local_network.options, self.local_network.v, self.local_network.q_val,
+    #                  self.local_network.termination]
+    #   options, value, q_value, o_term = self.sess.run(tensor_list, feed_dict=feed_dict)
+    #   if not self.primitive_action or not self.config.include_primitive_options:
+    #     pi = options[0, self.option]
+    #     self.action = np.random.choice(pi, p=pi)
+    #     self.action = np.argmax(pi == self.action)
+    #     self.o_term = o_term[0, self.option] > np.random.uniform()
+    #   else:
+    #     self.action = self.option - self.nb_options
+    #     self.o_term = True
+    #   self.q_value = q_value[0, self.option]
+    #   self.value = value[0]
+    # else:
+    if self.primitive_action:
+      self.action = self.option - self.nb_options
     else:
       self.action = np.random.choice(range(self.action_size))
+    self.o_term = np.random.uniform() > 0.5
     self.episode_actions.append(self.action)
 
   def store_general_info(self, s, s1, a, r):
@@ -390,10 +397,7 @@ class IntegratedAgent(BaseAgent):
                        feed_dict=feed_dict)
 
     sf_plus = np.asarray(fi.tolist() + [bootstrap_sf])
-    try:
-      discounted_sf = discount(sf_plus, self.config.discount)[:-1]
-    except:
-      print("ERROR")
+    discounted_sf = discount(sf_plus, self.config.discount)[:-1]
     feed_dict = {self.local_network.target_sf: np.stack(discounted_sf, axis=0),
                  self.local_network.observation: np.stack(observations, axis=0),
                  self.local_network.options_placeholder: np.stack(options, axis=0)}  # ,
@@ -640,8 +644,8 @@ class IntegratedAgent(BaseAgent):
       self.summary.value.add(tag='Step/Reward', simple_value=r)
       self.summary.value.add(tag='Step/Action', simple_value=self.action)
       self.summary.value.add(tag='Step/Option', simple_value=self.option)
-      self.summary.value.add(tag='Step/Q', simple_value=self.q_value)
-      self.summary.value.add(tag='Step/V', simple_value=self.value)
+      # self.summary.value.add(tag='Step/Q', simple_value=self.q_value)
+      # self.summary.value.add(tag='Step/V', simple_value=self.value)
       self.summary.value.add(tag='Step/Term', simple_value=int(self.o_term))
 
     self.summary_writer.add_summary(self.summary, self.total_steps)
