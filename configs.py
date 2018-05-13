@@ -64,7 +64,7 @@ def default():
   clip_by_value = 5
   include_primitive_options = True
 
-  steps_summary_interval = 10
+  steps_summary_interval = 1000
   episode_summary_interval = 10
   steps_checkpoint_interval = 1000
   episode_checkpoint_interval = 10
@@ -332,6 +332,7 @@ def integrated():
   include_primitive_options = True
   sf_matrix_size = 10000
   sr_matrix = "dynamic"
+  eigen_approach = "SVD"
   goal_locations = [(11, 7), (5, 2), (1, 10), (2, 2), (6, 2)]
   #goal_locations = [(1, 11), (3, 2)]
   move_goal_nb_of_ep = 1000

@@ -126,7 +126,7 @@ if __name__ == '__main__':
     'logdir', './logdir',
     'Base directory to store logs.')
   tf.app.flags.DEFINE_string(
-    'config', "oc_montezuma",
+    'config', "integrated",
     'Configuration to execute.')
   tf.app.flags.DEFINE_boolean(
     'train', True,
