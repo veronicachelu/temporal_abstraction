@@ -396,7 +396,7 @@ class IntegratedAgent(BaseAgent):
     for i, v in enumerate(featured):
       sign = np.argmax(
         [np.sum([np.sign(np.dot(v, x)) * (np.dot(v, x) ** 2) for x in sf_matrix[i]]),
-         np.sum([np.sign(np.dot((-1) * v, x)) * (np.dot(v, x) ** 2) for x in self.global_network.sf_matrix_buffer])])
+         np.sum([np.sign(np.dot((-1) * v, x)) * (np.dot(v, x) ** 2) for x in sf_matrix[i]])])
       if sign == 1:
         v = (-1) * v
 

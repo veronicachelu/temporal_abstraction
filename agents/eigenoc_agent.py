@@ -132,7 +132,7 @@ class EigenOCAgent(BaseAgent):
           if (self.config.steps != -1 and \
                   (self.total_steps > self.config.steps and self.name == "worker_0")) or \
               (self.episode_count > len(self.config.goal_locations) * self.config.move_goal_nb_of_ep and
-                   self.name == "worker_0"):
+                   self.name == "worker_0" and self.config.multi_task):
             coord.request_stop()
             return 0
 

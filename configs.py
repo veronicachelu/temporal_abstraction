@@ -289,6 +289,7 @@ def oc_montezuma():
   eigen_exploration_steps = 16 * 4
   episode_eval_interval = 100
   max_length_eval = 1000
+  max_length = 72000
   nb_test_ep = 1
   first_eigenoption = 1
   include_primitive_options = True
