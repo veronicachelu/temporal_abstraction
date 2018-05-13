@@ -77,7 +77,8 @@ class IntegratedAgent(BaseAgent):
           self.o_term and self.sf_counter >= self.config.min_update_freq)):
       feed_dict = {self.local_network.observation: [s1], self.local_network.options_placeholder: [o1]}
       sf_o, exp_sf = self.sess.run([self.local_network.sf_o, self.local_network.exp_sf], feed_dict=feed_dict)
-
+      sf_o = sf_o[0]
+      exp_sf = exp_sf[0]
       if self.done:
         bootstrap_sf = np.zeros_like(sf_o)
       elif self.o_term:
@@ -389,8 +390,10 @@ class IntegratedAgent(BaseAgent):
                        feed_dict=feed_dict)
 
     sf_plus = np.asarray(fi.tolist() + [bootstrap_sf])
-    discounted_sf = discount(sf_plus, self.config.discount)[:-1]
-
+    try:
+      discounted_sf = discount(sf_plus, self.config.discount)[:-1]
+    except:
+      print("ERROR")
     feed_dict = {self.local_network.target_sf: np.stack(discounted_sf, axis=0),
                  self.local_network.observation: np.stack(observations, axis=0),
                  self.local_network.options_placeholder: np.stack(options, axis=0)}  # ,

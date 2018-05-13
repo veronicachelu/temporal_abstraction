@@ -19,13 +19,14 @@ def plot(params):
   experiments = [os.path.join(log_path, f) for f in os.listdir(log_path)]
   exps = []
   exp_names = []
+  color_codes = [params['color1'], params['color2']]
   for experiment in experiments:
     name_exp = os.path.basename(experiment)
     if name_exp in comp_exp:
       exp_names.append(name_exp)
       log_files = [os.path.join(experiment, f) for f in os.listdir(experiment)]
       # smooth_space = params['smooth']
-      color_code = params['color']
+
 
       y_list = []
       x_list = []
@@ -52,7 +53,8 @@ def plot(params):
   plt.subplot(111)
   plt.title('Episode length')
   for i in range(len(exps)):
-    color_code = np.random.rand(3,)
+    # color_code = np.random.rand(3,)
+    color_code = color_codes[i]
     plt.plot(exps[i][0], exps[i][1], label=exp_names[i], color=color_code, linewidth=1.5)
     max = exps[i][1]+exps[i][2]
     min = exps[i][1]-exps[i][2]
@@ -100,7 +102,8 @@ if __name__ == '__main__':
   parser = argparse.ArgumentParser()
   parser.add_argument('--logdir', default='./experiments/comparatie_eigenoc_vs_oc', type=str, help='logdir to event file')
   parser.add_argument('--smooth', default=100, type=float, help='window size for average smoothing')
-  parser.add_argument('--color', default='#4169E1', type=str, help='HTML code for the figure')
+  parser.add_argument('--color2', default='#000080', type=str, help='HTML code for the figure')
+  parser.add_argument('--color1', default='#008000', type=str, help='HTML code for the figure')
 
   args = parser.parse_args()
   params = vars(args) # convert to ordinary dict
