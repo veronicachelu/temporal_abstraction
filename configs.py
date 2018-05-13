@@ -266,7 +266,7 @@ def oc_montezuma():
   target_agent = EigenOCAgentDyn
   eigen = False
   nb_options = 8
-  num_agents = 16
+  num_agents = 11
   network = EignOCMontezumaNetwork
 
   lr = 0.0007
