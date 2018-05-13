@@ -20,11 +20,11 @@ from tools.agent_utils import update_target_graph_reward
 FLAGS = tf.app.flags.FLAGS
 import csv
 from tools.timer import Timer
+from agents.eigenoc_agent import EigenOCAgent
 
-
-class IntegratedAgent(BaseAgent):
+class IntegratedAgent(EigenOCAgent):
   def __init__(self, game, thread_id, global_step, config, global_network, barrier):
-    super(IntegratedAgent, self).__init__(game, thread_id, global_step, config, global_network)
+    super(IntegratedAgent, self).__init__(game, thread_id, global_step, config, global_network, barrier)
     self.update_local_vars_reward = update_target_graph_reward('global', self.name)
     # self.stats_path = os.path.join(self.summary_path, 'stats')
     # tf.gfile.MakeDirs(self.stats_path)
@@ -173,7 +173,7 @@ class IntegratedAgent(BaseAgent):
             plotting = False
             if self.config.logging:
               _t['recompute_eigenvectors_classic'].tic()
-            self.recompute_eigenvectors_SVD(False)
+            self.recompute_eigenvectors_dyn_SVD(False)
             if self.config.logging:
               _t['recompute_eigenvectors_classic'].toc()
 
@@ -298,13 +298,17 @@ class IntegratedAgent(BaseAgent):
     if self.total_steps > self.config.eigen_exploration_steps:
       feed_dict = {self.local_network.observation: np.stack([s])}
 
-      options = self.sess.run(self.local_network.options, feed_dict=feed_dict)[0]
+      options, sf = self.sess.run([self.local_network.options, self.local_network.sf], feed_dict=feed_dict)
+      options = options[0]
       if not self.primitive_action or not self.config.include_primitive_options:
         pi = options[self.option]
         self.action = np.random.choice(pi, p=pi)
         self.action = np.argmax(pi == self.action)
       else:
         self.action = self.option - self.nb_options
+
+        sf = sf[0]
+        self.add_SF(sf[self.option])
     else:
       self.action = np.random.choice(range(self.action_size))
 
@@ -353,25 +357,49 @@ class IntegratedAgent(BaseAgent):
       self.global_network.directions = new_eigenvectors
       self.directions = self.global_network.directions
 
-  def recompute_eigenvectors_SVD(self, plotting=False):
+  # def recompute_eigenvectors_SVD(self, plotting=False):
+  #   if self.config.eigen:
+  #     states = []
+  #     for idx in range(self.nb_states):
+  #       s, ii, jj = self.env.fake_get_state(idx)
+  #       if self.env.not_wall(ii, jj):
+  #         states.append(s)
+  #
+  #     feed_dict = {self.local_network.observation: states}
+  #     sfs = self.sess.run(self.local_network.sf, feed_dict=feed_dict)
+  #
+  #     sfs = np.transpose(sfs, [1, 0, 2])
+  #     sfs = sfs[:self.nb_options]
+  #
+  #     feed_dict = {self.local_network.matrix_sf: sfs}
+  #     eigenvect = self.sess.run(self.local_network.eigenvectors,
+  #                               feed_dict=feed_dict)
+  #
+  #     new_eigenvectors = self.associate_closest_vectors(self.global_network.directions, eigenvect, sfs)
+  #
+  #     min_similarity = np.min(
+  #       [self.cosine_similarity(a, b) for a, b in zip(self.global_network.directions, new_eigenvectors)])
+  #     max_similarity = np.max(
+  #       [self.cosine_similarity(a, b) for a, b in zip(self.global_network.directions, new_eigenvectors)])
+  #     mean_similarity = np.mean(
+  #       [self.cosine_similarity(a, b) for a, b in zip(self.global_network.directions, new_eigenvectors)])
+  #     self.summary = tf.Summary()
+  #     self.summary.value.add(tag='Eigenvectors/Min similarity', simple_value=float(min_similarity))
+  #     self.summary.value.add(tag='Eigenvectors/Max similarity', simple_value=float(max_similarity))
+  #     self.summary.value.add(tag='Eigenvectors/Mean similarity', simple_value=float(mean_similarity))
+  #     self.summary_writer.add_summary(self.summary, self.episode_count)
+  #     self.summary_writer.flush()
+  #     self.global_network.directions = new_eigenvectors
+  #     self.directions = self.global_network.directions
+
+  def recompute_eigenvectors_dyn_SVD(self, plotting=False):
     if self.config.eigen:
-      states = []
-      for idx in range(self.nb_states):
-        s, ii, jj = self.env.fake_get_state(idx)
-        if self.env.not_wall(ii, jj):
-          states.append(s)
-
-      feed_dict = {self.local_network.observation: states}
-      sfs = self.sess.run(self.local_network.sf, feed_dict=feed_dict)
-
-      sfs = np.transpose(sfs, [1, 0, 2])
-      sfs = sfs[:self.nb_options]
-
-      feed_dict = {self.local_network.matrix_sf: sfs}
+      feed_dict = {self.local_network.matrix_sf: [self.global_network.sf_matrix_buffer]}
       eigenvect = self.sess.run(self.local_network.eigenvectors,
-                                feed_dict=feed_dict)
+                                          feed_dict=feed_dict)
+      eigenvect = eigenvect[0]
 
-      new_eigenvectors = self.associate_closest_vectors(self.global_network.directions, eigenvect, sfs)
+      new_eigenvectors = self.associate_closest_vectors(self.global_network.directions, eigenvect)
 
       min_similarity = np.min(
         [self.cosine_similarity(a, b) for a, b in zip(self.global_network.directions, new_eigenvectors)])
@@ -388,18 +416,41 @@ class IntegratedAgent(BaseAgent):
       self.global_network.directions = new_eigenvectors
       self.directions = self.global_network.directions
 
-  def associate_closest_vectors(self, old, new, sf_matrix):
-    to_return = copy.deepcopy(old)
-    featured = new[:, self.config.first_eigenoption] #self.config.first_eigenoption: self.config.nb_options + self.config.first_eigenoption]
+  # def associate_closest_vectors(self, old, new, sf_matrix):
+  #   to_return = copy.deepcopy(old)
+  #   featured = new[:, self.config.first_eigenoption] #self.config.first_eigenoption: self.config.nb_options + self.config.first_eigenoption]
+  #
+  #   for i, v in enumerate(featured):
+  #     sign = np.argmax(
+  #       [np.sum([np.sign(np.dot(v, x)) * (np.dot(v, x) ** 2) for x in sf_matrix[i]]),
+  #        np.sum([np.sign(np.dot((-1) * v, x)) * (np.dot(v, x) ** 2) for x in sf_matrix[i]])])
+  #     if sign == 1:
+  #       v = (-1) * v
+  #
+  #     to_return[i] = v
+  #
+  #   return to_return
 
-    for i, v in enumerate(featured):
+  def associate_closest_vectors(self, old, new):
+    to_return = copy.deepcopy(old)
+    skip_list = []
+    featured = new[self.config.first_eigenoption: self.config.nb_options + self.config.first_eigenoption]
+
+    for v in featured:
       sign = np.argmax(
-        [np.sum([np.sign(np.dot(v, x)) * (np.dot(v, x) ** 2) for x in sf_matrix[i]]),
-         np.sum([np.sign(np.dot((-1) * v, x)) * (np.dot(v, x) ** 2) for x in sf_matrix[i]])])
+        [np.sum([np.sign(np.dot(v, x)) * (np.dot(v, x) ** 2) for x in self.global_network.sf_matrix_buffer]),
+         np.sum([np.sign(np.dot((-1) * v, x)) * (np.dot(v, x) ** 2) for x in self.global_network.sf_matrix_buffer])])
       if sign == 1:
         v = (-1) * v
+      distances = [
+        -np.inf if b_idx in skip_list else (np.inf if np.all(b == np.zeros(b.shape)) else self.cosine_similarity(v, b))
+        for b_idx, b in enumerate(self.global_network.directions)]
+      closest_distance_idx = np.argmax(distances)
 
-      to_return[i] = v
+      old_v_idx = closest_distance_idx
+      skip_list.append(old_v_idx)
+
+      to_return[old_v_idx] = v
 
     return to_return
 
@@ -428,6 +479,12 @@ class IntegratedAgent(BaseAgent):
                     feed_dict=feed_dict)
 
     return ms, sf_loss, sf_td_error
+
+  def add_SF(self, sf_o):
+    if self.config.eigen_approach == "SVD":
+      self.global_network.sf_matrix_buffer[0] = sf_o.copy()
+      self.global_network.sf_matrix_buffer = np.roll(self.global_network.sf_matrix_buffer, 1, 0)
+
 
   # def train_sf(self, bootstrap_sf):
   #   rollout = np.array(self.episode_buffer_sf)
