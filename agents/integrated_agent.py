@@ -138,7 +138,8 @@ class IntegratedAgent(BaseAgent):
       if self.total_steps % self.config.target_update_iter_option == 0:
         self.sess.run(self.update_local_vars_option)
 
-  def SF_prediction(self, s1):
+  def SF_prediction(self, s, s1, a):
+    self.episode_buffer_sf.append([s, s1, a])
     self.sf_counter += 1
     if self.config.eigen and (self.sf_counter == self.config.max_update_freq or self.done):
       feed_dict = {self.local_network.observation: np.stack([s1])}
@@ -227,7 +228,7 @@ class IntegratedAgent(BaseAgent):
               # self.reward_prediction()
               if self.config.logging:
                 _t['reward_prediction'].toc()
-              self.SF_prediction(s1)
+
 
               self.old_option = self.option
               self.old_primitive_action = self.primitive_action
@@ -240,6 +241,7 @@ class IntegratedAgent(BaseAgent):
 
               if self.config.logging:
                 _t['SF_option_prediction'].tic()
+              self.SF_prediction(s, s1, self.action)
               # self.SF_option_prediction(s, self.old_option, s1, self.option, self.action, self.old_primitive_action)
               if self.config.logging:
                 _t['SF_option_prediction'].tic()
@@ -331,7 +333,7 @@ class IntegratedAgent(BaseAgent):
   def store_general_info(self, s, s1, a, r):
     # if self.config.eigen:
     #   self.episode_buffer_sf.append([s, s1, a, self.option])
-    self.episode_buffer_sf.append([s, s1, a])
+
     if len(self.aux_episode_buffer) == self.config.memory_size:
       self.aux_episode_buffer.popleft()
 
