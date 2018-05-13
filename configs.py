@@ -335,13 +335,13 @@ def integrated():
   reward_update_freq = 30
   target_update_iter_reward = 30
   target_update_iter_aux = 30
-  target_update_iter_sf = 1
+  target_update_iter_sf = 30
   aux_update_freq = 30
-  min_update_freq = 1
+  min_update_freq = 5
   tau = 0.1
   reward_coef = 1
   reward_i_coef = 1
-  adam_epsilon = 1e-08
+  # adam_epsilon = 1e-08
   plot_every = 10
 
   return locals()

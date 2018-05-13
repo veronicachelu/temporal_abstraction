@@ -181,8 +181,8 @@ class IntegratedNetwork(BaseNetwork):
       name="target_next_obs")
     self.target_r = tf.placeholder(shape=[None], dtype=tf.float32)
     self.target_r_i = tf.placeholder(shape=[None], dtype=tf.float32)
-    self.sf_td_error_target = tf.placeholder(shape=[None, self.sf_layers[-1]], dtype=tf.float32,
-                                             name="sf_td_error_target")
+    # self.sf_td_error_target = tf.placeholder(shape=[None, self.sf_layers[-1]], dtype=tf.float32,
+    #                                          name="sf_td_error_target")
     # self.sf_o = self.get_sf_o(self.options_placeholder)
     self.sf_o = self.sf
 
@@ -207,8 +207,8 @@ class IntegratedNetwork(BaseNetwork):
     self.eigenvectors = tf.transpose(tf.conj(ev), perm=[0, 2, 1])
 
     with tf.name_scope('sf_loss'):
-      self.sf_td_error = self.target_sf - self.sf_o
-      self.sf_loss = tf.reduce_mean(0.5 * self.config.sf_coef * tf.square(self.sf_td_error))
+      sf_td_error = self.target_sf - self.sf
+    self.sf_loss = tf.reduce_mean(self.config.sf_coef * huber_loss(sf_td_error))
 
     with tf.name_scope('reward_loss'):
       reward_error = self.target_r - self.r
@@ -255,7 +255,7 @@ class IntegratedNetwork(BaseNetwork):
 
     self.merged_summary_sf = tf.summary.merge(
       self.summaries_sf + [tf.summary.scalar('avg_sf_loss', self.sf_loss),
-                           tf.summary.scalar('avg_sf_td_error', tf.reduce_mean(self.sf_td_error)),
+                           # tf.summary.scalar('avg_sf_td_error', tf.reduce_mean(self.sf_td_error)),
                            tf.summary.scalar('gradient_norm_sf', grads_sf_norm),
                            gradient_summaries(zip(grads_sf, local_vars))])
     self.merged_summary_aux = tf.summary.merge(self.image_summaries + self.summaries_aux +

@@ -77,14 +77,14 @@ class IntegratedAgent(BaseAgent):
           self.o_term and self.sf_counter >= self.config.min_update_freq)):
       feed_dict = {self.local_network.observation: [s1], self.local_network.options_placeholder: [o1]}
       # sf_o, exp_sf = self.sess.run([self.local_network.sf_o, self.local_network.exp_sf], feed_dict=feed_dict)
-      sf_o = self.sess.run(self.local_network.sf_o, feed_dict=feed_dict)[0]
+      sf = self.sess.run(self.local_network.sf, feed_dict=feed_dict)[0]
       # exp_sf = exp_sf[0]
       if self.done:
-        bootstrap_sf = np.zeros_like(sf_o)
+        bootstrap_sf = np.zeros_like(sf)
       # elif self.o_term:
       #   bootstrap_sf = exp_sf
       else:
-        bootstrap_sf = sf_o
+        bootstrap_sf = sf
 
       self.ms_sf, self.sf_loss = self.train_sf(bootstrap_sf)
       # self.ms_option, self.option_loss = self.train_option()
@@ -137,6 +137,40 @@ class IntegratedAgent(BaseAgent):
         self.sess.run(self.update_local_vars_sf)
       if self.total_steps % self.config.target_update_iter_option == 0:
         self.sess.run(self.update_local_vars_option)
+
+  def SF_prediction(self, s1):
+    self.sf_counter += 1
+    if self.config.eigen and (self.sf_counter == self.config.max_update_freq or self.done):
+      feed_dict = {self.local_network.observation: np.stack([s1])}
+      sf = self.sess.run(self.local_network.sf,
+                         feed_dict=feed_dict)[0]
+      bootstrap_sf = np.zeros_like(sf) if self.done else sf
+      self.ms_sf, self.sf_loss = self.train_sf(bootstrap_sf)
+      self.episode_buffer_sf = []
+      self.sf_counter = 0
+
+  def train_sf(self, bootstrap_sf):
+    rollout = np.array(self.episode_buffer_sf)
+
+    observations = rollout[:, 0]
+
+    feed_dict = {self.local_network.observation: np.stack(observations, axis=0)}
+    fi = self.sess.run(self.local_network.fi,
+                       feed_dict=feed_dict)
+
+    sf_plus = np.asarray(fi.tolist() + [bootstrap_sf])
+    discounted_sf = discount(sf_plus, self.config.discount)[:-1]
+
+    feed_dict = {self.local_network.target_sf: np.stack(discounted_sf, axis=0),
+                 self.local_network.observation: np.stack(observations, axis=0)}  # ,
+
+    _, ms, sf_loss = \
+      self.sess.run([self.local_network.apply_grads_sf,
+                     self.local_network.merged_summary_sf,
+                     self.local_network.sf_loss],
+                    feed_dict=feed_dict)
+
+    return ms, sf_loss
 
   def play(self, sess, coord, saver):
     _t = {'recompute_eigenvectors_classic': Timer(), "next_frame_prediction": Timer(), 'reward_prediction': Timer(),
@@ -193,6 +227,7 @@ class IntegratedAgent(BaseAgent):
               # self.reward_prediction()
               if self.config.logging:
                 _t['reward_prediction'].toc()
+              self.SF_prediction(s1)
 
               self.old_option = self.option
               self.old_primitive_action = self.primitive_action
@@ -205,7 +240,7 @@ class IntegratedAgent(BaseAgent):
 
               if self.config.logging:
                 _t['SF_option_prediction'].tic()
-              self.SF_option_prediction(s, self.old_option, s1, self.option, self.action, self.old_primitive_action)
+              # self.SF_option_prediction(s, self.old_option, s1, self.option, self.action, self.old_primitive_action)
               if self.config.logging:
                 _t['SF_option_prediction'].tic()
 
@@ -296,6 +331,7 @@ class IntegratedAgent(BaseAgent):
   def store_general_info(self, s, s1, a, r):
     # if self.config.eigen:
     #   self.episode_buffer_sf.append([s, s1, a, self.option])
+    self.episode_buffer_sf.append([s, s1, a])
     if len(self.aux_episode_buffer) == self.config.memory_size:
       self.aux_episode_buffer.popleft()
 
@@ -386,38 +422,38 @@ class IntegratedAgent(BaseAgent):
       self.global_network.directions = new_eigenvectors
       self.directions = self.global_network.directions
 
-  def train_sf(self, bootstrap_sf):
-    rollout = np.array(self.episode_buffer_sf)
-
-    observations = rollout[:, 0]
-    options = rollout[:, 1]
-
-    feed_dict = {self.local_network.observation: np.stack(observations, axis=0)}
-    fi = self.sess.run(self.local_network.fi,
-                       feed_dict=feed_dict)
-
-    sf_plus = np.asarray(fi.tolist() + [bootstrap_sf])
-    discounted_sf = discount(sf_plus, self.config.discount)[:-1]
-    feed_dict = {self.local_network.target_sf: np.stack(discounted_sf, axis=0),
-                 self.local_network.observation: np.stack(observations, axis=0),
-                 self.local_network.options_placeholder: np.stack(options, axis=0)}  # ,
-
-    # feed_dict_global = {self.global_network.observation: np.stack(observations, axis=0),
-    #                     self.global_network.options_placeholder: np.stack(options, axis=0)}
-
-    # old_global_sf_loss = self.sess.run(self.global_network.sf_loss, feed_dict_global)
-
-    _, ms, sf_loss, self.sf_td_error = \
-      self.sess.run([self.local_network.apply_grads_sf,
-                     self.local_network.merged_summary_sf,
-                     self.local_network.sf_loss,
-                     self.local_network.sf_td_error],
-                    feed_dict=feed_dict)
-
-    # global_sf_loss = self.sess.run(self.global_network.sf_loss, feed_dict_global)
-    # if sf_loss > 100:
-    #   print("ERROR")
-    return ms, sf_loss
+  # def train_sf(self, bootstrap_sf):
+  #   rollout = np.array(self.episode_buffer_sf)
+  #
+  #   observations = rollout[:, 0]
+  #   options = rollout[:, 1]
+  #
+  #   feed_dict = {self.local_network.observation: np.stack(observations, axis=0)}
+  #   fi = self.sess.run(self.local_network.fi,
+  #                      feed_dict=feed_dict)
+  #
+  #   sf_plus = np.asarray(fi.tolist() + [bootstrap_sf])
+  #   discounted_sf = discount(sf_plus, self.config.discount)[:-1]
+  #   feed_dict = {self.local_network.target_sf: np.stack(discounted_sf, axis=0),
+  #                self.local_network.observation: np.stack(observations, axis=0),
+  #                self.local_network.options_placeholder: np.stack(options, axis=0)}  # ,
+  #
+  #   # feed_dict_global = {self.global_network.observation: np.stack(observations, axis=0),
+  #   #                     self.global_network.options_placeholder: np.stack(options, axis=0)}
+  #
+  #   # old_global_sf_loss = self.sess.run(self.global_network.sf_loss, feed_dict_global)
+  #
+  #   _, ms, sf_loss, self.sf_td_error = \
+  #     self.sess.run([self.local_network.apply_grads_sf,
+  #                    self.local_network.merged_summary_sf,
+  #                    self.local_network.sf_loss,
+  #                    self.local_network.sf_td_error],
+  #                   feed_dict=feed_dict)
+  #
+  #   # global_sf_loss = self.sess.run(self.global_network.sf_loss, feed_dict_global)
+  #   # if sf_loss > 100:
+  #   #   print("ERROR")
+  #   return ms, sf_loss
 
   def train_aux(self):
     minibatch = random.sample(self.aux_episode_buffer, self.config.batch_size)
