@@ -193,7 +193,7 @@ class IntegratedAgent(BaseAgent):
               s1 = s
 
             self.store_general_info(s, s1, self.action, r)
-            # self.store_reward_info(s, self.option, self.action, s1, r, self.primitive_action)
+            self.store_reward_info(s, self.option, self.action, s1, r, self.primitive_action)
             # self.log_timestep()
 
             if self.total_steps > self.config.observation_steps:
@@ -203,7 +203,7 @@ class IntegratedAgent(BaseAgent):
               if self.config.logging:
                 _t['next_frame_prediction'].toc()
                 _t['reward_prediction'].tic()
-              # self.reward_prediction()
+              self.reward_prediction()
               if self.config.logging:
                 _t['reward_prediction'].toc()
 
@@ -300,18 +300,20 @@ class IntegratedAgent(BaseAgent):
     #   self.q_value = q_value[0, self.option]
     #   self.value = value[0]
     # else:
+    feed_dict = {self.local_network.observation: np.stack([s])}
+    tensor_list = [self.local_network.v, self.local_network.q_val]
+    value, q_value = self.sess.run(tensor_list, feed_dict=feed_dict)
+    self.q_value = q_value[0, self.option]
+    self.value = value[0]
     if self.primitive_action:
       self.action = self.option - self.nb_options
     else:
       self.action = np.random.choice(range(self.action_size))
     self.o_term = np.random.uniform() > 0.5
+
     self.episode_actions.append(self.action)
 
   def store_general_info(self, s, s1, a, r):
-
-    # if self.config.eigen:
-    #   self.episode_buffer_sf.append([s, s1, a, self.option])
-
     if len(self.aux_episode_buffer) == self.config.memory_size:
       self.aux_episode_buffer.popleft()
 
@@ -629,8 +631,8 @@ class IntegratedAgent(BaseAgent):
       self.summary.value.add(tag='Step/Reward', simple_value=r)
       self.summary.value.add(tag='Step/Action', simple_value=self.action)
       self.summary.value.add(tag='Step/Option', simple_value=self.option)
-      # self.summary.value.add(tag='Step/Q', simple_value=self.q_value)
-      # self.summary.value.add(tag='Step/V', simple_value=self.value)
+      self.summary.value.add(tag='Step/Q', simple_value=self.q_value)
+      self.summary.value.add(tag='Step/V', simple_value=self.value)
       self.summary.value.add(tag='Step/Term', simple_value=int(self.o_term))
 
     self.summary_writer.add_summary(self.summary, self.total_steps)

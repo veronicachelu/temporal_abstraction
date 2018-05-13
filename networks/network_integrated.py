@@ -160,14 +160,14 @@ class IntegratedNetwork(BaseNetwork):
       out = layers.flatten(out, scope="flatten")
 
       _ = self.build_feature_net(out)
-      # _ = self.build_option_term_net()
+      _ = self.build_option_term_net()
 
-      # self.build_intraoption_policies_nets()
+      self.build_intraoption_policies_nets()
       self.build_SF_net(layer_norm=False)
       self.build_next_frame_prediction_net()
       self.build_reward_pred_net()
 
-      # _ = self.build_option_q_val_net()
+      _ = self.build_option_q_val_net()
       self.build_placeholders(self.config.history_size)
 
       if self.scope != 'global':
@@ -184,7 +184,6 @@ class IntegratedNetwork(BaseNetwork):
     # self.sf_td_error_target = tf.placeholder(shape=[None, self.sf_layers[-1]], dtype=tf.float32,
     #                                          name="sf_td_error_target")
     self.sf_o = self.get_sf_o(self.options_placeholder)
-    # self.sf_o = self.sf
 
   def build_losses(self):
     # self.policies = self.get_intra_option_policies(self.options_placeholder)
