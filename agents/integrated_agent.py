@@ -20,9 +20,9 @@ from tools.agent_utils import update_target_graph_reward
 FLAGS = tf.app.flags.FLAGS
 import csv
 from tools.timer import Timer
-from agents.eigenoc_agent import EigenOCAgent
+from agents.eigenoc_agent_dynamic import EigenOCAgentDyn
 
-class IntegratedAgent(EigenOCAgent):
+class IntegratedAgent(EigenOCAgentDyn):
   def __init__(self, game, thread_id, global_step, config, global_network, barrier):
     super(IntegratedAgent, self).__init__(game, thread_id, global_step, config, global_network, barrier)
     self.update_local_vars_reward = update_target_graph_reward('global', self.name)
@@ -99,7 +99,8 @@ class IntegratedAgent(EigenOCAgent):
         bootstrap_sf = sf_o
 
       self.ms_sf, self.sf_loss, self.sf_td_error = self.train_sf(bootstrap_sf)
-      self.ms_option, self.option_loss, self.term_loss, self.ms_term = self.train_option()
+      if self.total_steps > self.config.eigen_exploration_steps:
+        self.ms_option, self.option_loss, self.term_loss, self.ms_term = self.train_option()
 
       self.episode_buffer_sf = []
       self.sf_counter = 0
@@ -188,6 +189,8 @@ class IntegratedAgent(EigenOCAgent):
 
             s1, r, self.done, s1_idx = self.env.step(self.action)
 
+            if r == 1:
+              print("REWARD is 1")
             r = np.clip(r, -1, 1)
             if self.done:
               s1 = s
@@ -214,13 +217,13 @@ class IntegratedAgent(EigenOCAgent):
               if not self.done and (self.o_term or self.primitive_action):
                 self.option_evaluation(s1)
 
-              if self.total_steps > self.config.eigen_exploration_steps:
-                if self.config.logging:
-                  _t['SF_option_prediction'].tic()
-                # self.SF_prediction(s, s1, self.action)
-                self.SF_option_prediction(s, self.old_option, s1, self.option, self.action, self.old_primitive_action)
-                if self.config.logging:
-                  _t['SF_option_prediction'].tic()
+
+              if self.config.logging:
+                _t['SF_option_prediction'].tic()
+              # self.SF_prediction(s, s1, self.action)
+              self.SF_option_prediction(s, self.old_option, s1, self.option, self.action, self.old_primitive_action)
+              if self.config.logging:
+                _t['SF_option_prediction'].tic()
 
                 if self.total_steps % self.config.steps_checkpoint_interval == 0 and self.name == 'worker_0':
                   self.save_model()

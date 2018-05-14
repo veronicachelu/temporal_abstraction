@@ -54,8 +54,8 @@ class IntegratedNetwork(BaseNetwork):
                                       outputs_collections="activations", scope="reward_i")
     self.summaries_reward_i.append(tf.contrib.layers.summarize_activation(self.r_i))
 
-    self.w = self.get_w()
-    self.w_i = self.get_wi()
+    self.w = tf.stop_gradient(self.get_w())
+    self.w_i = tf.stop_gradient(self.get_wi())
 
   def get_w(self):
     with tf.variable_scope("reward", reuse=True):
@@ -127,9 +127,9 @@ class IntegratedNetwork(BaseNetwork):
 
   def build_option_q_val_net(self):
     with tf.variable_scope("q_val"):
-      self.q_val = tf.reduce_sum(tf.stop_gradient(self.sf) *
+      self.q_val = tf.stop_gradient(tf.reduce_sum(tf.stop_gradient(self.sf) *
                                  tf.tile((tf.squeeze(self.w, 1)[None, ...])[None, ...],
-                                         [tf.shape(self.sf)[0], self.nb_options + self.action_size, 1]), axis=2)
+                                         [tf.shape(self.sf)[0], self.nb_options + self.action_size, 1]), axis=2))
       self.summaries_option.append(tf.contrib.layers.summarize_activation(self.q_val))
       self.max_q_val = tf.reduce_max(self.q_val, 1)
       self.max_options = tf.cast(tf.argmax(self.q_val, 1), dtype=tf.int32)
@@ -147,8 +147,8 @@ class IntegratedNetwork(BaseNetwork):
       self.summaries_option.append(tf.contrib.layers.summarize_activation(self.current_option))
       self.v = self.max_q_val * (1 - self.random_option_prob) + \
                self.random_option_prob * tf.reduce_mean(self.q_val, axis=1)
-      self.exp_sf = self.get_sf_o(self.max_options) * (1 - self.random_option_prob) + \
-               self.random_option_prob * tf.reduce_mean(self.sf, axis=1)
+      # self.exp_sf = self.get_sf_o(self.max_options) * (1 - self.random_option_prob) + \
+      #          self.random_option_prob * tf.reduce_mean(self.sf, axis=1)
       self.summaries_option.append(tf.contrib.layers.summarize_activation(self.v))
 
   def build_network(self):
@@ -159,8 +159,8 @@ class IntegratedNetwork(BaseNetwork):
       out = self.observation
       out = layers.flatten(out, scope="flatten")
 
-      _ = self.build_feature_net(out)
-      _ = self.build_option_term_net()
+      self.build_feature_net(out)
+      self.build_option_term_net()
 
       self.build_intraoption_policies_nets()
       self.build_SF_net(layer_norm=False)
@@ -196,7 +196,6 @@ class IntegratedNetwork(BaseNetwork):
 
     q_val = self.get_q(self.options_placeholder)
     o_term = self.get_o_term(self.options_placeholder)
-    # wi_oa = self.get_wi_oa(self.options_placeholder, self.actions_placeholder)
 
     self.image_summaries.append(
       tf.summary.image('next', tf.concat([self.next_obs, self.target_next_obs], 2), max_outputs=30))
