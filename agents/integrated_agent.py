@@ -88,13 +88,14 @@ class IntegratedAgent(EigenOCAgentDyn):
     if self.config.eigen and (self.sf_counter == self.config.max_update_freq or self.done or (
           self.o_term and self.sf_counter >= self.config.min_update_freq)):
       feed_dict = {self.local_network.observation: [s1], self.local_network.options_placeholder: [o1]}
-      # sf_o, exp_sf = self.sess.run([self.local_network.sf_o, self.local_network.exp_sf], feed_dict=feed_dict)
-      sf_o = self.sess.run(self.local_network.sf_o, feed_dict=feed_dict)[0]
-      # exp_sf = exp_sf[0]
+      sf_o, exp_sf = self.sess.run([self.local_network.sf_o, self.local_network.exp_sf], feed_dict=feed_dict)
+      # sf_o = self.sess.run(self.local_network.sf_o, feed_dict=feed_dict)[0]
+      exp_sf = exp_sf[0]
+      sf_o = sf_o[0]
       if self.done:
         bootstrap_sf = np.zeros_like(sf_o)
-      # elif self.o_term:
-      #   bootstrap_sf = exp_sf
+      elif self.o_term:
+        bootstrap_sf = exp_sf
       else:
         bootstrap_sf = sf_o
 
