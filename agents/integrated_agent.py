@@ -189,8 +189,8 @@ class IntegratedAgent(EigenOCAgentDyn):
 
             s1, r, self.done, s1_idx = self.env.step(self.action)
 
-            if r == 1:
-              print("REWARD is 1")
+            # if r == 1:
+            #   print("REWARD is 1")
             r = np.clip(r, -1, 1)
             if self.done:
               s1 = s
