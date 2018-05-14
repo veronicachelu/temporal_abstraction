@@ -65,7 +65,7 @@ class IntegratedAgent(EigenOCAgent):
     self.R = 0
     self.eigen_R = 0
 
-    if self.config.decrease_option_prob:
+    if self.config.decrease_option_prob and self.episode_count < self.config.explore_options_episodes:
       self.sess.run(self.local_network.decrease_prob_of_random_option)
     # self.stats_options = np.zeros((self.nb_states, self.nb_options + self.action_size))
     # self.ms_aux = self.ms_sf = self.ms_reward = self.ms_option = None
@@ -278,13 +278,7 @@ class IntegratedAgent(EigenOCAgent):
 
 
     # self.option = np.random.choice(range(self.nb_options + self.action_size))
-    # self.primitive_action = self.option >= self.nb_options
 
-    # self.stats_options[s_idx][self.option] += 1
-
-    # self.episode_options.append(self.option)
-    # if not self.primitive_action:
-    #   self.episode_options_lengths[self.option].append(self.episode_len)
 
   def option_terminate(self, s1):
     feed_dict = {self.local_network.observation: np.stack([s1])}
@@ -602,123 +596,6 @@ class IntegratedAgent(EigenOCAgent):
       ], feed_dict=feed_dict)
     return ms_option, option_loss, term_loss, ms_term
 
-  def evaluate_agent(self):
-    episodes_won = 0
-    episode_lengths = []
-    for i in range(self.config.nb_test_ep):
-      episode_reward = 0
-      s = self.env.reset()
-      feed_dict = {self.local_network.observation: np.stack([s])}
-      option, primitive_action = self.sess.run([self.local_network.max_options, self.local_network.primitive_action],
-                                               feed_dict=feed_dict)
-      option, primitive_action = option[0], primitive_action[0]
-      primitive_action = option >= self.config.nb_options
-      d = False
-      episode_length = 0
-      # if i == 0:
-      #   episode_frames = []
-      while not d:
-        feed_dict = {self.local_network.observation: np.stack([s])}
-        options, o_term = self.sess.run([self.local_network.options, self.local_network.termination],
-                                        feed_dict=feed_dict)
-
-        if primitive_action:
-          action = option - self.nb_options
-          o_term = True
-        else:
-          pi = options[0, option]
-          action = np.random.choice(pi, p=pi)
-          action = np.argmax(pi == action)
-          o_term = o_term[0, option] > np.random.uniform()
-
-        # if i == 0 and self.episode_count > 500:
-        #   episode_frames.append(set_image(s, option, action, episode_length, primitive_action))
-        s1, r, d, _ = self.env.step(action)
-
-        r = np.clip(r, -1, 1)
-        episode_reward += r
-        episode_length += 1
-
-        if not d and (o_term or primitive_action):
-          feed_dict = {self.local_network.observation: np.stack([s1])}
-          option, primitive_action = self.sess.run(
-            [self.local_network.max_options, self.local_network.primitive_action], feed_dict=feed_dict)
-          option, primitive_action = option[0], primitive_action[0]
-          primitive_action = option >= self.config.nb_options
-        s = s1
-        if episode_length > self.config.max_length_eval:
-          break
-
-          # if i == 0 and self.episode_count > 500:
-          #   images = np.array(episode_frames)
-          #   make_gif(images[:100], os.path.join(self.test_path, 'eval_episode_{}.gif'.format(self.episode_count)),
-          #            duration=len(images[:100]) * 0.1, true_image=True)
-
-      episodes_won += episode_reward
-      episode_lengths.append(episode_length)
-
-    return episodes_won, np.mean(episode_lengths)
-
-  def eval(self, sess, coord, saver):
-    with sess.as_default(), sess.graph.as_default():
-      self.sess = sess
-      self.saver = saver
-      self.episode_count = sess.run(self.global_step)
-      self.total_steps = sess.run(self.total_steps_tensor)
-
-      tf.logging.info("Starting eval agent")
-      ep_rewards = []
-      ep_lengths = []
-      # episode_frames = []
-      for i in range(self.config.nb_test_ep):
-        episode_reward = 0
-        s = self.env.reset()
-        feed_dict = {self.local_network.observation: np.stack([s])}
-        option, primitive_action = self.sess.run(
-          [self.local_network.max_options, self.local_network.primitive_action], feed_dict=feed_dict)
-        option, primitive_action = option[0], primitive_action[0]
-        primitive_action = option >= self.config.nb_options
-        d = False
-        episode_length = 0
-        while not d:
-          feed_dict = {self.local_network.observation: np.stack([s])}
-          options, o_term = self.sess.run([self.local_network.options, self.local_network.termination],
-                                          feed_dict=feed_dict)
-
-          if primitive_action:
-            action = option - self.nb_options
-            o_term = True
-          else:
-            pi = options[0, option]
-            action = np.random.choice(pi, p=pi)
-            action = np.argmax(pi == action)
-            o_term = o_term[0, option] > np.random.uniform()
-
-          # episode_frames.append(set_image(s, option, action, episode_length, primitive_action))
-          s1, r, d, _ = self.env.step(action)
-
-          r = np.clip(r, -1, 1)
-          episode_reward += r
-          episode_length += 1
-
-          if not d and (o_term or primitive_action):
-            feed_dict = {self.local_network.observation: np.stack([s1])}
-            option, primitive_action = self.sess.run(
-              [self.local_network.max_options, self.local_network.primitive_action], feed_dict=feed_dict)
-            option, primitive_action = option[0], primitive_action[0]
-            primitive_action = option >= self.config.nb_options
-          s = s1
-          if episode_length > self.config.max_length_eval:
-            break
-
-        ep_rewards.append(episode_reward)
-        ep_lengths.append(episode_length)
-        tf.logging.info("Ep {} finished in {} steps with reward {}".format(i, episode_length, episode_reward))
-      # images = np.array(episode_frames)
-      # make_gif(images, os.path.join(self.test_path, 'test_episodes.gif'),
-      #          duration=len(images) * 1.0, true_image=True)
-      tf.logging.info("Won {} episodes of {}".format(ep_rewards.count(1), self.config.nb_test_ep))
-
   def write_step_summary(self, r):
     self.summary = tf.Summary()
     if self.ms_sf is not None:
@@ -772,8 +649,6 @@ class IntegratedAgent(EigenOCAgent):
     if len(self.episode_mean_options) != 0:
       last_frequent_action = self.episode_mean_actions[-1]
       self.summary.value.add(tag='Perf/FreqActions', simple_value=last_frequent_action)
-    for op in range(self.config.nb_options):
-      self.summary.value.add(tag='Perf/Option_length_{}'.format(op), simple_value=self.episode_mean_options_lengths[op])
 
     self.summary_writer.add_summary(self.summary, self.episode_count)
     self.summary_writer.flush()
@@ -792,31 +667,9 @@ class IntegratedAgent(EigenOCAgent):
       self.episode_mean_options.append(get_mode(self.episode_options))
     if len(self.episode_actions) != 0:
       self.episode_mean_actions.append(get_mode(self.episode_actions))
-      # for op, option_lengths in enumerate(self.episode_options_lengths):
-      #   if len(option_lengths) != 0:
-      #     self.episode_mean_options_lengths[op] = np.mean(option_lengths)
 
   def write_episode_summary_stats(self):
-    # with open(os.path.join(self.stats_path, 'summary_stats.csv'), 'w', newline='') as csvfile:
-    #   fieldnames = ['State', 'Option_0', 'Option_1', 'Option_2', 'Option_3',
-    #                 'Option_4', 'Option_5', 'Option_6', 'Option_7']
-    #   writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
-    #
-    #   writer.writeheader()
-    # total_timesteps_in_state = np.sum(self.stats_options, axis=1)[..., None]
-    # stats_options = self.stats_options / (total_timesteps_in_state + 1e-12)
     most_chosen_options = np.argmax(self.stats_options, axis=1)
-    #   for s in range(self.nb_states):
-    #     writer.writerow({'State': str(s), 'Option_0': self.stats_options[s, 0], 'Option_1': self.stats_options[s, 1],
-    #                      'Option_2': self.stats_options[s, 2], 'Option_3': self.stats_options[s, 3],
-    #                      'Option_4': self.stats_options[s, 4], 'Option_5': self.stats_options[s, 5],
-    #                      'Option_6': self.stats_options[s, 6], 'Option_7': self.stats_options[s, 7]})
-    #
-    # with open('summary_stats.csv', 'w', newline='') as csvfile:
-    #   spamwriter = csv.writer(csvfile, delimiter=' ',
-    #                           quotechar='|', quoting=csv.QUOTE_MINIMAL)
-    #   spamwriter.writerow(['Spam'] * 5 + ['Baked Beans'])
-    #   spamwriter.writerow(['Spam', 'Lovely Spam', 'Wonderful Spam'])
 
     plt.clf()
     option_colors = [(0.1, 0.2, 0.5, 0.4), (0.1, 0.2, 0.5, 0.6), (0.1, 0.2, 0.5, 0.8), (0.1, 0.2, 0.5, 1),
@@ -904,8 +757,6 @@ class IntegratedAgent(EigenOCAgent):
 
       evect_norm = np.linalg.norm(evect[option])
       evect_normalized = evect[option] / (evect_norm + 1e-8)
-      # evect_norm = np.linalg.norm(evect)
-      # evect_normalized = evect / (evect_norm + 1e-8)
       res = np.dot(state_dif_normalized, evect_normalized)
       sim.append(res)
     return sim
