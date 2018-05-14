@@ -168,6 +168,11 @@ class IntegratedNetwork(BaseNetwork):
       self.build_reward_pred_net()
 
       _ = self.build_option_q_val_net()
+
+      self.decrease_prob_of_random_option = tf.assign_sub(self.random_option_prob, tf.constant(
+        (
+          self.config.initial_random_option_prob - self.config.final_random_option_prob) / self.config.explore_options_episodes))
+
       self.build_placeholders(self.config.history_size)
 
       if self.scope != 'global':

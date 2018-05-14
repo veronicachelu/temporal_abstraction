@@ -340,8 +340,9 @@ def integrated():
     GridWorld, goal_locations, "./mdps/4rooms.mdp")
 
   final_random_option_prob = 0.1
-  initial_random_option_prob = 0.1
-  decrease_option_prob = False
+  initial_random_option_prob = 1
+  decrease_option_prob = True
+  explore_options_episodes = 100
 
   reward_update_freq = 30
   target_update_iter_reward = 30
