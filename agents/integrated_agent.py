@@ -45,7 +45,7 @@ class IntegratedAgent(EigenOCAgent):
     self.aux_episode_buffer = deque()
     self.reward_pred_episode_buffer = deque()
     self.reward_i_pred_episode_buffer = deque()
-    self.ms_aux = self.ms_sf = self.ms_option = self.ms_reward = self.ms_reward_i = None
+    self.ms_aux = self.ms_sf = self.ms_option = self.ms_reward = self.ms_reward_i = self.ms_term = None
     # self.stats_options = np.zeros((self.nb_states, self.nb_options + self.action_size))
 
   def init_episode(self):
@@ -99,7 +99,7 @@ class IntegratedAgent(EigenOCAgent):
         bootstrap_sf = sf_o
 
       self.ms_sf, self.sf_loss, self.sf_td_error = self.train_sf(bootstrap_sf)
-      self.ms_option, self.option_loss = self.train_option()
+      self.ms_option, self.option_loss, self.term_loss, self.ms_term = self.train_option()
 
       self.episode_buffer_sf = []
       self.sf_counter = 0
@@ -581,25 +581,26 @@ class IntegratedAgent(EigenOCAgent):
     notprimitve = list(np.logical_not(primitive))
     observations_not_primitive = observations[notprimitve]
     if len(observations_not_primitive) == 0:
-      option_loss = ms_option = None
+      option_loss = ms_option = ms_term = term_loss = None
     else:
       options_not_primitive = options[notprimitve]
       actions_not_primitive = actions[notprimitve]
       sf_td_error_not_primitive = self.sf_td_error[notprimitve]
 
-      # if np.any(np.array(options_not_primitive) >= 4):
-      #   print("ERROR option!!!!!!!!!")
       feed_dict = {self.local_network.sf_td_error_target: sf_td_error_not_primitive,
                    self.local_network.observation: np.stack(observations_not_primitive, axis=0),
                    self.local_network.options_placeholder: options_not_primitive,
                    self.local_network.actions_placeholder: actions_not_primitive}
 
-      _, option_loss, ms_option = self.sess.run([
+      _, option_loss, ms_option, _, term_loss, ms_term = self.sess.run([
         self.local_network.apply_grads_option,
         self.local_network.option_loss,
         self.local_network.merged_summary_option,
+        self.local_network.apply_grads_term,
+        self.local_network.term_loss,
+        self.local_network.merged_summary_term,
       ], feed_dict=feed_dict)
-    return ms_option, option_loss
+    return ms_option, option_loss, term_loss, ms_term
 
   def evaluate_agent(self):
     episodes_won = 0
@@ -730,6 +731,8 @@ class IntegratedAgent(EigenOCAgent):
       self.summary_writer.add_summary(self.ms_reward_i, self.total_steps)
     if self.ms_option is not None:
       self.summary_writer.add_summary(self.ms_option, self.total_steps)
+    if self.ms_term is not None:
+      self.summary_writer.add_summary(self.ms_term, self.total_steps)
 
     if self.total_steps > self.config.eigen_exploration_steps:
       self.summary.value.add(tag='Step/Reward', simple_value=r)
