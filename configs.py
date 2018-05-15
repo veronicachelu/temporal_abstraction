@@ -1,6 +1,7 @@
 from agents import IntegratedAgent
 from agents import TargetAgent
 from agents import BehaviourAgent
+from agents import EmbeddingAgent
 from agents import BehaviourDynAgent
 from agents import EigenOCAgent
 from agents import LinearSFAgent
@@ -10,6 +11,7 @@ from env_tools import GridWorld
 import functools
 from networks import IntegratedNetwork
 from networks import ExplorationNetwork
+from networks import EmbeddingNetwork
 from networks import EignOCNetwork
 from networks import LinearSFNetwork
 from networks import DynSRNetwork
@@ -212,6 +214,13 @@ def eigenoc_dyn():
   move_goal_nb_of_ep = 1000
   env = functools.partial(
     GridWorld, goal_locations, "./mdps/4rooms.mdp")
+  return locals()
+
+def embedding():
+  locals().update(eigenoc_dyn())
+  target_agent = EmbeddingAgent
+  network = EmbeddingNetwork
+
   return locals()
 
 def oc_dyn():
