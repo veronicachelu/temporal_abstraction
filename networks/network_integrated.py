@@ -34,7 +34,7 @@ class IntegratedNetwork(BaseNetwork):
       return out
 
   def build_reward_pred_net(self):
-    out = tf.stop_gradient(self.fi_relu)
+    out = tf.stop_gradient(self.fi)
     self.r = layers.fully_connected(out, num_outputs=1,
                                     activation_fn=None, biases_initializer=None,
                                     variables_collections=tf.get_collection("variables"),

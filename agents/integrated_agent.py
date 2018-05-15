@@ -83,15 +83,14 @@ class IntegratedAgent(EigenOCAgentDyn):
   #     self.sf_counter = 0
 
   def SF_option_prediction(self, s, o, s1, o1, a, primitive):
-    self.episode_buffer_sf.append((s, o, s1, o1, a, primitive))
+    self.episode_buffer_sf.append((s, o, a, primitive))
     self.sf_counter += 1
     if self.config.eigen and (self.sf_counter == self.config.max_update_freq or self.done or (
           self.o_term and self.sf_counter >= self.config.min_update_freq)):
-      feed_dict = {self.local_network.observation: [s1], self.local_network.options_placeholder: [o1]}
-      sf_o, exp_sf = self.sess.run([self.local_network.sf_o, self.local_network.exp_sf], feed_dict=feed_dict)
-      # sf_o = self.sess.run(self.local_network.sf_o, feed_dict=feed_dict)[0]
+      feed_dict = {self.local_network.observation: [s1]}
+      sf, exp_sf = self.sess.run([self.local_network.sf, self.local_network.exp_sf], feed_dict=feed_dict)
       exp_sf = exp_sf[0]
-      sf_o = sf_o[0]
+      sf_o = sf[0, o1]
       if self.done:
         bootstrap_sf = np.zeros_like(sf_o)
       elif self.o_term:
@@ -100,8 +99,7 @@ class IntegratedAgent(EigenOCAgentDyn):
         bootstrap_sf = sf_o
 
       self.ms_sf, self.sf_loss, self.sf_td_error = self.train_sf(bootstrap_sf)
-      if self.total_steps > self.config.eigen_exploration_steps:
-        self.ms_option, self.option_loss, self.term_loss, self.ms_term = self.train_option()
+      self.ms_option, self.option_loss, self.term_loss, self.ms_term = self.train_option()
 
       self.episode_buffer_sf = []
       self.sf_counter = 0
@@ -154,8 +152,6 @@ class IntegratedAgent(EigenOCAgentDyn):
 
 
   def play(self, sess, coord, saver):
-    _t = {'recompute_eigenvectors_classic': Timer(), "next_frame_prediction": Timer(), 'reward_prediction': Timer(),
-          'SF_option_prediction': Timer()}
     with sess.as_default(), sess.graph.as_default():
       self.init_play(sess, saver)
 
@@ -173,11 +169,7 @@ class IntegratedAgent(EigenOCAgentDyn):
           if self.name == "worker_0" and self.episode_count > 0:
             # plotting = self.episode_count % self.config.plot_every == 0
             plotting = False
-            if self.config.logging:
-              _t['recompute_eigenvectors_classic'].tic()
             self.recompute_eigenvectors_dyn_SVD(False)
-            if self.config.logging:
-              _t['recompute_eigenvectors_classic'].toc()
 
           self.load_directions()
           self.init_episode()
@@ -190,47 +182,33 @@ class IntegratedAgent(EigenOCAgentDyn):
 
             s1, r, self.done, s1_idx = self.env.step(self.action)
 
-            # if r == 1:
-            #   print("REWARD is 1")
             r = np.clip(r, -1, 1)
             if self.done:
               s1 = s
 
             self.store_general_info(s, s1, self.action, r)
             self.store_reward_info(s, self.option, self.action, s1, r, self.primitive_action)
-            # self.log_timestep()
+            self.log_timestep()
 
             if self.total_steps > self.config.observation_steps:
-              if self.config.logging:
-                _t['next_frame_prediction'].tic()
               self.next_frame_prediction()
-              if self.config.logging:
-                _t['next_frame_prediction'].toc()
-                _t['reward_prediction'].tic()
               self.reward_prediction()
-              if self.config.logging:
-                _t['reward_prediction'].toc()
 
               self.old_option = self.option
               self.old_primitive_action = self.primitive_action
-              self.option_terminate(s1)
+              self.option_terminate(s)
 
               if not self.done and (self.o_term or self.primitive_action):
                 self.option_evaluation(s1)
 
-
-              if self.config.logging:
-                _t['SF_option_prediction'].tic()
               # self.SF_prediction(s, s1, self.action)
               self.SF_option_prediction(s, self.old_option, s1, self.option, self.action, self.old_primitive_action)
-              if self.config.logging:
-                _t['SF_option_prediction'].tic()
 
-                if self.total_steps % self.config.steps_checkpoint_interval == 0 and self.name == 'worker_0':
-                  self.save_model()
+              if self.total_steps % self.config.steps_checkpoint_interval == 0 and self.name == 'worker_0':
+                self.save_model()
 
-                if self.total_steps % self.config.steps_summary_interval == 0 and self.name == 'worker_0':
-                  self.write_step_summary(r)
+              if self.total_steps % self.config.steps_summary_interval == 0 and self.name == 'worker_0':
+                self.write_step_summary(r)
 
             s = s1
             self.episode_len += 1
@@ -262,12 +240,6 @@ class IntegratedAgent(EigenOCAgentDyn):
 
           if self.name == 'worker_0':
             sess.run(self.increment_global_step)
-            if self.config.logging:
-              tf.logging.info(
-                'recompute_eigenvectors_classic time is %f' % _t['recompute_eigenvectors_classic'].average_time)
-              tf.logging.info('next_frame_prediction time is %f' % _t['next_frame_prediction'].average_time)
-              tf.logging.info('reward_prediction time is %f' % _t['reward_prediction'].average_time)
-              tf.logging.info('SF_option_prediction time is %f' % _t['SF_option_prediction'].average_time)
           self.episode_count += 1
 
   def option_evaluation(self, s):
@@ -284,31 +256,31 @@ class IntegratedAgent(EigenOCAgentDyn):
     # self.option = np.random.choice(range(self.nb_options + self.action_size))
 
 
-  def option_terminate(self, s1):
-    feed_dict = {self.local_network.observation: np.stack([s1])}
+  def option_terminate(self, s):
+    feed_dict = {self.local_network.observation: np.stack([s])}
     o_term = self.sess.run(self.local_network.termination, feed_dict=feed_dict)
-    if not self.primitive_action or not self.config.include_primitive_options:
+    if not self.primitive_action:
       self.o_term = o_term[0, self.option] > np.random.uniform()
     else:
       self.o_term = True
 
   def policy_evaluation(self, s):
-    if self.total_steps > self.config.eigen_exploration_steps:
-      feed_dict = {self.local_network.observation: np.stack([s])}
+    # if self.total_steps > self.config.eigen_exploration_steps:
+    feed_dict = {self.local_network.observation: np.stack([s])}
 
-      options, sf = self.sess.run([self.local_network.options, self.local_network.sf], feed_dict=feed_dict)
-      options = options[0]
-      if not self.primitive_action or not self.config.include_primitive_options:
-        pi = options[self.option]
-        self.action = np.random.choice(pi, p=pi)
-        self.action = np.argmax(pi == self.action)
-      else:
-        self.action = self.option - self.nb_options
-
-        sf = sf[0]
-        self.add_SF(sf[self.option])
+    options, sf = self.sess.run([self.local_network.options, self.local_network.sf], feed_dict=feed_dict)
+    options = options[0]
+    if not self.primitive_action or not self.config.include_primitive_options:
+      pi = options[self.option]
+      self.action = np.random.choice(pi, p=pi)
+      self.action = np.argmax(pi == self.action)
     else:
-      self.action = np.random.choice(range(self.action_size))
+      self.action = self.option - self.nb_options
+
+      sf = sf[0]
+      self.add_SF(sf[self.option])
+    # else:
+    #   self.action = np.random.choice(range(self.action_size))
 
     self.episode_actions.append(self.action)
 
@@ -571,13 +543,12 @@ class IntegratedAgent(EigenOCAgentDyn):
     rollout = np.array(self.episode_buffer_sf)  # s, self.option, self.action, r, r_i
     observations = rollout[:, 0]
     options = rollout[:, 1]
-    next_observations = rollout[:, 2]
-    next_options = rollout[:, 3]
-    actions = rollout[:, 4]
-    primitive = rollout[:, 5]
+    actions = rollout[:, 2]
+    primitive = rollout[:, 3]
 
     notprimitve = list(np.logical_not(primitive))
     observations_not_primitive = observations[notprimitve]
+
     if len(observations_not_primitive) == 0:
       option_loss = ms_option = ms_term = term_loss = None
     else:
