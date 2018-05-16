@@ -35,7 +35,7 @@ class EigenOCAgent(BaseAgent):
 
     self.total_steps = sess.run(self.total_steps_tensor)
     self.eigen_q_value = None
-    self.evalue = None
+    # self.evalue = None
     tf.logging.info("Starting worker " + str(self.thread_id))
     self.aux_episode_buffer = deque()
     self.ms_aux = self.ms_sf = self.ms_option = None
@@ -303,6 +303,8 @@ class EigenOCAgent(BaseAgent):
                          feed_dict=feed_dict)
       eigen_r = self.cosine_similarity((fi[1] - fi[0]), self.directions[self.option])
       r_i = self.config.alpha_r * eigen_r + (1 - self.config.alpha_r) * r
+      if np.isnan(r_i):
+        print("NAN")
       self.episode_eigen_q_values.append(self.eigen_q_value)
       self.episode_buffer_option.append(
         [s, self.option, a, r, r_i, self.primitive_action])

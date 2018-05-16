@@ -97,7 +97,10 @@ class BaseAgent():
     if len(self.episode_q_values) != 0:
       self.episode_mean_q_values.append(np.mean(self.episode_q_values))
     if self.config.eigen and len(self.episode_eigen_q_values) != 0:
-      self.episode_mean_eigen_q_values.append(np.mean(self.episode_eigen_q_values))
+      try:
+        self.episode_mean_eigen_q_values.append(np.mean(self.episode_eigen_q_values))
+      except:
+        print("ERROR")
     if len(self.episode_oterm) != 0:
       self.episode_mean_oterms.append(get_mode(self.episode_oterm))
     if len(self.episode_options) != 0:
@@ -176,14 +179,16 @@ class BaseAgent():
     self.write_step_summary(ms_sf, ms_aux, ms_option, r)
 
   def cosine_similarity(self, next_sf, evect):
-    state_dif_norm = np.linalg.norm(next_sf)
+    state_dif_norm = np.linalg.norm(np.linalg.norm(np.asarray(next_sf, np.float64)))
     state_dif_normalized = next_sf / (state_dif_norm + 1e-8)
 
-    evect_norm = np.linalg.norm(evect)
+    evect_norm = np.linalg.norm(np.linalg.norm(np.asarray(next_sf, np.float64)))
     evect_normalized = evect / (evect_norm + 1e-8)
     # evect_norm = np.linalg.norm(evect)
     # evect_normalized = evect / (evect_norm + 1e-8)
     res = np.dot(state_dif_normalized, evect_normalized)
+    if np.isnan(res):
+      print("NAN")
     return res
 
 
