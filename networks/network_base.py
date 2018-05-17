@@ -264,11 +264,7 @@ class BaseNetwork():
   def get_q(self, o):
     indices = tf.stack([tf.range(tf.shape(o)[0]), o], axis=1)
     q_o = tf.gather_nd(self.q_val, indices)
-    # options_taken_one_hot = tf.one_hot(o, (
-    #   self.config.nb_options + self.action_size) if self.config.include_primitive_options else self.config.nb_options,
-    #                                    name="options_one_hot")
-    # q_values_o = tf.reduce_sum(tf.multiply(self.q_val, options_taken_one_hot),
-    #                            reduction_indices=1, name="values_Q")
+
     return q_o
 
   def get_primitive(self, o):

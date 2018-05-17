@@ -7,6 +7,7 @@ from agents import EigenOCAgent
 from agents import LinearSFAgent
 from agents import EigenOCAgentDyn
 from agents import DynSRAgent
+from agents import DoubleACAgent
 from env_tools import GridWorld
 import functools
 from networks import IntegratedNetwork
@@ -15,6 +16,7 @@ from networks import EmbeddingNetwork
 from networks import EignOCNetwork
 from networks import LinearSFNetwork
 from networks import DynSRNetwork
+from networks import DoubleACNetwork
 from networks import EignOCMontezumaNetwork
 
 def default():
@@ -220,6 +222,13 @@ def embedding():
   locals().update(eigenoc_dyn())
   target_agent = EmbeddingAgent
   network = EmbeddingNetwork
+
+  return locals()
+
+def doubleAC():
+  locals().update(eigenoc_dyn())
+  target_agent = DoubleACAgent
+  network = DoubleACNetwork
 
   return locals()
 

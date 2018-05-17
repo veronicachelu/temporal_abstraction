@@ -14,7 +14,7 @@ sns.set_context("paper")
 def plot(params):
   ''' beautify tf log
       Use better library (seaborn) to plot tf event file'''
-  comp_exp = ['direction_option_critic_dyn_SVD_sign', 'option_critic']
+  comp_exp = ['embedding', 'option_critic']
   log_path = params['logdir']
   experiments = [os.path.join(log_path, f) for f in os.listdir(log_path)]
   exps = []

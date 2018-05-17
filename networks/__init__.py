@@ -4,4 +4,5 @@ from .network_embedding import EmbeddingNetwork
 from .network_exploration import ExplorationNetwork
 from .network_linear_sf import LinearSFNetwork
 from .network_dyn_sr import DynSRNetwork
+from .network_doubleAC import DoubleACNetwork
 from .network_eigenoc_montezuma import EignOCMontezumaNetwork
