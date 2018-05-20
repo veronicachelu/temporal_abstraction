@@ -97,7 +97,7 @@ class ExplorationNetwork(BaseNetwork):
     #                                    variables_collections=tf.get_collection("variables"),
     #                                    outputs_collections="activations", scope="fc")
 
-    with tf.variable_scope("sf"):
+    with tf.variable_scope("succ_feat"):
       # self.fi_o = tf.add(tf.stop_gradient(self.fi), self.options_fc)
       out = tf.stop_gradient(self.fi_relu)
       for i, nb_filt in enumerate(self.sf_layers):

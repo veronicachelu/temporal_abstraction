@@ -50,7 +50,7 @@ class DynSRNetwork():
           self.summaries_aux.append(tf.contrib.layers.summarize_activation(out))
         self.fi = out
 
-      with tf.variable_scope("sf"):
+      with tf.variable_scope("succ_feat"):
         out = self.layer_norm_fn(self.fi, relu=True)
         out = tf.stop_gradient(out)
         for i, nb_filt in enumerate(self.sf_layers):

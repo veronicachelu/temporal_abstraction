@@ -9,3 +9,4 @@ from .linear_sf_agent import LinearSFAgent
 from .dyn_sr_agent import DynSRAgent
 from .eigenoc_agent_dynamic import EigenOCAgentDyn
 from .doubleAC_agent import DoubleACAgent
+from .lstm_agent import LSTMAgent

@@ -92,7 +92,7 @@ class IntegratedNetwork(BaseNetwork):
                                  (-1, self.config.input_size[0], self.config.input_size[1], self.config.history_size))
 
   def build_SF_net(self, layer_norm=False):
-    with tf.variable_scope("sf"):
+    with tf.variable_scope("succ_feat"):
       out = tf.stop_gradient(self.fi_relu)
       for i, nb_filt in enumerate(self.sf_layers):
         out = layers.fully_connected(out, num_outputs=nb_filt * (self.nb_options + self.action_size),
