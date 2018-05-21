@@ -1,5 +1,6 @@
 import threading
 import matplotlib
+
 matplotlib.use('Agg')
 import datetime
 import os
@@ -12,10 +13,11 @@ import configs
 from env_tools import _create_environment
 from threading import Barrier, Thread
 
+
 def train(config, logdir):
   tf.reset_default_graph()
   sess = tf.Session(config=tf.ConfigProto(
-      allow_soft_placement=True, log_device_placement=False))
+    allow_soft_placement=True, log_device_placement=False))
   tf.gfile.MakeDirs(logdir)
   with sess:
     with config.unlocked:
@@ -43,13 +45,15 @@ def train(config, logdir):
       else:
         if config.behaviour_agent:
           with tf.device("/cpu:0"):
-            agents = [config.target_agent(envs[i], i, global_step, config, global_network, b) for i in range(config.num_agents-1)]
+            agents = [config.target_agent(envs[i], i, global_step, config, global_network, b) for i in
+                      range(config.num_agents - 1)]
           with tf.device("/device:GPU:0"):
-            agents.append(config.behaviour_agent(envs[config.num_agents-1], "behaviour", global_step, config, global_network, b))
+            agents.append(
+              config.behaviour_agent(envs[config.num_agents - 1], "behaviour", global_step, config, global_network, b))
         else:
           with tf.device("/cpu:0"):
             agents = [config.target_agent(envs[i], i, global_step, config, global_network, b) for i in
-                    range(config.num_agents)]
+                      range(config.num_agents)]
 
     saver = loader = utility.define_saver(exclude=(r'.*_temporary/.*',))
     if FLAGS.resume:
@@ -63,7 +67,6 @@ def train(config, logdir):
       sess.run([tf.global_variables_initializer(), tf.local_variables_initializer()])
 
     coord = tf.train.Coordinator()
-
 
     agent_threads = []
     if FLAGS.task == "matrix":
@@ -90,6 +93,7 @@ def train(config, logdir):
 
     coord.join(agent_threads)
 
+
 def recreate_directory_structure(logdir):
   if not tf.gfile.Exists(logdir):
     tf.gfile.MakeDirs(logdir)
@@ -106,7 +110,8 @@ def main(_):
     logdir = FLAGS.logdir = FLAGS.load_from
   else:
     if FLAGS.logdir and os.path.exists(FLAGS.logdir):
-      run_number = [int(f.split("-")[0]) for f in os.listdir(FLAGS.logdir) if os.path.isdir(os.path.join(FLAGS.logdir, f)) and FLAGS.config in f]
+      run_number = [int(f.split("-")[0]) for f in os.listdir(FLAGS.logdir) if
+                    os.path.isdir(os.path.join(FLAGS.logdir, f)) and FLAGS.config in f]
       run_number = max(run_number) + 1 if len(run_number) > 0 else 0
     else:
       run_number = 0
@@ -126,20 +131,20 @@ if __name__ == '__main__':
     'logdir', './logdir',
     'Base directory to store logs.')
   tf.app.flags.DEFINE_string(
-    'config', "integrated",
+    'config', "lstm",
     'Configuration to execute.')
   tf.app.flags.DEFINE_boolean(
     'train', True,
     'Training.')
   tf.app.flags.DEFINE_boolean(
     'resume', False,
-    #'resume', True,
+    # 'resume', True,
     'Resume.')
   tf.app.flags.DEFINE_string(
     'task', "sf",
     'Task nature')
   tf.app.flags.DEFINE_string(
     'load_from', None,
-    # 'load_from', "./logdir/8-integrated",
+    # 'load_from', "./logdir/13-integrated",
     'Load directory to load models from.')
   tf.app.run()

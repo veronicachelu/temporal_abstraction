@@ -98,6 +98,8 @@ class LSTMNetwork(BaseNetwork):
                                                 activation_fn=None,
                                                 variables_collections=tf.get_collection("variables"),
                                                 outputs_collections="activations", scope="eigen_q_val")
+      self.eigen_q_val =  tf.squeeze(self.eigen_q_val, 1)
+
       self.summaries_eigen_critic.append(tf.contrib.layers.summarize_activation(self.eigen_q_val))
 
   def build_intraoption_policies_nets(self):
@@ -117,6 +119,7 @@ class LSTMNetwork(BaseNetwork):
                                                 activation_fn=tf.nn.sigmoid,
                                                 variables_collections=tf.get_collection("variables"),
                                                 outputs_collections="activations", scope="termination")
+      self.termination = tf.squeeze(self.termination, 1)
       self.summaries_term.append(tf.contrib.layers.summarize_activation(self.termination))
 
   def build_option_q_val_net(self):
@@ -228,7 +231,7 @@ class LSTMNetwork(BaseNetwork):
 
     if self.config.eigen:
       with tf.name_scope('eigen_critic_loss'):
-        eigen_td_error = tf.where(self.primitive_actions_placeholder, tf.zeros((tf.shape(self.target_eigen_return)[0], 1)),
+        eigen_td_error = tf.where(self.primitive_actions_placeholder, tf.zeros_like(self.target_eigen_return),
                                   self.target_eigen_return - self.eigen_q_val)
         self.eigen_critic_loss = tf.reduce_mean(0.5 * self.config.eigen_critic_coef * tf.square(eigen_td_error))
 
@@ -237,15 +240,15 @@ class LSTMNetwork(BaseNetwork):
     self.critic_loss = tf.reduce_mean(0.5 * self.config.critic_coef * tf.square(td_error))
 
     with tf.name_scope('termination_loss'):
-      self.term_loss = tf.reduce_mean(tf.where(self.primitive_actions_placeholder, tf.zeros((tf.shape(self.q_val_o)[0], 1)),
+      self.term_loss = tf.reduce_mean(tf.where(self.primitive_actions_placeholder, tf.zeros_like(self.q_val_o),
         self.termination * (tf.stop_gradient(self.q_val_o) - tf.stop_gradient(self.v) + 0.01)))
 
     with tf.name_scope('entropy_loss'):
       self.entropy_loss = -self.entropy_coef * tf.reduce_mean(tf.where(self.primitive_actions_placeholder,
-                                                                       tf.zeros((tf.shape(self.observation)[0], self.nb_options)),
+                                                                       tf.zeros_like(self.option),
                                                                        self.option * tf.log(self.option + 1e-7)))
     with tf.name_scope('policy_loss'):
-      self.policy_loss = -tf.reduce_mean(tf.where(self.primitive_actions_placeholder, tf.zeros((tf.shape(self.responsible_actions)[0], 1)),
+      self.policy_loss = -tf.reduce_mean(tf.where(self.primitive_actions_placeholder, tf.zeros_like(self.responsible_actions),
                                                   tf.log(self.responsible_actions + 1e-7) * tf.stop_gradient(
         eigen_td_error)))
 

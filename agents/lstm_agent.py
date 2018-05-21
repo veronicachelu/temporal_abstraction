@@ -91,8 +91,9 @@ class LSTMAgent(EigenOCAgentDyn):
           while not self.done:
             self.sync_threads()
 
-            self.prev_a = self.action
-            self.prev_r = r
+            if self.episode_len > 0:
+              self.prev_a = self.action
+              self.prev_r = r
 
             self.policy_evaluation(s)
             self.rnn_state = self.next_rnn_state
@@ -206,6 +207,7 @@ class LSTMAgent(EigenOCAgentDyn):
     if not self.primitive_action:
       fi, sf, value, q_value, rnn_state_new, o_term, eigen_q_value, option = results
       self.eigen_q_value = eigen_q_value[0]
+      self.episode_eigen_q_values.append(self.eigen_q_value)
       pi = option[0]
       self.action = np.random.choice(pi, p=pi)
       self.action = np.argmax(pi == self.action)
@@ -246,6 +248,33 @@ class LSTMAgent(EigenOCAgentDyn):
       self.save_SF_matrix()
     if self.config.eigen:
       self.save_eigen_directions()
+
+  def store_option_info(self, s, s1, a, r):
+    if self.config.eigen and not self.primitive_action:
+      feed_dict = {self.local_network.observation: np.stack([s, s1]),
+                   self.local_network.prev_rewards: [self.prev_r, r],
+                   self.local_network.prev_actions: [self.prev_a, self.action],
+                   self.local_network.state_in[0]: self.rnn_state[0],
+                   self.local_network.state_in[1]: self.rnn_state[1]
+                   }
+
+      fi = self.sess.run(self.local_network.fi,
+                         feed_dict=feed_dict)
+      eigen_r = self.cosine_similarity((fi[1] - fi[0]), self.directions[self.option])
+      r_i = self.config.alpha_r * eigen_r + (1 - self.config.alpha_r) * r
+      if np.isnan(r_i):
+        print("NAN")
+
+      self.episode_buffer_option.append(
+        [s, self.option, a, r, r_i, self.primitive_action])
+    else:
+      r_i = r
+      self.episode_buffer_option.append(
+        [s, self.option, a, r, r_i, self.primitive_action])
+    self.episode_values.append(self.value)
+    self.episode_q_values.append(self.q_value)
+    self.episode_oterm.append(self.o_term)
+
 
   def option_prediction(self, s, s1, r):
     self.option_counter += 1
@@ -428,6 +457,7 @@ class LSTMAgent(EigenOCAgentDyn):
     #   _ = self.sess.run(to_run, feed_dict=feed_dict)
 
     # if len(observations_highlevel) > 0:
+    directions = [self.global_network.directions[o] if o < self.nb_options else np.zeros((self.config.sf_layers[-1])) for o in options]
     feed_dict = {self.local_network.target_return: discounted_returns,
                  self.local_network.observation: np.stack(observations, axis=0),
                  self.local_network.actions_placeholder: actions,
@@ -437,7 +467,7 @@ class LSTMAgent(EigenOCAgentDyn):
                  self.local_network.state_in[0]: self.rnn_state[0],
                  self.local_network.state_in[1]: self.rnn_state[1],
                  self.local_network.primitive_actions_placeholder: primitive_actions,
-                 self.local_network.option_direction_placeholder: self.global_network.directions[np.array(options, dtype=np.int32)],
+                 self.local_network.option_direction_placeholder: directions,
                  self.local_network.target_eigen_return: discounted_eigen_returns}
 
     try:
