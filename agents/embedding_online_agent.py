@@ -18,9 +18,9 @@ import copy
 from threading import Barrier, Thread
 FLAGS = tf.app.flags.FLAGS
 
-class LSTMAgent(EigenOCAgentDyn):
+class EmbeddingOnlineAgent(EigenOCAgentDyn):
   def __init__(self, game, thread_id, global_step, config, global_network, barrier):
-    super(LSTMAgent, self).__init__(game, thread_id, global_step, config, global_network, barrier)
+    super(EmbeddingOnlineAgent, self).__init__(game, thread_id, global_step, config, global_network, barrier)
     self.barrier = barrier
 
   def init_play(self, sess, saver):
@@ -38,29 +38,6 @@ class LSTMAgent(EigenOCAgentDyn):
     self.aux_episode_buffer = deque()
     self.ms_aux = self.ms_sf = self.ms_option = self.ms_term = None
 
-
-  def init_episode(self):
-    self.episode_buffer_sf = []
-    self.episode_buffer_option = []
-    self.episode_values = []
-    self.episode_q_values = []
-    self.episode_eigen_q_values = []
-    self.episode_oterm = []
-    self.episode_options = []
-    self.episode_actions = []
-    # self.episode_options_lengths = [[] for o in range(self.config.nb_options)]
-    self.episode_reward = 0
-    # self.episode_option_histogram = np.zeros(self.config.nb_options)
-    self.done = False
-    self.episode_len = 0
-    self.sf_counter = 0
-    self.option_counter = 0
-    self.R = 0
-    self.eigen_R = 0
-    self.prev_r = 0
-    self.prev_a = 0
-    self.rnn_state = self.local_network.state_init
-    self.next_rnn_state = self.rnn_state
 
   def play(self, sess, coord, saver):
     with sess.as_default(), sess.graph.as_default():
@@ -90,13 +67,7 @@ class LSTMAgent(EigenOCAgentDyn):
           self.option_evaluation(s)
           while not self.done:
             self.sync_threads()
-
-            if self.episode_len > 0:
-              self.prev_a = self.action
-              self.prev_r = r
-
             self.policy_evaluation(s)
-            self.rnn_state = self.next_rnn_state
 
             s1, r, self.done, s1_idx = self.env.step(self.action)
 
@@ -172,32 +143,10 @@ class LSTMAgent(EigenOCAgentDyn):
                                                                self.global_network.directions[ci]
       self.directions = self.global_network.directions
 
-  def option_evaluation(self, s):
-    feed_dict = {self.local_network.observation: np.stack([s]),
-                 self.local_network.prev_rewards: [self.prev_r],
-                 self.local_network.prev_actions: [self.prev_a],
-                 self.local_network.state_in[0]: self.rnn_state[0],
-                 self.local_network.state_in[1]: self.rnn_state[1]
-                 }
-    self.option, self.primitive_action, rnn_state_new = self.sess.run(
-      [self.local_network.current_option, self.local_network.primitive_action, self.local_network.state_out],
-      feed_dict=feed_dict)
-
-    self.option, self.primitive_action = self.option[0], self.primitive_action[0]
-    self.episode_options.append(self.option)
-    # if not self.primitive_action:
-    #   self.episode_options_lengths[self.option].append(self.episode_len)
-
   def policy_evaluation(self, s):
     # if self.total_steps > self.config.eigen_exploration_steps:
-    feed_dict = {
-                 self.local_network.observation: np.stack([s]),
-                 self.local_network.prev_rewards: [self.prev_r],
-                 self.local_network.prev_actions: [self.prev_a],
-                 self.local_network.state_in[0]: self.rnn_state[0],
-                 self.local_network.state_in[1]: self.rnn_state[1]
-                 }
-    tensor_list = [self.local_network.fi, self.local_network.sf, self.local_network.v, self.local_network.q_val, self.local_network.state_out]
+    feed_dict = {self.local_network.observation: np.stack([s])}
+    tensor_list = [self.local_network.fi, self.local_network.sf, self.local_network.v, self.local_network.q_val]
     if not self.primitive_action:
       feed_dict[self.local_network.option_direction_placeholder] = [self.global_network.directions[self.option]]
       tensor_list += [self.local_network.eigen_q_val, self.local_network.termination, self.local_network.option]
@@ -205,26 +154,24 @@ class LSTMAgent(EigenOCAgentDyn):
     results = self.sess.run(tensor_list, feed_dict=feed_dict)
 
     if not self.primitive_action:
-      fi, sf, value, q_value, rnn_state_new, o_term, eigen_q_value, option = results
+      fi, sf, value, q_value, o_term, eigen_q_value, option = results
       self.eigen_q_value = eigen_q_value[0]
-      self.episode_eigen_q_values.append(self.eigen_q_value)
       pi = option[0]
       self.action = np.random.choice(pi, p=pi)
       self.action = np.argmax(pi == self.action)
       self.o_term = o_term[0] > np.random.uniform()
     else:
-      fi, sf, value, q_value, rnn_state_new = results
+      fi, sf, value, q_value = results
       self.action = self.option - self.nb_options
       self.o_term = True
     self.q_value = q_value[0, self.option]
     self.value = value[0]
 
     sf = sf[0]
-    self.add_SF(sf)
     self.fi = fi[0]
+    self.add_SF(sf)
     # else:
     #   self.action = np.random.choice(range(self.action_size))
-    self.next_rnn_state = rnn_state_new
     self.episode_actions.append(self.action)
 
   def store_general_info(self, s, s1, a, r):
@@ -251,11 +198,7 @@ class LSTMAgent(EigenOCAgentDyn):
 
   def store_option_info(self, s, s1, a, r):
     if self.config.eigen and not self.primitive_action:
-      feed_dict = {self.local_network.observation: np.stack([s, s1]),
-                   self.local_network.prev_rewards: [self.prev_r, r],
-                   self.local_network.prev_actions: [self.prev_a, self.action],
-                   self.local_network.state_in[0]: self.rnn_state[0],
-                   self.local_network.state_in[1]: self.rnn_state[1]
+      feed_dict = {self.local_network.observation: np.stack([s, s1])
                    }
 
       fi = self.sess.run(self.local_network.fi,
@@ -284,12 +227,7 @@ class LSTMAgent(EigenOCAgentDyn):
         R = 0
         R_mix = 0
       else:
-        feed_dict = {self.local_network.observation: np.stack([s1]),
-                     self.local_network.prev_rewards: [r],
-                     self.local_network.prev_actions: [self.action],
-                     self.local_network.state_in[0]: self.rnn_state[0],
-                     self.local_network.state_in[1]: self.rnn_state[1]
-                     }
+        feed_dict = {self.local_network.observation: np.stack([s1])}
         to_run = [self.local_network.v, self.local_network.q_val]
         if not self.primitive_action:
           feed_dict[self.local_network.option_direction_placeholder] = [self.global_network.directions[self.option]]
@@ -328,16 +266,7 @@ class LSTMAgent(EigenOCAgentDyn):
     rewards = rollout[:, 3]
     fi = rollout[:, 4]
 
-    prev_rewards = [0] + rewards[:-1].tolist()
-    prev_actions = [0] + actions[:-1].tolist()
 
-    # feed_dict = {self.local_network.observation: np.stack(observations, axis=0),
-    #              self.local_network.prev_rewards: prev_rewards,
-    #              self.local_network.prev_actions: prev_actions,
-    #              self.local_network.state_in[0]: self.rnn_state[0],
-    #              self.local_network.state_in[1]: self.rnn_state[1]}
-    # fi = self.sess.run(self.local_network.fi,
-    #                    feed_dict=feed_dict)
 
     sf_plus = np.asarray(fi.tolist() + [bootstrap_sf])
     discounted_sf = discount(sf_plus, self.config.discount)[:-1]
@@ -345,10 +274,6 @@ class LSTMAgent(EigenOCAgentDyn):
     feed_dict = {self.local_network.target_sf: np.stack(discounted_sf, axis=0),
                  self.local_network.observation: np.stack(observations, axis=0),
                  self.local_network.actions_placeholder: actions,
-                 self.local_network.prev_rewards: prev_rewards,
-                 self.local_network.prev_actions: prev_actions,
-                 self.local_network.state_in[0]: self.rnn_state[0],
-                 self.local_network.state_in[1]: self.rnn_state[1],
                  self.local_network.target_next_obs: np.stack(next_observations, axis=0)}
 
     _, ms_sf, sf_loss, _, ms_aux, aux_loss = \
@@ -425,9 +350,6 @@ class LSTMAgent(EigenOCAgentDyn):
     eigen_rewards = rollout[:, 4]
     primitive_actions = rollout[:, 5]
 
-    prev_rewards = [0] + rewards[:-1].tolist()
-    prev_actions = [0] + actions[:-1].tolist()
-
     rewards_plus = np.asarray(rewards.tolist() + [bootstrap_value])
     discounted_returns = reward_discount(rewards_plus, self.config.discount)[:-1]
 
@@ -460,10 +382,6 @@ class LSTMAgent(EigenOCAgentDyn):
                  self.local_network.observation: np.stack(observations, axis=0),
                  self.local_network.actions_placeholder: actions,
                  self.local_network.options_placeholder: options,
-                 self.local_network.prev_rewards: prev_rewards,
-                 self.local_network.prev_actions: prev_actions,
-                 self.local_network.state_in[0]: self.rnn_state[0],
-                 self.local_network.state_in[1]: self.rnn_state[1],
                  self.local_network.primitive_actions_placeholder: primitive_actions,
                  self.local_network.option_direction_placeholder: directions,
                  self.local_network.target_eigen_return: discounted_eigen_returns}

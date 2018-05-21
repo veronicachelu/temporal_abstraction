@@ -2,6 +2,7 @@ from agents import IntegratedAgent
 from agents import TargetAgent
 from agents import BehaviourAgent
 from agents import EmbeddingAgent
+from agents import EmbeddingOnlineAgent
 from agents import BehaviourDynAgent
 from agents import EigenOCAgent
 from agents import LinearSFAgent
@@ -14,6 +15,7 @@ import functools
 from networks import IntegratedNetwork
 from networks import ExplorationNetwork
 from networks import EmbeddingNetwork
+from networks import EmbeddingOnlineNetwork
 from networks import EignOCNetwork
 from networks import LinearSFNetwork
 from networks import DynSRNetwork
@@ -224,6 +226,13 @@ def embedding():
   locals().update(eigenoc_dyn())
   target_agent = EmbeddingAgent
   network = EmbeddingNetwork
+
+  return locals()
+
+def embedding_online():
+  locals().update(eigenoc_dyn())
+  target_agent = EmbeddingOnlineAgent
+  network = EmbeddingOnlineNetwork
 
   return locals()
 

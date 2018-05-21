@@ -6,16 +6,15 @@ from networks.network_base import BaseNetwork
 import os
 
 
-class LSTMNetwork(BaseNetwork):
+class EmbeddingOnlineNetwork(BaseNetwork):
   def __init__(self, scope, config, action_size, total_steps_tensor=None):
-    super(LSTMNetwork, self).__init__(scope, config, action_size, total_steps_tensor)
+    super(EmbeddingOnlineNetwork, self).__init__(scope, config, action_size, total_steps_tensor)
     self.summaries_term = []
     self.summaries_critic = []
     self.summaries_eigen_critic = []
     self.build_network()
 
   def build_feature_net(self, out):
-    input = out
     with tf.variable_scope("fi"):
       for i, nb_filt in enumerate(self.fc_layers):
         out = layers.fully_connected(out, num_outputs=nb_filt,
@@ -28,43 +27,8 @@ class LSTMNetwork(BaseNetwork):
         self.summaries_sf.append(tf.contrib.layers.summarize_activation(out))
         self.summaries_aux.append(tf.contrib.layers.summarize_activation(out))
         self.summaries_option.append(tf.contrib.layers.summarize_activation(out))
-      # self.fi = out
-      self.fi_relu = tf.nn.relu(out)
-
-      self.prev_rewards = tf.placeholder(shape=[None], dtype=tf.int32, name="Prev_Rewards")
-      self.prev_rewards_onehot = tf.one_hot(self.prev_rewards, 2, dtype=tf.float32,
-                                            name="Prev_Rewards_OneHot")
-
-      self.prev_actions = tf.placeholder(shape=[None], dtype=tf.int32, name="Prev_Actions")
-      self.prev_actions_onehot = tf.one_hot(self.prev_actions, self.action_size, dtype=tf.float32,
-                                            name="Prev_Actions_OneHot")
-
-      hidden = tf.concat([self.fi_relu, self.prev_rewards_onehot, self.prev_actions_onehot], 1, name="Concatenated_input")
-
-      rnn_in = tf.expand_dims(hidden, [0], name="RNN_input")
-      step_size = tf.shape(input)[:1]
-
-      lstm_cell = tf.contrib.rnn.LayerNormBasicLSTMCell(self.sf_layers[-1])
-      c_init = np.zeros((1, lstm_cell.state_size.c), np.float32)
-      h_init = np.zeros((1, lstm_cell.state_size.h), np.float32)
-      self.state_init = [c_init, h_init]
-      c_in = tf.placeholder(tf.float32, [1, lstm_cell.state_size.c], name="c_in")
-      h_in = tf.placeholder(tf.float32, [1, lstm_cell.state_size.h], name="h_in")
-      self.state_in = (c_in, h_in)
-      state_in = tf.contrib.rnn.LSTMStateTuple(c_in, h_in)
-
-      lstm_outputs, lstm_state = tf.nn.dynamic_rnn(
-        lstm_cell, rnn_in, initial_state=state_in, sequence_length=step_size,
-        time_major=False)
-
-      lstm_c, lstm_h = lstm_state
-      self.state_out = (lstm_c[:1, :], lstm_h[:1, :])
-      self.fi = tf.reshape(lstm_outputs, [-1, self.sf_layers[-1]], name="fi_rnn")
-
-      self.summaries_sf.append(tf.contrib.layers.summarize_activation(self.fi))
-      self.summaries_aux.append(tf.contrib.layers.summarize_activation(self.fi))
-      self.summaries_option.append(tf.contrib.layers.summarize_activation(self.fi))
-
+      self.fi = out
+      self.fi_relu = tf.nn.relu(self.fi)
       self.option_direction_placeholder = tf.placeholder(shape=[None, self.sf_layers[-1]], dtype=tf.float32,
                                                          name="option_direction")
       self.fi_option = tf.add(tf.stop_gradient(self.fi), self.option_direction_placeholder)
@@ -124,7 +88,7 @@ class LSTMNetwork(BaseNetwork):
 
   def build_option_q_val_net(self):
     with tf.variable_scope("option_q"):
-      out = tf.stop_gradient(self.fi)
+      out = tf.stop_gradient(self.fi_relu)
       self.q_val = layers.fully_connected(out, num_outputs=(
         self.nb_options + self.action_size) if self.config.include_primitive_options else self.nb_options,
                                           activation_fn=None,
@@ -150,23 +114,6 @@ class LSTMNetwork(BaseNetwork):
       self.summaries_critic.append(tf.contrib.layers.summarize_activation(self.v))
 
       return out
-
-  def build_SF_net(self, layer_norm=False):
-    with tf.variable_scope("succ_feat"):
-      out = tf.stop_gradient(self.fi_relu)
-      for i, nb_filt in enumerate(self.sf_layers):
-        out = layers.fully_connected(out, num_outputs=nb_filt,
-                                     activation_fn=None,
-                                     biases_initializer=None,
-                                     variables_collections=tf.get_collection("variables"),
-                                     outputs_collections="activations", scope="sf_{}".format(i))
-        if i < len(self.sf_layers) - 1:
-          if layer_norm:
-            out = self.layer_norm_fn(out, relu=True)
-          else:
-            out = tf.nn.relu(out)
-        self.summaries_sf.append(tf.contrib.layers.summarize_activation(out))
-      self.sf = out
 
   def build_network(self):
     with tf.variable_scope(self.scope):
