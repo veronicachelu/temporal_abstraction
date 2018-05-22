@@ -64,6 +64,7 @@ class EmbeddingNetwork(BaseNetwork):
                                                 activation_fn=None,
                                                 variables_collections=tf.get_collection("variables"),
                                                 outputs_collections="activations", scope="eigen_q_val")
+      self.eigen_q_val = tf.squeeze(self.eigen_q_val, 1)
       self.summaries_eigen_critic.append(tf.contrib.layers.summarize_activation(self.eigen_q_val))
 
   def build_intraoption_policies_nets(self):
