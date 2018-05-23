@@ -84,6 +84,7 @@ class EmbeddingNetwork(BaseNetwork):
                                                 activation_fn=tf.nn.sigmoid,
                                                 variables_collections=tf.get_collection("variables"),
                                                 outputs_collections="activations", scope="termination")
+      self.termination = tf.squeeze(self.termination, 1)
       self.summaries_term.append(tf.contrib.layers.summarize_activation(self.termination))
 
   def build_option_q_val_net(self):
