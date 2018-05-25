@@ -236,6 +236,17 @@ class EmbeddingAgent(EigenOCAgentDyn):
       self.episode_buffer_option = []
       self.option_counter = 0
 
+  def SF_prediction(self, s1):
+    self.sf_counter += 1
+    if self.config.eigen and (self.sf_counter == self.config.max_update_freq or self.done):
+      feed_dict = {self.local_network.observation: np.stack([s1])}
+      sf = self.sess.run(self.local_network.sf,
+                         feed_dict=feed_dict)[0]
+      bootstrap_sf = np.zeros_like(sf) if self.done else sf
+      self.ms_sf, self.sf_loss = self.train_sf(bootstrap_sf)
+      self.episode_buffer_sf = []
+      self.sf_counter = 0
+
   def train_sf(self, bootstrap_sf):
     rollout = np.array(self.episode_buffer_sf)
 
@@ -244,8 +255,6 @@ class EmbeddingAgent(EigenOCAgentDyn):
     actions = rollout[:, 2]
     rewards = rollout[:, 3]
     fi = rollout[:, 4]
-
-
 
     sf_plus = np.asarray(fi.tolist() + [bootstrap_sf])
     discounted_sf = discount(sf_plus, self.config.discount)[:-1]
