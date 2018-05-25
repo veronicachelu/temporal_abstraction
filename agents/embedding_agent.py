@@ -234,7 +234,7 @@ class EmbeddingAgent(EigenOCAgentDyn):
           feed_dict[self.local_network.option_direction_placeholder] = [self.global_network.directions[self.option]]
           to_run.append(self.local_network.eigen_q_val)
 
-        results = self.sess.run(to_run,feed_dict=feed_dict)
+        results = self.sess.run(to_run, feed_dict=feed_dict)
 
         if self.primitive_action:
           value, q_value = results
@@ -246,8 +246,14 @@ class EmbeddingAgent(EigenOCAgentDyn):
           q_value = q_value[0, self.option]
           value = value[0]
           q_eigen = q_eigen[0]
+          if self.o_term:
+            feed_dict = {self.local_network.observation: np.repeat([s1], self.nb_options, 0),
+                         self.local_network.option_direction_placeholder: self.directions,
+                         }
+            eigen_qs = self.sess.run(self.local_network.eigen_q_val, feed_dict=feed_dict)
+            evalue = np.mean(eigen_qs)
           # R_mix = evalue if self.o_term else q_eigen
-          R_mix = value if self.o_term else q_eigen
+          R_mix = evalue if self.o_term else q_eigen
 
         R = value if self.o_term else q_value
 
@@ -277,8 +283,6 @@ class EmbeddingAgent(EigenOCAgentDyn):
     actions = rollout[:, 2]
     rewards = rollout[:, 3]
     fi = rollout[:, 4]
-
-
 
     sf_plus = np.asarray(fi.tolist() + [bootstrap_sf])
     discounted_sf = discount(sf_plus, self.config.discount)[:-1]
