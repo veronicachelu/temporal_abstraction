@@ -243,7 +243,7 @@ class EmbeddingAgent(EigenOCAgentDyn):
       sf = self.sess.run(self.local_network.sf,
                          feed_dict=feed_dict)[0]
       bootstrap_sf = np.zeros_like(sf) if self.done else sf
-      self.ms_sf, self.sf_loss = self.train_sf(bootstrap_sf)
+      self.ms_sf, self.sf_loss, self.ms_aux, self.aux_loss = self.train_sf(bootstrap_sf)
       self.episode_buffer_sf = []
       self.sf_counter = 0
 
@@ -255,6 +255,7 @@ class EmbeddingAgent(EigenOCAgentDyn):
     actions = rollout[:, 2]
     rewards = rollout[:, 3]
     fi = rollout[:, 4]
+
 
     sf_plus = np.asarray(fi.tolist() + [bootstrap_sf])
     discounted_sf = discount(sf_plus, self.config.discount)[:-1]
