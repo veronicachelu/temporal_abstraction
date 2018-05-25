@@ -177,6 +177,8 @@ class EmbeddingAgent(EigenOCAgentDyn):
       self.episode_oterm.append(self.o_term)
 
     else:
+      feed_dict = {self.local_network.observation: np.stack([s])}
+      self.fi = self.sess.run(self.local_network.fi, feed_dict=feed_dict)[0]
       self.action = np.random.choice(range(self.action_size))
 
 
