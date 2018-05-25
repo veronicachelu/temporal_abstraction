@@ -174,6 +174,9 @@ class EmbeddingAgent(EigenOCAgentDyn):
     # else:
     #   self.action = np.random.choice(range(self.action_size))
     self.episode_actions.append(self.action)
+    self.episode_values.append(self.value)
+    self.episode_q_values.append(self.q_value)
+    self.episode_oterm.append(self.o_term)
 
   def store_general_info(self, s, s1, a, r):
     if self.config.eigen:
@@ -213,9 +216,7 @@ class EmbeddingAgent(EigenOCAgentDyn):
       r_i = r
       self.episode_buffer_option.append(
         [s, self.option, a, r, r_i, self.primitive_action])
-    self.episode_values.append(self.value)
-    self.episode_q_values.append(self.q_value)
-    self.episode_oterm.append(self.o_term)
+
 
 
   def option_prediction(self, s, s1, r):
@@ -468,13 +469,13 @@ class EmbeddingAgent(EigenOCAgentDyn):
       mean_length = np.mean(self.episode_lengths[-self.config.episode_summary_interval:])
       self.summary.value.add(tag='Perf/Length', simple_value=float(mean_length))
     if len(self.episode_mean_values) != 0:
-      last_mean_value = self.episode_mean_values[-1]
+      last_mean_value = self.episode_mean_values[-self.config.episode_summary_interval:]
       self.summary.value.add(tag='Perf/Value', simple_value=float(last_mean_value))
     if len(self.episode_mean_q_values) != 0:
-      last_mean_q_value = self.episode_mean_q_values[-1]
+      last_mean_q_value = self.episode_mean_q_values[-self.config.episode_summary_interval:]
       self.summary.value.add(tag='Perf/QValue', simple_value=float(last_mean_q_value))
     if self.config.eigen and len(self.episode_mean_eigen_q_values) != 0:
-      last_mean_eigen_q_value = self.episode_mean_eigen_q_values[-1]
+      last_mean_eigen_q_value = self.episode_mean_eigen_q_values[-self.config.episode_summary_interval:]
       self.summary.value.add(tag='Perf/EigenQValue', simple_value=float(last_mean_eigen_q_value))
     if len(self.episode_mean_oterms) != 0:
       last_mean_oterm = self.episode_mean_oterms[-1]

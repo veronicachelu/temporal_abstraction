@@ -169,11 +169,11 @@ class EmbeddingNetwork(BaseNetwork):
     if self.config.eigen:
       with tf.name_scope('eigen_critic_loss'):
         eigen_td_error = self.target_eigen_return - self.eigen_q_val
-        self.eigen_critic_loss = tf.reduce_mean(0.5 * self.config.eigen_critic_coef * tf.square(eigen_td_error))
+        self.eigen_critic_loss = tf.reduce_mean(0.5 * self.config.eigen_critic_coef * huber_loss(eigen_td_error))
 
     with tf.name_scope('critic_loss'):
       td_error = self.target_return - self.q_val_o
-    self.critic_loss = tf.reduce_mean(0.5 * self.config.critic_coef * tf.square(td_error))
+    self.critic_loss = tf.reduce_mean(0.5 * self.config.critic_coef * huber_loss(td_error))
 
     with tf.name_scope('termination_loss'):
       self.term_loss = tf.reduce_mean(

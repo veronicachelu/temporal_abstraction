@@ -97,10 +97,7 @@ class BaseAgent():
     if len(self.episode_q_values) != 0:
       self.episode_mean_q_values.append(np.mean(self.episode_q_values))
     if self.config.eigen and len(self.episode_eigen_q_values) != 0:
-      try:
-        self.episode_mean_eigen_q_values.append(np.mean(self.episode_eigen_q_values))
-      except:
-        print("ERROR")
+      self.episode_mean_eigen_q_values.append(np.mean(self.episode_eigen_q_values))
     if len(self.episode_oterm) != 0:
       self.episode_mean_oterms.append(get_mode(self.episode_oterm))
     if len(self.episode_options) != 0:
