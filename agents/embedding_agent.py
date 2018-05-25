@@ -473,13 +473,13 @@ class EmbeddingAgent(EigenOCAgentDyn):
       mean_length = np.mean(self.episode_lengths[-self.config.episode_summary_interval:])
       self.summary.value.add(tag='Perf/Length', simple_value=float(mean_length))
     if len(self.episode_mean_values) != 0:
-      last_mean_value = self.episode_mean_values[-self.config.episode_summary_interval:]
+      last_mean_value =  np.mean(self.episode_mean_values[-self.config.episode_summary_interval:])
       self.summary.value.add(tag='Perf/Value', simple_value=float(last_mean_value))
     if len(self.episode_mean_q_values) != 0:
-      last_mean_q_value = self.episode_mean_q_values[-self.config.episode_summary_interval:]
+      last_mean_q_value = np.mean(self.episode_mean_q_values[-self.config.episode_summary_interval:])
       self.summary.value.add(tag='Perf/QValue', simple_value=float(last_mean_q_value))
     if self.config.eigen and len(self.episode_mean_eigen_q_values) != 0:
-      last_mean_eigen_q_value = self.episode_mean_eigen_q_values[-self.config.episode_summary_interval:]
+      last_mean_eigen_q_value = np.mean(self.episode_mean_eigen_q_values[-self.config.episode_summary_interval:])
       self.summary.value.add(tag='Perf/EigenQValue', simple_value=float(last_mean_eigen_q_value))
     if len(self.episode_mean_oterms) != 0:
       last_mean_oterm = self.episode_mean_oterms[-1]
