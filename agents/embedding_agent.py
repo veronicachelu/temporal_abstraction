@@ -80,17 +80,16 @@ class EmbeddingAgent(EigenOCAgentDyn):
 
             if self.total_steps > self.config.observation_steps:
               self.SF_prediction(s1)
-              self.next_frame_prediction()
 
             self.old_option = self.option
             self.old_primitive_action = self.primitive_action
 
-            if self.total_steps > self.config.eigen_exploration_steps:
-              if not self.done and (self.o_term or self.primitive_action):
-                self.option_evaluation(s1)
+            # if self.total_steps > self.config.eigen_exploration_steps:
+            if not self.done and (self.o_term or self.primitive_action):
+              self.option_evaluation(s1)
 
-              # if self.total_steps > self.config.eigen_exploration_steps:
-              self.option_prediction(s, s1, r)
+            # if self.total_steps > self.config.eigen_exploration_steps:
+            self.option_prediction(s, s1, r)
 
             if self.total_steps % self.config.steps_checkpoint_interval == 0 and self.name == 'worker_0':
               self.save_model()
@@ -145,38 +144,39 @@ class EmbeddingAgent(EigenOCAgentDyn):
       self.directions = self.global_network.directions
 
   def policy_evaluation(self, s):
-    if self.total_steps > self.config.eigen_exploration_steps:
-      feed_dict = {self.local_network.observation: np.stack([s])}
-      tensor_list = [self.local_network.sf, self.local_network.v, self.local_network.q_val]
-      if not self.primitive_action:
-        feed_dict[self.local_network.option_direction_placeholder] = [self.global_network.directions[self.option]]
-        tensor_list += [self.local_network.eigen_q_val, self.local_network.termination, self.local_network.option]
+    # if self.total_steps > self.config.eigen_exploration_steps:
+    feed_dict = {self.local_network.observation: np.stack([s])}
+    tensor_list = [self.local_network.fi, self.local_network.sf, self.local_network.v, self.local_network.q_val]
+    if not self.primitive_action:
+      feed_dict[self.local_network.option_direction_placeholder] = [self.global_network.directions[self.option]]
+      tensor_list += [self.local_network.eigen_q_val, self.local_network.termination, self.local_network.option]
 
-      results = self.sess.run(tensor_list, feed_dict=feed_dict)
+    results = self.sess.run(tensor_list, feed_dict=feed_dict)
 
-      if not self.primitive_action:
-        sf, value, q_value, o_term, eigen_q_value, option = results
-        self.eigen_q_value = eigen_q_value[0]
-        pi = option[0]
-        self.action = np.random.choice(pi, p=pi)
-        self.action = np.argmax(pi == self.action)
-        self.o_term = o_term[0] > np.random.uniform()
-      else:
-        sf, value, q_value = results
-        self.action = self.option - self.nb_options
-        self.o_term = True
-      self.q_value = q_value[0, self.option]
-      self.value = value[0]
-
-      sf = sf[0]
-      self.add_SF(sf)
+    if not self.primitive_action:
+      fi, sf, value, q_value, o_term, eigen_q_value, option = results
+      self.eigen_q_value = eigen_q_value[0]
+      pi = option[0]
+      self.action = np.random.choice(pi, p=pi)
+      self.action = np.argmax(pi == self.action)
+      self.o_term = o_term[0] > np.random.uniform()
     else:
-      self.action = np.random.choice(range(self.action_size))
+      fi, sf, value, q_value = results
+      self.action = self.option - self.nb_options
+      self.o_term = True
+    self.q_value = q_value[0, self.option]
+    self.value = value[0]
+
+    sf = sf[0]
+    self.fi = fi[0]
+    self.add_SF(sf)
+    # else:
+    #   self.action = np.random.choice(range(self.action_size))
     self.episode_actions.append(self.action)
 
   def store_general_info(self, s, s1, a, r):
     if self.config.eigen:
-      self.episode_buffer_sf.append([s, s1, a])
+      self.episode_buffer_sf.append([s, s1, a, r, self.fi])
     if len(self.aux_episode_buffer) == self.config.memory_size:
       self.aux_episode_buffer.popleft()
     if self.config.history_size == 3:
@@ -235,6 +235,37 @@ class EmbeddingAgent(EigenOCAgentDyn):
 
       self.episode_buffer_option = []
       self.option_counter = 0
+
+  def train_sf(self, bootstrap_sf):
+    rollout = np.array(self.episode_buffer_sf)
+
+    observations = rollout[:, 0]
+    next_observations = rollout[:, 1]
+    actions = rollout[:, 2]
+    rewards = rollout[:, 3]
+    fi = rollout[:, 4]
+
+
+
+    sf_plus = np.asarray(fi.tolist() + [bootstrap_sf])
+    discounted_sf = discount(sf_plus, self.config.discount)[:-1]
+
+    feed_dict = {self.local_network.target_sf: np.stack(discounted_sf, axis=0),
+                 self.local_network.observation: np.stack(observations, axis=0),
+                 self.local_network.actions_placeholder: actions,
+                 self.local_network.target_next_obs: np.stack(next_observations, axis=0)}
+
+    _, ms_sf, sf_loss, _, ms_aux, aux_loss = \
+      self.sess.run([self.local_network.apply_grads_sf,
+                     self.local_network.merged_summary_sf,
+                     self.local_network.sf_loss,
+                     self.local_network.apply_grads_aux,
+                     self.local_network.merged_summary_aux,
+                     self.local_network.aux_loss
+                     ],
+                    feed_dict=feed_dict)
+
+    return ms_sf, sf_loss, ms_aux, aux_loss
 
   def recompute_eigenvectors_dynamic_SVD(self):
     if self.config.eigen:
@@ -373,19 +404,19 @@ class EmbeddingAgent(EigenOCAgentDyn):
     if ms_term is not None:
       self.summary_writer.add_summary(ms_term, self.total_steps)
 
-    if self.total_steps > self.config.eigen_exploration_steps:
-      self.summary.value.add(tag='Step/Reward', simple_value=r)
-      self.summary.value.add(tag='Step/Action', simple_value=self.action)
-      self.summary.value.add(tag='Step/Option', simple_value=self.option)
-      self.summary.value.add(tag='Step/Q', simple_value=self.q_value)
-      if self.config.eigen and not self.primitive_action and self.eigen_q_value is not None:
-        self.summary.value.add(tag='Step/EigenQ', simple_value=self.eigen_q_value)
-        # self.summary.value.add(tag='Step/EigenV', simple_value=self.evalue)
-      self.summary.value.add(tag='Step/V', simple_value=self.value)
-      self.summary.value.add(tag='Step/Term', simple_value=int(self.o_term))
-      self.summary.value.add(tag='Step/R', simple_value=self.R)
-      if self.config.eigen:
-        self.summary.value.add(tag='Step/EigenR', simple_value=self.eigen_R)
+    # if self.total_steps > self.config.eigen_exploration_steps:
+    self.summary.value.add(tag='Step/Reward', simple_value=r)
+    self.summary.value.add(tag='Step/Action', simple_value=self.action)
+    self.summary.value.add(tag='Step/Option', simple_value=self.option)
+    self.summary.value.add(tag='Step/Q', simple_value=self.q_value)
+    if self.config.eigen and not self.primitive_action and self.eigen_q_value is not None:
+      self.summary.value.add(tag='Step/EigenQ', simple_value=self.eigen_q_value)
+      # self.summary.value.add(tag='Step/EigenV', simple_value=self.evalue)
+    self.summary.value.add(tag='Step/V', simple_value=self.value)
+    self.summary.value.add(tag='Step/Term', simple_value=int(self.o_term))
+    self.summary.value.add(tag='Step/R', simple_value=self.R)
+    if self.config.eigen:
+      self.summary.value.add(tag='Step/EigenR', simple_value=self.eigen_R)
 
     self.summary_writer.add_summary(self.summary, self.total_steps)
     self.summary_writer.flush()
