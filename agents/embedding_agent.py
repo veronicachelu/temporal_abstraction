@@ -156,6 +156,7 @@ class EmbeddingAgent(EigenOCAgentDyn):
     if not self.primitive_action:
       fi, sf, value, q_value, o_term, eigen_q_value, option = results
       self.eigen_q_value = eigen_q_value[0]
+      self.episode_eigen_q_values.append(self.eigen_q_value)
       pi = option[0]
       self.action = np.random.choice(pi, p=pi)
       self.action = np.argmax(pi == self.action)
@@ -195,6 +196,27 @@ class EmbeddingAgent(EigenOCAgentDyn):
       self.save_SF_matrix()
     if self.config.eigen:
       self.save_eigen_directions()
+
+  def store_option_info(self, s, s1, a, r):
+    if self.config.eigen and not self.primitive_action:
+      feed_dict = {self.local_network.observation: np.stack([s, s1])
+                   }
+
+      fi = self.sess.run(self.local_network.fi,
+                         feed_dict=feed_dict)
+      eigen_r = self.cosine_similarity((fi[1] - fi[0]), self.directions[self.option])
+      r_i = self.config.alpha_r * eigen_r + (1 - self.config.alpha_r) * r
+
+      self.episode_buffer_option.append(
+        [s, self.option, a, r, r_i, self.primitive_action])
+    else:
+      r_i = r
+      self.episode_buffer_option.append(
+        [s, self.option, a, r, r_i, self.primitive_action])
+    self.episode_values.append(self.value)
+    self.episode_q_values.append(self.q_value)
+    self.episode_oterm.append(self.o_term)
+
 
   def option_prediction(self, s, s1, r):
     self.option_counter += 1
@@ -255,6 +277,7 @@ class EmbeddingAgent(EigenOCAgentDyn):
     actions = rollout[:, 2]
     rewards = rollout[:, 3]
     fi = rollout[:, 4]
+
 
 
     sf_plus = np.asarray(fi.tolist() + [bootstrap_sf])
