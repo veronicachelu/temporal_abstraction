@@ -175,7 +175,7 @@ class EmbeddingNetwork(BaseNetwork):
 
     with tf.name_scope('termination_loss'):
       self.term_loss = tf.reduce_mean(
-        self.termination * (tf.stop_gradient(self.q_val_o) - tf.stop_gradient(self.v) + 0.01))
+        self.termination * (tf.stop_gradient(self.q_val_o) - tf.stop_gradient(self.v) + 0.1))
 
     with tf.name_scope('entropy_loss'):
       self.entropy_loss = -self.entropy_coef * tf.reduce_mean(self.option * tf.log(self.option + 1e-7))
