@@ -128,8 +128,7 @@ class EmbeddingNetwork(BaseNetwork):
       _ = self.build_option_term_net()
       _ = self.build_option_q_val_net()
 
-      if self.config.eigen:
-        self.build_eigen_option_q_val_net()
+      self.build_eigen_option_q_val_net()
 
       self.build_intraoption_policies_nets()
       self.build_SF_net(layer_norm=False)
@@ -166,10 +165,9 @@ class EmbeddingNetwork(BaseNetwork):
       aux_error = self.next_obs - self.target_next_obs
     self.aux_loss = tf.reduce_mean(self.config.aux_coef * huber_loss(aux_error))
 
-    if self.config.eigen:
-      with tf.name_scope('eigen_critic_loss'):
-        eigen_td_error = self.target_eigen_return - self.eigen_q_val
-        self.eigen_critic_loss = tf.reduce_mean(0.5 * self.config.eigen_critic_coef * huber_loss(eigen_td_error))
+    with tf.name_scope('eigen_critic_loss'):
+      eigen_td_error = self.target_eigen_return - self.eigen_q_val
+      self.eigen_critic_loss = tf.reduce_mean(0.5 * self.config.eigen_critic_coef * huber_loss(eigen_td_error))
 
     with tf.name_scope('critic_loss'):
       td_error = self.target_return - self.q_val_o

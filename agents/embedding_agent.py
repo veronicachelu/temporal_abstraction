@@ -36,7 +36,7 @@ class EmbeddingAgent(EigenOCAgentDyn):
     # self.evalue = None
     tf.logging.info("Starting worker " + str(self.thread_id))
     self.aux_episode_buffer = deque()
-    self.ms_aux = self.ms_sf = self.ms_option = self.ms_term = None
+    self.ms_aux = self.ms_sf = self.ms_option = self.ms_term = self.ms_critic = self.ms_eigen_critic = None
 
 
   def play(self, sess, coord, saver):
@@ -95,7 +95,7 @@ class EmbeddingAgent(EigenOCAgentDyn):
               self.save_model()
 
             if self.total_steps % self.config.steps_summary_interval == 0 and self.name == 'worker_0':
-              self.write_step_summary(self.ms_sf, self.ms_aux, self.ms_option, self.ms_term, r)
+              self.write_step_summary(r)
 
             s = s1
             self.episode_len += 1
@@ -123,7 +123,7 @@ class EmbeddingAgent(EigenOCAgentDyn):
 
           if self.episode_count % self.config.episode_summary_interval == 0 and self.total_steps != 0 and \
                   self.name == 'worker_0' and self.episode_count != 0:
-            self.write_episode_summary(self.ms_sf, self.ms_aux, self.ms_option, self.ms_term, r)
+            self.write_episode_summary(r)
 
           if self.name == 'worker_0':
             sess.run(self.increment_global_step)
@@ -257,14 +257,16 @@ class EmbeddingAgent(EigenOCAgentDyn):
                          }
             eigen_qs = self.sess.run(self.local_network.eigen_q_val, feed_dict=feed_dict)
             evalue = np.mean(eigen_qs)
-          # R_mix = evalue if self.o_term else q_eigen
-          R_mix = evalue if self.o_term else q_eigen
+            R_mix = evalue
+          else:
+            R_mix = q_eigen
 
         R = value if self.o_term else q_value
 
       results = self.train_option(R, R_mix)
       if results is not None:
-          self.ms_option, self.ms_term, option_loss, policy_loss, entropy_loss, critic_loss, eigen_critic_loss, term_loss, self.R, self.eigen_R = results
+          self.ms_option, self.ms_term, self.ms_critic, self.ms_eigen_critic, \
+          option_loss, policy_loss, entropy_loss, critic_loss, eigen_critic_loss, term_loss, self.R, self.eigen_R = results
 
       self.episode_buffer_option = []
       self.option_counter = 0
@@ -432,19 +434,23 @@ class EmbeddingAgent(EigenOCAgentDyn):
     else:
       return None
 
-    return ms_option, ms_term, option_loss, policy_loss, entropy_loss, critic_loss, eigen_critic_loss, term_loss, \
+    return ms_option, ms_term, ms_critic, ms_eigen_critic, option_loss, policy_loss, entropy_loss, critic_loss, eigen_critic_loss, term_loss, \
            discounted_returns[-1], discounted_eigen_returns[-1]
 
-  def write_step_summary(self, ms_sf, ms_aux, ms_option, ms_term, r):
+  def write_step_summary(self, r):
     self.summary = tf.Summary()
-    if ms_sf is not None:
-      self.summary_writer.add_summary(ms_sf, self.total_steps)
-    if ms_aux is not None:
-      self.summary_writer.add_summary(ms_aux, self.total_steps)
-    if ms_option is not None:
-      self.summary_writer.add_summary(ms_option, self.total_steps)
-    if ms_term is not None:
-      self.summary_writer.add_summary(ms_term, self.total_steps)
+    if self.ms_sf is not None:
+      self.summary_writer.add_summary(self.ms_sf, self.total_steps)
+    if self.ms_aux is not None:
+      self.summary_writer.add_summary(self.ms_aux, self.total_steps)
+    if self.ms_option is not None:
+      self.summary_writer.add_summary(self.ms_option, self.total_steps)
+    if self.ms_term is not None:
+      self.summary_writer.add_summary(self.ms_term, self.total_steps)
+    if self.ms_critic is not None:
+      self.summary_writer.add_summary(self.ms_critic, self.total_steps)
+    if self.ms_eigen_critic is not None:
+      self.summary_writer.add_summary(self.ms_eigen_critic, self.total_steps)
 
     if self.total_steps > self.config.eigen_exploration_steps:
       self.summary.value.add(tag='Step/Reward', simple_value=r)
@@ -464,7 +470,7 @@ class EmbeddingAgent(EigenOCAgentDyn):
     self.summary_writer.flush()
     # tf.logging.warning("Writing step summary....")
 
-  def write_episode_summary(self, ms_sf, ms_aux, ms_option, ms_term, r):
+  def write_episode_summary(self, r):
     self.summary = tf.Summary()
     if len(self.episode_rewards) != 0:
       last_reward = self.episode_rewards[-1]
@@ -496,4 +502,4 @@ class EmbeddingAgent(EigenOCAgentDyn):
 
     self.summary_writer.add_summary(self.summary, self.episode_count)
     self.summary_writer.flush()
-    self.write_step_summary(ms_sf, ms_aux, ms_option, ms_term, r)
+    self.write_step_summary(r)
