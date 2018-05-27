@@ -10,13 +10,16 @@ import matplotlib.pylab as plt
 import numpy as np
 from collections import deque
 import seaborn as sns
+
 sns.set()
 import random
 import matplotlib.pyplot as plt
 from agents.eigenoc_agent_dynamic import EigenOCAgentDyn
 import copy
 from threading import Barrier, Thread
+
 FLAGS = tf.app.flags.FLAGS
+
 
 class LSTMAgent(EigenOCAgentDyn):
   def __init__(self, game, thread_id, global_step, config, global_network, barrier):
@@ -36,8 +39,7 @@ class LSTMAgent(EigenOCAgentDyn):
     # self.evalue = None
     tf.logging.info("Starting worker " + str(self.thread_id))
     self.aux_episode_buffer = deque()
-    self.ms_aux = self.ms_sf = self.ms_option = self.ms_term = None
-
+    self.ms_aux = self.ms_sf = self.ms_option = self.ms_term = self.ms_critic = self.ms_eigen_critic = None
 
   def init_episode(self):
     self.episode_buffer_sf = []
@@ -124,7 +126,7 @@ class LSTMAgent(EigenOCAgentDyn):
               self.save_model()
 
             if self.total_steps % self.config.steps_summary_interval == 0 and self.name == 'worker_0':
-              self.write_step_summary(self.ms_sf, self.ms_aux, self.ms_option, self.ms_term, r)
+              self.write_step_summary(r)
 
             s = s1
             self.episode_len += 1
@@ -152,7 +154,7 @@ class LSTMAgent(EigenOCAgentDyn):
 
           if self.episode_count % self.config.episode_summary_interval == 0 and self.total_steps != 0 and \
                   self.name == 'worker_0' and self.episode_count != 0:
-            self.write_episode_summary(self.ms_sf, self.ms_aux, self.ms_option, self.ms_term, r)
+            self.write_episode_summary(r)
 
           if self.name == 'worker_0':
             sess.run(self.increment_global_step)
@@ -169,7 +171,7 @@ class LSTMAgent(EigenOCAgentDyn):
       sf_norm = np.linalg.norm(sf)
       sf_normalized = sf / (sf_norm + 1e-8)
       self.global_network.directions[ci] = self.config.tau * sf_normalized + (1 - self.config.tau) * \
-                                                               self.global_network.directions[ci]
+                                                                             self.global_network.directions[ci]
       self.directions = self.global_network.directions
 
   def option_evaluation(self, s):
@@ -191,13 +193,14 @@ class LSTMAgent(EigenOCAgentDyn):
   def policy_evaluation(self, s):
     # if self.total_steps > self.config.eigen_exploration_steps:
     feed_dict = {
-                 self.local_network.observation: np.stack([s]),
-                 self.local_network.prev_rewards: [self.prev_r],
-                 self.local_network.prev_actions: [self.prev_a],
-                 self.local_network.state_in[0]: self.rnn_state[0],
-                 self.local_network.state_in[1]: self.rnn_state[1]
-                 }
-    tensor_list = [self.local_network.fi, self.local_network.sf, self.local_network.v, self.local_network.q_val, self.local_network.state_out]
+      self.local_network.observation: np.stack([s]),
+      self.local_network.prev_rewards: [self.prev_r],
+      self.local_network.prev_actions: [self.prev_a],
+      self.local_network.state_in[0]: self.rnn_state[0],
+      self.local_network.state_in[1]: self.rnn_state[1]
+    }
+    tensor_list = [self.local_network.fi, self.local_network.sf, self.local_network.v, self.local_network.q_val,
+                   self.local_network.state_out]
     if not self.primitive_action:
       feed_dict[self.local_network.option_direction_placeholder] = [self.global_network.directions[self.option]]
       tensor_list += [self.local_network.eigen_q_val, self.local_network.termination, self.local_network.option]
@@ -205,10 +208,10 @@ class LSTMAgent(EigenOCAgentDyn):
     results = self.sess.run(tensor_list, feed_dict=feed_dict)
 
     if not self.primitive_action:
-      fi, sf, value, q_value, rnn_state_new, o_term, eigen_q_value, option = results
+      fi, sf, value, q_value, rnn_state_new, eigen_q_value, o_term, option_policy = results
       self.eigen_q_value = eigen_q_value[0]
       self.episode_eigen_q_values.append(self.eigen_q_value)
-      pi = option[0]
+      pi = option_policy[0]
       self.action = np.random.choice(pi, p=pi)
       self.action = np.argmax(pi == self.action)
       self.o_term = o_term[0] > np.random.uniform()
@@ -226,6 +229,9 @@ class LSTMAgent(EigenOCAgentDyn):
     #   self.action = np.random.choice(range(self.action_size))
     self.next_rnn_state = rnn_state_new
     self.episode_actions.append(self.action)
+    self.episode_values.append(self.value)
+    self.episode_q_values.append(self.q_value)
+    self.episode_oterm.append(self.o_term)
 
   def store_general_info(self, s, s1, a, r):
     if self.config.eigen:
@@ -269,10 +275,6 @@ class LSTMAgent(EigenOCAgentDyn):
       r_i = r
       self.episode_buffer_option.append(
         [s, self.option, a, r, r_i, self.primitive_action])
-    self.episode_values.append(self.value)
-    self.episode_q_values.append(self.q_value)
-    self.episode_oterm.append(self.o_term)
-
 
   def option_prediction(self, s, s1, r):
     self.option_counter += 1
@@ -295,7 +297,7 @@ class LSTMAgent(EigenOCAgentDyn):
           feed_dict[self.local_network.option_direction_placeholder] = [self.global_network.directions[self.option]]
           to_run.append(self.local_network.eigen_q_val)
 
-        results = self.sess.run(to_run,feed_dict=feed_dict)
+        results = self.sess.run(to_run, feed_dict=feed_dict)
 
         if self.primitive_action:
           value, q_value = results
@@ -314,7 +316,8 @@ class LSTMAgent(EigenOCAgentDyn):
 
       results = self.train_option(R, R_mix)
       if results is not None:
-          self.ms_option, self.ms_term, option_loss, policy_loss, entropy_loss, critic_loss, eigen_critic_loss, term_loss, self.R, self.eigen_R = results
+        self.ms_option, self.ms_term, self.ms_critic, self.ms_eigen_critic, \
+        option_loss, policy_loss, entropy_loss, critic_loss, eigen_critic_loss, term_loss, self.R, self.eigen_R = results
 
       self.episode_buffer_option = []
       self.option_counter = 0
@@ -330,14 +333,6 @@ class LSTMAgent(EigenOCAgentDyn):
 
     prev_rewards = [0] + rewards[:-1].tolist()
     prev_actions = [0] + actions[:-1].tolist()
-
-    # feed_dict = {self.local_network.observation: np.stack(observations, axis=0),
-    #              self.local_network.prev_rewards: prev_rewards,
-    #              self.local_network.prev_actions: prev_actions,
-    #              self.local_network.state_in[0]: self.rnn_state[0],
-    #              self.local_network.state_in[1]: self.rnn_state[1]}
-    # fi = self.sess.run(self.local_network.fi,
-    #                    feed_dict=feed_dict)
 
     sf_plus = np.asarray(fi.tolist() + [bootstrap_sf])
     discounted_sf = discount(sf_plus, self.config.discount)[:-1]
@@ -367,7 +362,7 @@ class LSTMAgent(EigenOCAgentDyn):
     if self.config.eigen:
       feed_dict = {self.local_network.matrix_sf: [self.global_network.sf_matrix_buffer]}
       eigenvect = self.sess.run(self.local_network.eigenvectors,
-                                          feed_dict=feed_dict)
+                                feed_dict=feed_dict)
       eigenvect = eigenvect[0]
 
       new_eigenvectors = self.associate_closest_vectors(self.global_network.directions, eigenvect)
@@ -395,11 +390,14 @@ class LSTMAgent(EigenOCAgentDyn):
     featured = new[self.config.first_eigenoption: self.config.nb_options + self.config.first_eigenoption]
 
     for v in featured:
-      sign = np.argmax([np.sum([np.sign(np.dot(v, x)) * (np.dot(v, x)**2) for x in self.global_network.sf_matrix_buffer]),
-       np.sum([np.sign(np.dot((-1) * v, x)) * (np.dot(v, x)**2) for x in self.global_network.sf_matrix_buffer])])
+      sign = np.argmax(
+        [np.sum([np.sign(np.dot(v, x)) * (np.dot(v, x) ** 2) for x in self.global_network.sf_matrix_buffer]),
+         np.sum([np.sign(np.dot((-1) * v, x)) * (np.dot(v, x) ** 2) for x in self.global_network.sf_matrix_buffer])])
       if sign == 1:
         v = (-1) * v
-      distances = [-np.inf if b_idx in skip_list else (np.inf if np.all(b == np.zeros(b.shape)) else self.cosine_similarity(v, b)) for b_idx, b in enumerate(self.global_network.directions)]
+      distances = [
+        -np.inf if b_idx in skip_list else (np.inf if np.all(b == np.zeros(b.shape)) else self.cosine_similarity(v, b))
+        for b_idx, b in enumerate(self.global_network.directions)]
       closest_distance_idx = np.argmax(distances)
 
       old_v_idx = closest_distance_idx
@@ -414,7 +412,6 @@ class LSTMAgent(EigenOCAgentDyn):
 
   def save_eigen_directions(self):
     np.save(self.global_network.directions_path, self.global_network.directions)
-
 
   def train_option(self, bootstrap_value, bootstrap_value_mix):
     rollout = np.array(self.episode_buffer_option)  # s, self.option, self.action, r, r_i
@@ -455,7 +452,7 @@ class LSTMAgent(EigenOCAgentDyn):
     #   _ = self.sess.run(to_run, feed_dict=feed_dict)
 
     # if len(observations_highlevel) > 0:
-    directions = [self.global_network.directions[o] if o < self.nb_options else np.zeros((self.config.sf_layers[-1])) for o in options]
+
     feed_dict = {self.local_network.target_return: discounted_returns,
                  self.local_network.observation: np.stack(observations, axis=0),
                  self.local_network.actions_placeholder: actions,
@@ -472,57 +469,60 @@ class LSTMAgent(EigenOCAgentDyn):
       _, _, _, _, ms_option, ms_critic, ms_eigen_critic, ms_term, option_loss, policy_loss, entropy_loss, critic_loss, \
       eigen_critic_loss, term_loss = \
         self.sess.run([self.local_network.apply_grads_option,
-                 self.local_network.apply_grads_critic,
-                 self.local_network.apply_grads_eigen_critic,
-                 self.local_network.apply_grads_term,
-                 self.local_network.merged_summary_option,
-                 self.local_network.merged_summary_critic,
-                 self.local_network.merged_summary_eigen_critic,
-                 self.local_network.merged_summary_term,
-                 self.local_network.option_loss,
-                 self.local_network.policy_loss,
-                 self.local_network.entropy_loss,
-                 self.local_network.critic_loss,
-                 self.local_network.eigen_critic_loss,
-                 self.local_network.term_loss
+                       self.local_network.apply_grads_critic,
+                       self.local_network.apply_grads_eigen_critic,
+                       self.local_network.apply_grads_term,
+                       self.local_network.merged_summary_option,
+                       self.local_network.merged_summary_critic,
+                       self.local_network.merged_summary_eigen_critic,
+                       self.local_network.merged_summary_term,
+                       self.local_network.option_loss,
+                       self.local_network.policy_loss,
+                       self.local_network.entropy_loss,
+                       self.local_network.critic_loss,
+                       self.local_network.eigen_critic_loss,
+                       self.local_network.term_loss
                        ], feed_dict=feed_dict)
     except:
       print("Error")
 
-
-    return ms_option, ms_term, option_loss, policy_loss, entropy_loss, critic_loss, eigen_critic_loss, term_loss, \
+    return ms_option, ms_term, ms_critic, ms_eigen_critic, option_loss, policy_loss, entropy_loss, critic_loss, eigen_critic_loss, term_loss, \
            discounted_returns[-1], discounted_eigen_returns[-1]
 
-  def write_step_summary(self, ms_sf, ms_aux, ms_option, ms_term, r):
+  def write_step_summary(self, r):
     self.summary = tf.Summary()
-    if ms_sf is not None:
-      self.summary_writer.add_summary(ms_sf, self.total_steps)
-    if ms_aux is not None:
-      self.summary_writer.add_summary(ms_aux, self.total_steps)
-    if ms_option is not None:
-      self.summary_writer.add_summary(ms_option, self.total_steps)
-    if ms_term is not None:
-      self.summary_writer.add_summary(ms_term, self.total_steps)
+    if self.ms_sf is not None:
+      self.summary_writer.add_summary(self.ms_sf, self.total_steps)
+    if self.ms_aux is not None:
+      self.summary_writer.add_summary(self.ms_aux, self.total_steps)
+    if self.ms_option is not None:
+      self.summary_writer.add_summary(self.ms_option, self.total_steps)
+    if self.ms_term is not None:
+      self.summary_writer.add_summary(self.ms_term, self.total_steps)
+    if self.ms_critic is not None:
+      self.summary_writer.add_summary(self.ms_critic, self.total_steps)
+    if self.ms_eigen_critic is not None:
+      self.summary_writer.add_summary(self.ms_eigen_critic, self.total_steps)
 
-    # if self.total_steps > self.config.eigen_exploration_steps:
-    self.summary.value.add(tag='Step/Reward', simple_value=r)
-    self.summary.value.add(tag='Step/Action', simple_value=self.action)
-    self.summary.value.add(tag='Step/Option', simple_value=self.option)
-    self.summary.value.add(tag='Step/Q', simple_value=self.q_value)
-    if self.config.eigen and not self.primitive_action and self.eigen_q_value is not None:
-      self.summary.value.add(tag='Step/EigenQ', simple_value=self.eigen_q_value)
-      # self.summary.value.add(tag='Step/EigenV', simple_value=self.evalue)
-    self.summary.value.add(tag='Step/V', simple_value=self.value)
-    self.summary.value.add(tag='Step/Term', simple_value=int(self.o_term))
-    self.summary.value.add(tag='Step/R', simple_value=self.R)
-    if self.config.eigen:
-      self.summary.value.add(tag='Step/EigenR', simple_value=self.eigen_R)
+    if self.total_steps > self.config.eigen_exploration_steps:
+      self.summary.value.add(tag='Step/Reward', simple_value=r)
+      self.summary.value.add(tag='Step/Action', simple_value=self.action)
+      self.summary.value.add(tag='Step/Option', simple_value=self.option)
+      self.summary.value.add(tag='Step/Q', simple_value=self.q_value)
+      if self.config.eigen and not self.primitive_action and self.eigen_q_value is not None:
+        self.summary.value.add(tag='Step/EigenQ', simple_value=self.eigen_q_value)
+        # self.summary.value.add(tag='Step/EigenV', simple_value=self.evalue)
+      self.summary.value.add(tag='Step/V', simple_value=self.value)
+      self.summary.value.add(tag='Step/Term', simple_value=int(self.o_term))
+      self.summary.value.add(tag='Step/R', simple_value=self.R)
+      if self.config.eigen:
+        self.summary.value.add(tag='Step/EigenR', simple_value=self.eigen_R)
 
     self.summary_writer.add_summary(self.summary, self.total_steps)
     self.summary_writer.flush()
     # tf.logging.warning("Writing step summary....")
 
-  def write_episode_summary(self, ms_sf, ms_aux, ms_option, ms_term, r):
+  def write_episode_summary(self, r):
     self.summary = tf.Summary()
     if len(self.episode_rewards) != 0:
       last_reward = self.episode_rewards[-1]
@@ -531,13 +531,13 @@ class LSTMAgent(EigenOCAgentDyn):
       mean_length = np.mean(self.episode_lengths[-self.config.episode_summary_interval:])
       self.summary.value.add(tag='Perf/Length', simple_value=float(mean_length))
     if len(self.episode_mean_values) != 0:
-      last_mean_value = self.episode_mean_values[-1]
+      last_mean_value = np.mean(self.episode_mean_values[-self.config.episode_summary_interval:])
       self.summary.value.add(tag='Perf/Value', simple_value=float(last_mean_value))
     if len(self.episode_mean_q_values) != 0:
-      last_mean_q_value = self.episode_mean_q_values[-1]
+      last_mean_q_value = np.mean(self.episode_mean_q_values[-self.config.episode_summary_interval:])
       self.summary.value.add(tag='Perf/QValue', simple_value=float(last_mean_q_value))
     if self.config.eigen and len(self.episode_mean_eigen_q_values) != 0:
-      last_mean_eigen_q_value = self.episode_mean_eigen_q_values[-1]
+      last_mean_eigen_q_value = np.mean(self.episode_mean_eigen_q_values[-self.config.episode_summary_interval:])
       self.summary.value.add(tag='Perf/EigenQValue', simple_value=float(last_mean_eigen_q_value))
     if len(self.episode_mean_oterms) != 0:
       last_mean_oterm = self.episode_mean_oterms[-1]
@@ -554,4 +554,4 @@ class LSTMAgent(EigenOCAgentDyn):
 
     self.summary_writer.add_summary(self.summary, self.episode_count)
     self.summary_writer.flush()
-    self.write_step_summary(ms_sf, ms_aux, ms_option, ms_term, r)
+    self.write_step_summary(r)

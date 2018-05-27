@@ -28,18 +28,18 @@ class LSTMNetwork(BaseNetwork):
         self.summaries_sf.append(tf.contrib.layers.summarize_activation(out))
         self.summaries_aux.append(tf.contrib.layers.summarize_activation(out))
         self.summaries_option.append(tf.contrib.layers.summarize_activation(out))
-      # self.fi = out
       self.fi_relu = tf.nn.relu(out)
 
-      self.prev_rewards = tf.placeholder(shape=[None], dtype=tf.int32, name="Prev_Rewards")
-      self.prev_rewards_onehot = tf.one_hot(self.prev_rewards, 2, dtype=tf.float32,
+      self.prev_rewards_onehot = tf.one_hot(tf.placeholder(shape=[None], dtype=tf.int32, name="Prev_Rewards"), 2,
+                                            dtype=tf.float32,
                                             name="Prev_Rewards_OneHot")
 
-      self.prev_actions = tf.placeholder(shape=[None], dtype=tf.int32, name="Prev_Actions")
-      self.prev_actions_onehot = tf.one_hot(self.prev_actions, self.action_size, dtype=tf.float32,
+      self.prev_actions_onehot = tf.one_hot(tf.placeholder(shape=[None], dtype=tf.int32, name="Prev_Actions"),
+                                            self.action_size, dtype=tf.float32,
                                             name="Prev_Actions_OneHot")
 
-      hidden = tf.concat([self.fi_relu, self.prev_rewards_onehot, self.prev_actions_onehot], 1, name="Concatenated_input")
+      hidden = tf.concat([self.fi_relu, self.prev_rewards_onehot, self.prev_actions_onehot], 1,
+                         name="Concatenated_input")
 
       rnn_in = tf.expand_dims(hidden, [0], name="RNN_input")
       step_size = tf.shape(input)[:1]
@@ -99,7 +99,6 @@ class LSTMNetwork(BaseNetwork):
                                                 variables_collections=tf.get_collection("variables"),
                                                 outputs_collections="activations", scope="eigen_q_val")
       self.eigen_q_val = tf.squeeze(self.eigen_q_val, 1)
-
       self.summaries_eigen_critic.append(tf.contrib.layers.summarize_activation(self.eigen_q_val))
 
   def build_intraoption_policies_nets(self):
@@ -153,7 +152,7 @@ class LSTMNetwork(BaseNetwork):
 
   def build_SF_net(self, layer_norm=False):
     with tf.variable_scope("succ_feat"):
-      out = tf.stop_gradient(self.fi_relu)
+      out = tf.stop_gradient(self.fi)
       for i, nb_filt in enumerate(self.sf_layers):
         out = layers.fully_connected(out, num_outputs=nb_filt,
                                      activation_fn=None,
@@ -180,8 +179,7 @@ class LSTMNetwork(BaseNetwork):
       _ = self.build_option_term_net()
       _ = self.build_option_q_val_net()
 
-      if self.config.eigen:
-        self.build_eigen_option_q_val_net()
+      self.build_eigen_option_q_val_net()
 
       self.build_intraoption_policies_nets()
       self.build_SF_net(layer_norm=False)
@@ -241,16 +239,18 @@ class LSTMNetwork(BaseNetwork):
 
     with tf.name_scope('termination_loss'):
       self.term_loss = tf.reduce_mean(tf.where(self.primitive_actions_placeholder, tf.zeros_like(self.q_val_o),
-        self.termination * (tf.stop_gradient(self.q_val_o) - tf.stop_gradient(self.v) + 0.01)))
+                                               self.termination * (
+                                               tf.stop_gradient(self.q_val_o) - tf.stop_gradient(self.v) + 0.01)))
 
     with tf.name_scope('entropy_loss'):
       self.entropy_loss = -self.entropy_coef * tf.reduce_mean(tf.where(self.primitive_actions_placeholder,
                                                                        tf.zeros_like(self.option),
                                                                        self.option * tf.log(self.option + 1e-7)))
     with tf.name_scope('policy_loss'):
-      self.policy_loss = -tf.reduce_mean(tf.where(self.primitive_actions_placeholder, tf.zeros_like(self.responsible_actions),
-                                                  tf.log(self.responsible_actions + 1e-7) * tf.stop_gradient(
-        eigen_td_error)))
+      self.policy_loss = -tf.reduce_mean(
+        tf.where(self.primitive_actions_placeholder, tf.zeros_like(self.responsible_actions),
+                 tf.log(self.responsible_actions + 1e-7) * tf.stop_gradient(
+                   eigen_td_error)))
 
     self.option_loss = self.policy_loss - self.entropy_loss
 
@@ -308,14 +308,13 @@ class LSTMNetwork(BaseNetwork):
                                                  tf.summary.scalar('cliped_gradient_norm_aux',
                                                                    tf.global_norm(self.grads_aux)),
                                                  gradient_summaries(zip(self.grads_aux, self.local_vars))])
-    options_to_merge = self.summaries_option + [tf.summary.scalar('avg_critic_loss', self.critic_loss),
+    options_to_merge = self.summaries_option + [
                                                 tf.summary.scalar('avg_entropy_loss', self.entropy_loss),
                                                 tf.summary.scalar('avg_policy_loss', self.policy_loss),
                                                 tf.summary.scalar('gradient_norm_option',
                                                                   tf.global_norm(self.gradients_option)),
                                                 tf.summary.scalar('cliped_gradient_norm_option',
                                                                   tf.global_norm(self.grads_option)),
-                                                tf.summary.scalar('avg_eigen_critic_loss', self.eigen_critic_loss),
                                                 gradient_summaries(zip(self.grads_option, self.local_vars))]
 
     self.merged_summary_option = tf.summary.merge(options_to_merge)
