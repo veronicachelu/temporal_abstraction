@@ -154,10 +154,10 @@ class EmbeddingAgent(EigenOCAgentDyn):
       results = self.sess.run(tensor_list, feed_dict=feed_dict)
 
       if not self.primitive_action:
-        fi, sf, value, q_value, o_term, eigen_q_value, option = results
+        fi, sf, value, q_value, eigen_q_value, o_term, option_policy = results
         self.eigen_q_value = eigen_q_value[0]
         self.episode_eigen_q_values.append(self.eigen_q_value)
-        pi = option[0]
+        pi = option_policy[0]
         self.action = np.random.choice(pi, p=pi)
         self.action = np.argmax(pi == self.action)
         self.o_term = o_term[0] > np.random.uniform()

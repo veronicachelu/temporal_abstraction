@@ -239,14 +239,13 @@ class EmbeddingNetwork(BaseNetwork):
                                                  tf.summary.scalar('cliped_gradient_norm_aux',
                                                                    tf.global_norm(self.grads_aux)),
                                                  gradient_summaries(zip(self.grads_aux, self.local_vars))])
-    options_to_merge = self.summaries_option + [tf.summary.scalar('avg_critic_loss', self.critic_loss),
+    options_to_merge = self.summaries_option + [
                                                 tf.summary.scalar('avg_entropy_loss', self.entropy_loss),
                                                 tf.summary.scalar('avg_policy_loss', self.policy_loss),
                                                 tf.summary.scalar('gradient_norm_option',
                                                                   tf.global_norm(self.gradients_option)),
                                                 tf.summary.scalar('cliped_gradient_norm_option',
                                                                   tf.global_norm(self.grads_option)),
-                                                tf.summary.scalar('avg_eigen_critic_loss', self.eigen_critic_loss),
                                                 gradient_summaries(zip(self.grads_option, self.local_vars))]
 
     self.merged_summary_option = tf.summary.merge(options_to_merge)
