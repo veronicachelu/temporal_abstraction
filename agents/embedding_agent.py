@@ -412,7 +412,8 @@ class EmbeddingAgent(EigenOCAgentDyn):
                  }
 
     try:
-      _, _, _, _, ms_option, ms_critic, ms_eigen_critic, ms_term, option_loss, policy_loss, entropy_loss, critic_loss, eigen_critic_loss, term_loss = \
+      _, _, _, _, ms_option, ms_critic, ms_eigen_critic, ms_term, option_loss, policy_loss, entropy_loss, critic_loss,\
+      eigen_critic_loss, term_loss = \
         self.sess.run([self.local_network.apply_grads_option,
                        self.local_network.apply_grads_critic,
                        self.local_network.apply_grads_eigen_critic,
@@ -425,6 +426,7 @@ class EmbeddingAgent(EigenOCAgentDyn):
                        self.local_network.policy_loss,
                        self.local_network.entropy_loss,
                        self.local_network.critic_loss,
+                       self.local_network.eigen_critic_loss,
                        self.local_network.term_loss
                        ], feed_dict=feed_dict)
     except:
