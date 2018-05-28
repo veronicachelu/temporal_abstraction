@@ -21,7 +21,6 @@ FLAGS = tf.app.flags.FLAGS
 class EigenOCAgentDyn(EigenOCAgent):
   def __init__(self, game, thread_id, global_step, config, global_network, barrier):
     super(EigenOCAgentDyn, self).__init__(game, thread_id, global_step, config, global_network, barrier)
-    # self.sf_matrix_path = os.path.join(config.logdir, "sf_matrix.npy")
     self.barrier = barrier
 
   def play(self, sess, coord, saver):
@@ -42,8 +41,6 @@ class EigenOCAgentDyn(EigenOCAgent):
           if self.name == "worker_0" and self.episode_count > 0 and self.config.eigen and self.config.behaviour_agent is None:
             if self.config.eigen_approach == "SVD":
               self.recompute_eigenvectors_dynamic_SVD()
-            # else:
-            #   self.recompute_eigenvectors_dynamic_NN()
 
           if self.config.sr_matrix is not None:
             self.load_directions()
@@ -59,6 +56,9 @@ class EigenOCAgentDyn(EigenOCAgent):
             s1, r, self.done, s1_idx = self.env.step(self.action)
 
             r = np.clip(r, -1, 1)
+
+            self.option_terminate(s1)
+
             if self.done:
               s1 = s
 
@@ -74,9 +74,6 @@ class EigenOCAgentDyn(EigenOCAgent):
                 self.option_prediction(s, s1, r)
 
                 if not self.done and (self.o_term or self.primitive_action):
-                  # if not self.primitive_action:
-                  #   self.episode_options_lengths[self.option][-1] = self.episode_len - \
-                  #                                                   self.episode_options_lengths[self.option][-1]
                   self.option_evaluation(s1)
 
               if self.total_steps % self.config.steps_checkpoint_interval == 0 and self.name == 'worker_0':
@@ -88,6 +85,7 @@ class EigenOCAgentDyn(EigenOCAgent):
             s = s1
             self.episode_len += 1
             self.total_steps += 1
+            self.o_tracker_steps[self.option] += 1
             sess.run(self.increment_total_steps_tensor)
 
           self.log_episode()
@@ -115,6 +113,7 @@ class EigenOCAgentDyn(EigenOCAgent):
 
           if self.name == 'worker_0':
             sess.run(self.increment_global_step)
+
           self.episode_count += 1
 
   def add_SF(self, sf):
@@ -131,24 +130,35 @@ class EigenOCAgentDyn(EigenOCAgent):
                                                                self.global_network.directions[ci]
       self.directions = self.global_network.directions
 
+  def option_terminate(self, s1):
+    if self.total_steps > self.config.eigen_exploration_steps:
+      if self.config.include_primitive_options and self.primitive_action:
+        self.o_term = True
+      else:
+        feed_dict = {self.local_network.observation: np.stack([s1])}
+        o_term = self.sess.run(self.local_network.termination, feed_dict=feed_dict)
+        self.o_term = o_term[0, self.option] > np.random.uniform()
+    else:
+      self.action = np.random.choice(range(self.action_size))
+      self.o_term = True
+    self.episode_oterm.append(self.o_term)
+
   def policy_evaluation(self, s):
     if self.total_steps > self.config.eigen_exploration_steps:
       feed_dict = {self.local_network.observation: np.stack([s])}
 
       if self.config.eigen:
         tensor_list = [self.local_network.sf, self.local_network.options, self.local_network.v, self.local_network.q_val,
-                       self.local_network.termination, self.local_network.eigen_q_val, self.local_network.eigenv]
-        sf, options, value, q_value, o_term, eigen_q_value, evalue = self.sess.run(tensor_list, feed_dict=feed_dict)
+                       self.local_network.eigen_q_val, self.local_network.eigenv]
+        sf, options, value, q_value, eigen_q_value, evalue = self.sess.run(tensor_list, feed_dict=feed_dict)
         if not self.primitive_action:
           self.eigen_q_value = eigen_q_value[0, self.option]
           pi = options[0, self.option]
           self.action = np.random.choice(pi, p=pi)
           self.action = np.argmax(pi == self.action)
-          self.o_term = o_term[0, self.option] > np.random.uniform()
           self.evalue = evalue[0]
         else:
           self.action = self.option - self.nb_options
-          self.o_term = True
         self.q_value = q_value[0, self.option]
         self.value = value[0]
 
@@ -156,24 +166,24 @@ class EigenOCAgentDyn(EigenOCAgent):
           sf = sf[0]
           self.add_SF(sf)
       else:
-        tensor_list = [self.local_network.options, self.local_network.v, self.local_network.q_val,
-                       self.local_network.termination]
-        options, value, q_value, o_term = self.sess.run(tensor_list, feed_dict=feed_dict)
+        tensor_list = [self.local_network.options, self.local_network.v, self.local_network.q_val]
+        options, value, q_value = self.sess.run(tensor_list, feed_dict=feed_dict)
 
         if self.config.include_primitive_options and self.primitive_action:
           self.action = self.option - self.nb_options
-          self.o_term = True
         else:
           pi = options[0, self.option]
           self.action = np.random.choice(pi, p=pi)
           self.action = np.argmax(pi == self.action)
-          self.o_term = o_term[0, self.option] > np.random.uniform()
         self.q_value = q_value[0, self.option]
         self.value = value[0]
-
+        self.episode_values.append(self.value)
+        self.episode_q_values.append(self.q_value)
     else:
       self.action = np.random.choice(range(self.action_size))
+      self.primitive_action = True
     self.episode_actions.append(self.action)
+
 
   def store_general_info(self, s, s1, a, r):
     if self.config.eigen:
