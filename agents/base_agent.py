@@ -142,6 +142,10 @@ class BaseAgent():
     # tf.logging.warning("Writing step summary....")
 
   def write_episode_summary(self, ms_sf, ms_aux, ms_option, r):
+    csv_things = list(self.o_tracker_chosen) + list(self.o_tracker_steps)
+    with open(os.path.join(self.config.stage_logdir, "data.csv"), "a") as myfile:
+      myfile.write(",".join([str(cc) for cc in csv_things]) + "\n")
+
     self.summary = tf.Summary()
     if len(self.episode_rewards) != 0:
       last_reward = self.episode_rewards[-1]
