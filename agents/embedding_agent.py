@@ -40,6 +40,7 @@ class EmbeddingAgent(EigenOCAgentDyn):
     tf.logging.info("Starting worker " + str(self.thread_id))
     self.aux_episode_buffer = deque()
     self.ms_aux = self.ms_sf = self.ms_option = self.ms_term = self.ms_critic = self.ms_eigen_critic = None
+    # self.init_tracker()
 
   def play(self, sess, coord, saver):
     with sess.as_default(), sess.graph.as_default():

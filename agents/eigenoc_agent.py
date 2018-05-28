@@ -40,6 +40,9 @@ class EigenOCAgent(BaseAgent):
     self.aux_episode_buffer = deque()
     self.ms_aux = self.ms_sf = self.ms_option = None
 
+    if self.name == "worker_0":
+      self.init_tracker()
+
   def init_episode(self):
     self.episode_buffer_sf = []
     self.episode_buffer_option = []
@@ -60,8 +63,10 @@ class EigenOCAgent(BaseAgent):
     self.eigen_R = 0
     self.discount_delib_cost = self.config.discount_delib_cost
 
-    self.o_tracker_chosen = np.zeros(self.nb_options + self.action_size, )
-    self.o_tracker_steps = np.zeros(self.nb_options + self.action_size, )
+    self.o_tracker_chosen = np.zeros((self.nb_options + self.action_size, ), dtype=np.int32)
+    self.o_tracker_steps = np.zeros(self.nb_options + self.action_size, dtype=np.int32)
+    self.termination_counter = 0
+    self.frame_counter = 0
 
   def SF_prediction(self, s1):
     self.sf_counter += 1
@@ -242,6 +247,9 @@ class EigenOCAgent(BaseAgent):
       self.action = np.random.choice(range(self.action_size))
       self.o_term = True
     self.episode_oterm.append(self.o_term)
+
+    self.termination_counter += int(self.o_term)
+    self.frame_counter += 1
 
   def policy_evaluation(self, s):
     if self.total_steps > self.config.eigen_exploration_steps:

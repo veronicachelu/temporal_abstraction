@@ -89,6 +89,21 @@ class BaseAgent():
                                                                                   self.total_steps, self.episode_len,
                                                                                   self.episode_reward))
 
+
+  def init_tracker(self):
+    csv_things = ["steps", "reward", "term_prob"]
+    csv_things += ["opt_chosen" + str(ccc) for ccc in range(self.nb_options + self.action_size)]
+    csv_things += ["opt_steps" + str(ccc) for ccc in range(self.nb_options + self.action_size)]
+    with open(os.path.join(self.config.stage_logdir, "data.csv"), "a") as myfile:
+      myfile.write(",".join([str(cc) for cc in csv_things]) + "\n")
+
+  def tracker(self):
+    term_prob = float(self.termination_counter) / self.frame_counter * 100
+    csv_things = [self.episode_len, self.episode_reward, round(term_prob, 1)] + list(self.o_tracker_chosen) + list(
+      self.o_tracker_steps)
+    with open(os.path.join(self.config.stage_logdir, "data.csv"), "a") as myfile:
+      myfile.write(",".join([str(cc) for cc in csv_things]) + "\n")
+
   def update_episode_stats(self):
     self.episode_rewards.append(self.episode_reward)
     self.episode_lengths.append(self.episode_len)
@@ -142,9 +157,7 @@ class BaseAgent():
     # tf.logging.warning("Writing step summary....")
 
   def write_episode_summary(self, ms_sf, ms_aux, ms_option, r):
-    csv_things = list(self.o_tracker_chosen) + list(self.o_tracker_steps)
-    with open(os.path.join(self.config.stage_logdir, "data.csv"), "a") as myfile:
-      myfile.write(",".join([str(cc) for cc in csv_things]) + "\n")
+    self.tracker()
 
     self.summary = tf.Summary()
     if len(self.episode_rewards) != 0:
