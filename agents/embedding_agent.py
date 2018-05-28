@@ -144,7 +144,6 @@ class EmbeddingAgent(EigenOCAgentDyn):
       self.o_term = o_term[0] > np.random.uniform()
     else:
       self.o_term = True
-
     self.episode_oterm.append(self.o_term)
 
   def add_SF(self, sf):
@@ -199,12 +198,6 @@ class EmbeddingAgent(EigenOCAgentDyn):
   def store_general_info(self, s, s1, a, r):
     if self.config.eigen:
       self.episode_buffer_sf.append([s, s1, a, r, self.fi])
-    # if len(self.aux_episode_buffer) == self.config.memory_size:
-    #   self.aux_episode_buffer.popleft()
-    # if self.config.history_size == 3:
-    #   self.aux_episode_buffer.append([s, s1, a])
-    # else:
-    #   self.aux_episode_buffer.append([s, s1[:, :, -2:-1], a])
     self.episode_reward += r
 
   def save_model(self):

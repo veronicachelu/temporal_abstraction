@@ -263,7 +263,7 @@ class EigenOCAgent(BaseAgent):
         self.value = value[0]
       else:
         tensor_list = [self.local_network.options, self.local_network.v, self.local_network.q_val]
-        options, value, q_value, o_term = self.sess.run(tensor_list, feed_dict=feed_dict)
+        options, value, q_value = self.sess.run(tensor_list, feed_dict=feed_dict)
 
         if self.config.include_primitive_options and self.primitive_action:
           self.action = self.option - self.nb_options
@@ -273,12 +273,13 @@ class EigenOCAgent(BaseAgent):
           self.action = np.argmax(pi == self.action)
         self.q_value = q_value[0, self.option]
         self.value = value[0]
+        self.episode_values.append(self.value)
+        self.episode_q_values.append(self.q_value)
     else:
       self.action = np.random.choice(range(self.action_size))
+      self.primitive_action = True
     self.episode_actions.append(self.action)
-    self.episode_values.append(self.value)
-    self.episode_q_values.append(self.q_value)
-    self.episode_oterm.append(self.o_term)
+
 
   def store_general_info(self, s, s1, a, r):
     if self.config.eigen:
