@@ -74,6 +74,9 @@ class EmbeddingAgent(EigenOCAgentDyn):
             s1, r, self.done, s1_idx = self.env.step(self.action)
 
             r = np.clip(r, -1, 1)
+
+            self.option_terminate(s1)
+
             if self.done:
               s1 = s
 
@@ -85,6 +88,7 @@ class EmbeddingAgent(EigenOCAgentDyn):
 
             self.old_option = self.option
             self.old_primitive_action = self.primitive_action
+
 
             if self.total_steps > self.config.eigen_exploration_steps:
               if not self.done and (self.o_term or self.primitive_action):
@@ -102,6 +106,7 @@ class EmbeddingAgent(EigenOCAgentDyn):
             s = s1
             self.episode_len += 1
             self.total_steps += 1
+            self.o_tracker_steps[self.option] += 1
             sess.run(self.increment_total_steps_tensor)
 
           self.log_episode()
@@ -131,6 +136,17 @@ class EmbeddingAgent(EigenOCAgentDyn):
             sess.run(self.increment_global_step)
           self.episode_count += 1
 
+  def option_terminate(self, s1):
+    if not self.primitive_action:
+      feed_dict = {self.local_network.observation: np.stack([s1]),
+                   self.local_network.option_direction_placeholder: self.global_network.directions[self.option]}
+      o_term = self.sess.run(self.local_network.termination, feed_dict=feed_dict)
+      self.o_term = o_term[0] > np.random.uniform()
+    else:
+      self.o_term = True
+
+    self.episode_oterm.append(self.o_term)
+
   def add_SF(self, sf):
     if self.config.eigen_approach == "SVD":
       self.global_network.sf_matrix_buffer[0] = sf.copy()
@@ -151,22 +167,20 @@ class EmbeddingAgent(EigenOCAgentDyn):
       tensor_list = [self.local_network.fi, self.local_network.sf, self.local_network.v, self.local_network.q_val]
       if not self.primitive_action:
         feed_dict[self.local_network.option_direction_placeholder] = [self.global_network.directions[self.option]]
-        tensor_list += [self.local_network.eigen_q_val, self.local_network.termination, self.local_network.option]
+        tensor_list += [self.local_network.eigen_q_val, self.local_network.option]
 
       results = self.sess.run(tensor_list, feed_dict=feed_dict)
 
       if not self.primitive_action:
-        fi, sf, value, q_value, eigen_q_value, o_term, option_policy = results
+        fi, sf, value, q_value, eigen_q_value, option_policy = results
         self.eigen_q_value = eigen_q_value[0]
         self.episode_eigen_q_values.append(self.eigen_q_value)
         pi = option_policy[0]
         self.action = np.random.choice(pi, p=pi)
         self.action = np.argmax(pi == self.action)
-        self.o_term = o_term[0] > np.random.uniform()
       else:
         fi, sf, value, q_value = results
         self.action = self.option - self.nb_options
-        self.o_term = True
       self.q_value = q_value[0, self.option]
       self.value = value[0]
 
@@ -176,12 +190,11 @@ class EmbeddingAgent(EigenOCAgentDyn):
       self.episode_actions.append(self.action)
       self.episode_values.append(self.value)
       self.episode_q_values.append(self.q_value)
-      self.episode_oterm.append(self.o_term)
-
     else:
       feed_dict = {self.local_network.observation: np.stack([s])}
       self.fi = self.sess.run(self.local_network.fi, feed_dict=feed_dict)[0]
       self.action = np.random.choice(range(self.action_size))
+      self.primitive_action = True
 
   def store_general_info(self, s, s1, a, r):
     if self.config.eigen:

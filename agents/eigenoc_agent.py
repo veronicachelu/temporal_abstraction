@@ -58,6 +58,10 @@ class EigenOCAgent(BaseAgent):
     self.option_counter = 0
     self.R = 0
     self.eigen_R = 0
+    self.discount_delib_cost = self.config.discount_delib_cost
+
+    self.o_tracker_chosen = np.zeros(self.nb_options + self.action_size, )
+    self.o_tracker_steps = np.zeros(self.nb_options + self.action_size, )
 
   def SF_prediction(self, s1):
     self.sf_counter += 1
@@ -122,8 +126,6 @@ class EigenOCAgent(BaseAgent):
       self.option_counter = 0
 
   def play(self, sess, coord, saver):
-    _t = {'recompute_eigenvectors_classic': Timer(), "next_frame_prediction": Timer(), 'option_prediction': Timer(),
-          'SF_prediction': Timer()}
     with sess.as_default(), sess.graph.as_default():
       self.init_play(sess, saver)
 
@@ -140,11 +142,7 @@ class EigenOCAgent(BaseAgent):
 
           if self.name == "worker_0" and self.episode_count > 0 and self.config.eigen and self.config.behaviour_agent is None:
             if self.config.eigen_approach == "SVD":
-              if self.config.logging:
-                _t['recompute_eigenvectors_classic'].tic()
               self.recompute_eigenvectors_svd()
-              if self.config.logging:
-                _t['recompute_eigenvectors_classic'].toc()
             else:
               self.recompute_eigenvectors_NN()
 
@@ -161,6 +159,9 @@ class EigenOCAgent(BaseAgent):
             s1, r, self.done, s1_idx = self.env.step(self.action)
 
             r = np.clip(r, -1, 1)
+
+            self.option_terminate(s1)
+
             if self.done:
               s1 = s
 
@@ -169,28 +170,13 @@ class EigenOCAgent(BaseAgent):
 
             if self.total_steps > self.config.observation_steps:
               if self.config.behaviour_agent is None and self.config.eigen:
-                if self.config.logging:
-                  _t['SF_prediction'].tic()
                 self.SF_prediction(s1)
-                if self.config.logging:
-                  _t['SF_prediction'].toc()
-              if self.config.logging:
-                _t['next_frame_prediction'].tic()
               self.next_frame_prediction()
-              if self.config.logging:
-                _t['next_frame_prediction'].toc()
 
               if self.total_steps > self.config.eigen_exploration_steps:
-                if self.config.logging:
-                  _t['option_prediction'].tic()
                 self.option_prediction(s, s1, r)
-                if self.config.logging:
-                  _t['option_prediction'].tic()
 
                 if not self.done and (self.o_term or self.primitive_action):
-                  # if not self.primitive_action:
-                  #   self.episode_options_lengths[self.option][-1] = self.episode_len - \
-                  #                                                   self.episode_options_lengths[self.option][-1]
                   self.option_evaluation(s1)
 
               if self.total_steps % self.config.steps_checkpoint_interval == 0 and self.name == 'worker_0':
@@ -202,6 +188,7 @@ class EigenOCAgent(BaseAgent):
             s = s1
             self.episode_len += 1
             self.total_steps += 1
+            self.o_tracker_steps[self.option] += 1
             sess.run(self.increment_total_steps_tensor)
 
           self.log_episode()
@@ -229,12 +216,6 @@ class EigenOCAgent(BaseAgent):
 
           if self.name == 'worker_0':
             sess.run(self.increment_global_step)
-            if self.config.logging:
-              tf.logging.info(
-                'recompute_eigenvectors_classic time is %f' % _t['recompute_eigenvectors_classic'].average_time)
-              tf.logging.info('next_frame_prediction time is %f' % _t['next_frame_prediction'].average_time)
-              tf.logging.info('option_prediction time is %f' % _t['option_prediction'].average_time)
-              tf.logging.info('SF_prediction time is %f' % _t['SF_prediction'].average_time)
 
           self.episode_count += 1
 
@@ -243,9 +224,24 @@ class EigenOCAgent(BaseAgent):
     self.option, self.primitive_action = self.sess.run(
       [self.local_network.current_option, self.local_network.primitive_action], feed_dict=feed_dict)
     self.option, self.primitive_action = self.option[0], self.primitive_action[0]
+    self.o_tracker_chosen[self.option] += 1
     self.episode_options.append(self.option)
+
     # if not self.primitive_action:
     #   self.episode_options_lengths[self.option].append(self.episode_len)
+
+  def option_terminate(self, s1):
+    if self.total_steps > self.config.eigen_exploration_steps:
+      if self.config.include_primitive_options and self.primitive_action:
+        self.o_term = True
+      else:
+        feed_dict = {self.local_network.observation: np.stack([s1])}
+        o_term = self.sess.run(self.local_network.termination, feed_dict=feed_dict)
+        self.o_term = o_term[0, self.option] > np.random.uniform()
+    else:
+      self.action = np.random.choice(range(self.action_size))
+      self.o_term = True
+    self.episode_oterm.append(self.o_term)
 
   def policy_evaluation(self, s):
     if self.total_steps > self.config.eigen_exploration_steps:
@@ -253,40 +249,36 @@ class EigenOCAgent(BaseAgent):
 
       if self.config.eigen:
         tensor_list = [self.local_network.options, self.local_network.v, self.local_network.q_val,
-                       self.local_network.termination, self.local_network.eigen_q_val, self.local_network.eigenv]
-        options, value, q_value, o_term, eigen_q_value, evalue = self.sess.run(tensor_list, feed_dict=feed_dict)
+                       self.local_network.eigen_q_val, self.local_network.eigenv]
+        options, value, q_value, eigen_q_value, evalue = self.sess.run(tensor_list, feed_dict=feed_dict)
         if not self.primitive_action:
           self.eigen_q_value = eigen_q_value[0, self.option]
           pi = options[0, self.option]
           self.action = np.random.choice(pi, p=pi)
           self.action = np.argmax(pi == self.action)
-          self.o_term = o_term[0, self.option] > np.random.uniform()
           self.evalue = evalue[0]
         else:
           self.action = self.option - self.nb_options
-          self.o_term = True
         self.q_value = q_value[0, self.option]
         self.value = value[0]
-
       else:
-        tensor_list = [self.local_network.options, self.local_network.v, self.local_network.q_val,
-                       self.local_network.termination]
+        tensor_list = [self.local_network.options, self.local_network.v, self.local_network.q_val]
         options, value, q_value, o_term = self.sess.run(tensor_list, feed_dict=feed_dict)
 
         if self.config.include_primitive_options and self.primitive_action:
           self.action = self.option - self.nb_options
-          self.o_term = True
         else:
           pi = options[0, self.option]
           self.action = np.random.choice(pi, p=pi)
           self.action = np.argmax(pi == self.action)
-          self.o_term = o_term[0, self.option] > np.random.uniform()
         self.q_value = q_value[0, self.option]
         self.value = value[0]
-
     else:
       self.action = np.random.choice(range(self.action_size))
     self.episode_actions.append(self.action)
+    self.episode_values.append(self.value)
+    self.episode_q_values.append(self.q_value)
+    self.episode_oterm.append(self.o_term)
 
   def store_general_info(self, s, s1, a, r):
     if self.config.eigen:
@@ -312,9 +304,6 @@ class EigenOCAgent(BaseAgent):
       r_i = r
       self.episode_buffer_option.append(
         [s, self.option, a, r, r_i, self.primitive_action])
-    self.episode_values.append(self.value)
-    self.episode_q_values.append(self.q_value)
-    self.episode_oterm.append(self.o_term)
 
   def recompute_eigenvectors_NN(self):
     if self.config.eigen:

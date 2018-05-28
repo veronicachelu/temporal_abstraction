@@ -167,8 +167,10 @@ class BaseAgent():
     if len(self.episode_mean_options) != 0:
       last_frequent_action = self.episode_mean_actions[-1]
       self.summary.value.add(tag='Perf/FreqActions', simple_value=last_frequent_action)
-    # for op in range(self.config.nb_options):
-    #   self.summary.value.add(tag='Perf/Option_length_{}'.format(op), simple_value=self.episode_mean_options_lengths[op])
+    for op in range(self.nb_options + self.action_size):
+      self.summary.value.add(tag='Perf/Options_chosen_{}'.format(op), simple_value=self.o_tracker_chosen[op])
+    for op in range(self.nb_options + self.action_size):
+      self.summary.value.add(tag='Perf/Options_steps_{}'.format(op), simple_value=self.o_tracker_steps[op])
     self.summary.value.add(tag='Perf/Goal_position', simple_value=self.goal_position)
 
     self.summary_writer.add_summary(self.summary, self.episode_count)
@@ -187,8 +189,6 @@ class BaseAgent():
     if np.isnan(res):
       print("NAN")
     return res
-
-
 
   def write_eval_summary(self, eval_episodes_won, mean_ep_length):
     self.summary = tf.Summary()
