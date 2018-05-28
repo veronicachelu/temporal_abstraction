@@ -61,12 +61,12 @@ class EigenOCAgent(BaseAgent):
     self.option_counter = 0
     self.R = 0
     self.eigen_R = 0
-    self.discount_delib_cost = self.config.discount_delib_cost
 
     self.o_tracker_chosen = np.zeros((self.nb_options + self.action_size, ), dtype=np.int32)
     self.o_tracker_steps = np.zeros(self.nb_options + self.action_size, dtype=np.int32)
     self.termination_counter = 0
     self.frame_counter = 0
+    # self.delib = self.config.delib_cost_disc
 
   def SF_prediction(self, s1):
     self.sf_counter += 1
@@ -84,9 +84,9 @@ class EigenOCAgent(BaseAgent):
                 self.total_steps % self.config.aux_update_freq == 0:
       self.ms_aux, self.aux_loss = self.train_aux()
 
-  def option_prediction(self, s, s1, r):
+  def option_prediction(self, s, s1):
     self.option_counter += 1
-    self.store_option_info(s, s1, self.action, r)
+    self.store_option_info(s, s1, self.action, self.reward)
 
     if self.option_counter == self.config.max_update_freq or self.done or (
           self.o_term and self.option_counter >= self.config.min_update_freq):
@@ -102,7 +102,7 @@ class EigenOCAgent(BaseAgent):
             feed_dict=feed_dict)
           q_value = q_value[0, self.option]
           value = value[0]
-          evalue = evalue[0]
+          # evalue = evalue[0]
 
           if self.primitive_action:
             R_mix = value if self.o_term else q_value
@@ -163,14 +163,16 @@ class EigenOCAgent(BaseAgent):
 
             s1, r, self.done, s1_idx = self.env.step(self.action)
 
-            r = np.clip(r, -1, 1)
+            self.reward = np.clip(r, -1, 1)
 
             self.option_terminate(s1)
+
+            self.reward_deliberation()
 
             if self.done:
               s1 = s
 
-            self.store_general_info(s, s1, self.action, r)
+            self.store_general_info(s, s1, self.action, self.reward)
             self.log_timestep()
 
             if self.total_steps > self.config.observation_steps:
@@ -179,7 +181,7 @@ class EigenOCAgent(BaseAgent):
               self.next_frame_prediction()
 
               if self.total_steps > self.config.eigen_exploration_steps:
-                self.option_prediction(s, s1, r)
+                self.option_prediction(s, s1)
 
                 if not self.done and (self.o_term or self.primitive_action):
                   self.option_evaluation(s1)
@@ -223,6 +225,9 @@ class EigenOCAgent(BaseAgent):
             sess.run(self.increment_global_step)
 
           self.episode_count += 1
+
+  def reward_deliberation(self):
+    self.reward = self.reward - (float(self.o_term) * self.config.delib_margin * (1 - float(self.done)))
 
   def option_evaluation(self, s):
     feed_dict = {self.local_network.observation: np.stack([s])}
@@ -295,6 +300,7 @@ class EigenOCAgent(BaseAgent):
     if len(self.aux_episode_buffer) == self.config.memory_size:
       self.aux_episode_buffer.popleft()
     self.aux_episode_buffer.append([s, s1, a])
+
     self.episode_reward += r
 
   def store_option_info(self, s, s1, a, r):
@@ -432,21 +438,22 @@ class EigenOCAgent(BaseAgent):
                     feed_dict=feed_dict)
     return ms, aux_loss
 
-  def train_option(self, bootstrap_value, bootstrap_value_mix):
-    rollout = np.array(self.episode_buffer_option)  # s, self.option, self.action, r, r_i
+  def train_option(self, bootstrap_value, bootstrap_value_mix): #
+    rollout = np.array(self.episode_buffer_option)  # s, self.option, a, r, r_i, self.primitive_action, delib s, self.option, self.action, r, r_i
     observations = rollout[:, 0]
     options = rollout[:, 1]
     actions = rollout[:, 2]
     rewards = rollout[:, 3]
     eigen_rewards = rollout[:, 4]
     primitive_actions = rollout[:, 5]
+    # delib_cost = rollout[:, 6]
 
     rewards_plus = np.asarray(rewards.tolist() + [bootstrap_value])
     discounted_returns = reward_discount(rewards_plus, self.config.discount)[:-1]
 
     options_primitive, options_highlevel, actions_primitive, actions_highlevel, \
     discounted_returns_primitive, discounted_returns_highlevel, \
-    observations_primitive, observations_highlevel = [], [], [], [], [], [], [], []
+    observations_primitive, observations_highlevel, delib_cost_highlevel = [], [], [], [], [], [], [], [], []
 
     if self.config.eigen:
       eigen_rewards_plus = np.asarray(eigen_rewards.tolist() + [bootstrap_value_mix])
@@ -469,11 +476,13 @@ class EigenOCAgent(BaseAgent):
         if self.config.eigen:
           discounted_eigen_returns_highlevel.append(discounted_eigen_returns[i])
         observations_highlevel.append(observations[i])
+        # delib_cost_highlevel.append(delib_cost[i])
 
     if len(observations_primitive) > 0:
       feed_dict = {self.local_network.target_return: discounted_returns_primitive,
                    self.local_network.observation: np.stack(observations_primitive, axis=0),
-                   self.local_network.options_placeholder: options_primitive}
+                   self.local_network.options_placeholder: options_primitive
+                   }
       to_run = [self.local_network.apply_grads_primitive_option]
 
       _ = self.sess.run(to_run, feed_dict=feed_dict)
@@ -482,7 +491,9 @@ class EigenOCAgent(BaseAgent):
       feed_dict = {self.local_network.target_return: discounted_returns_highlevel,
                    self.local_network.observation: np.stack(observations_highlevel, axis=0),
                    self.local_network.actions_placeholder: actions_highlevel,
-                   self.local_network.options_placeholder: options_highlevel}
+                   self.local_network.options_placeholder: options_highlevel,
+                   # self.local_network.delib_cost: delib_cost_highlevel
+                   }
       to_run = [self.local_network.apply_grads_option,
                 self.local_network.merged_summary_option,
                 self.local_network.option_loss,

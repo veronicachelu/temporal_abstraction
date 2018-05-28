@@ -137,6 +137,7 @@ class BaseNetwork():
     self.options_placeholder = tf.placeholder(shape=[None], dtype=tf.int32, name="options")
     self.target_eigen_return = tf.placeholder(shape=[None], dtype=tf.float32)
     self.target_return = tf.placeholder(shape=[None], dtype=tf.float32)
+    self.delib_cost = tf.placeholder(shape=[None], dtype=tf.float32, name="delib_cost")
 
   def build_losses(self):
     self.policies = self.get_intra_option_policies(self.options_placeholder)
@@ -180,7 +181,7 @@ class BaseNetwork():
 
     with tf.name_scope('termination_loss'):
       self.term_loss = tf.reduce_mean(
-        o_term * (tf.stop_gradient(q_val) - tf.stop_gradient(self.v) + 0.01))
+        o_term * (tf.stop_gradient(q_val) - tf.stop_gradient(self.v) + self.config.delib_margin))
 
     with tf.name_scope('entropy_loss'):
       self.entropy_loss = -self.entropy_coef * tf.reduce_mean(tf.reduce_sum(self.policies *

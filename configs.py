@@ -175,6 +175,11 @@ def oc():
   env = functools.partial(
     GridWorld, goal_locations, "./mdps/4rooms.mdp")
 
+
+  delib_cost_disc = 0.99
+  delib_margin = 0.01
+  include_primitive_options = False
+
   return locals()
 
 def eigenoc():
