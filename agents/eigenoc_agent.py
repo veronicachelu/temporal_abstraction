@@ -293,7 +293,6 @@ class EigenOCAgent(BaseAgent):
       self.primitive_action = True
     self.episode_actions.append(self.action)
 
-
   def store_general_info(self, s, s1, a, r):
     if self.config.eigen:
       self.episode_buffer_sf.append([s, s1, a])
