@@ -66,6 +66,7 @@ class EigenOCAgent(BaseAgent):
     self.o_tracker_steps = np.zeros(self.nb_options + self.action_size, dtype=np.int32)
     self.termination_counter = 0
     self.frame_counter = 0
+    self.stats_options = np.zeros((self.nb_states, self.nb_options + self.action_size))
     # self.delib = self.config.delib_cost_disc
 
   def SF_prediction(self, s1):
@@ -156,7 +157,7 @@ class EigenOCAgent(BaseAgent):
           self.init_episode()
 
           s = self.env.reset()
-          self.option_evaluation(s)
+          self.option_evaluation(s, None)
           while not self.done:
             self.sync_threads()
             self.policy_evaluation(s)
@@ -184,7 +185,7 @@ class EigenOCAgent(BaseAgent):
                 self.option_prediction(s, s1)
 
                 if not self.done and (self.o_term or self.primitive_action):
-                  self.option_evaluation(s1)
+                  self.option_evaluation(s1, s1_idx)
 
               if self.total_steps % self.config.steps_checkpoint_interval == 0 and self.name == 'worker_0':
                 self.save_model()
@@ -229,14 +230,15 @@ class EigenOCAgent(BaseAgent):
   def reward_deliberation(self):
     self.reward = self.reward - (float(self.o_term) * self.config.delib_margin * (1 - float(self.done)))
 
-  def option_evaluation(self, s):
+  def option_evaluation(self, s, s_idx=None):
     feed_dict = {self.local_network.observation: np.stack([s])}
     self.option, self.primitive_action = self.sess.run(
       [self.local_network.current_option, self.local_network.primitive_action], feed_dict=feed_dict)
     self.option, self.primitive_action = self.option[0], self.primitive_action[0]
     self.o_tracker_chosen[self.option] += 1
     self.episode_options.append(self.option)
-
+    if s_idx is not None:
+      self.stats_options[s_idx][self.option] += 1
     # if not self.primitive_action:
     #   self.episode_options_lengths[self.option].append(self.episode_len)
 
@@ -630,3 +632,4 @@ class EigenOCAgent(BaseAgent):
       # make_gif(images, os.path.join(self.test_path, 'test_episodes.gif'),
       #          duration=len(images) * 1.0, true_image=True)
       tf.logging.info("Won {} episodes of {}".format(ep_rewards.count(1), self.config.nb_test_ep))
+
