@@ -177,7 +177,7 @@ def oc():
 
 
   delib_cost_disc = 0.99
-  delib_margin = 0.03
+  delib_margin = 0.02
   include_primitive_options = False
 
   return locals()
