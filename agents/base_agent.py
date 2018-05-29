@@ -651,6 +651,16 @@ class BaseAgent():
                 head_width=0.05, head_length=0.05, fc='r' if primitive_action else 'k',
                 ec='r' if primitive_action else 'k')
 
+    i, j = self.config.goal_locations[self.goal_position]
+    plt.gca().add_patch(
+      patches.Rectangle(
+        (j, self.config.input_size[0] - i - 1),  # (x,y)
+        1.0,  # width
+        1.0,  # height
+        facecolor='red',
+      )
+    )
+
     plt.xlim([0, self.config.input_size[1]])
     plt.ylim([0, self.config.input_size[0]])
 
