@@ -644,7 +644,7 @@ class BaseAgent():
           (j + 0.5, self.config.input_size[0] - i + 0.5 - 1), 0.025, color='r' if primitive_action else 'k')
         plt.gca().add_artist(circle)
         continue
-      # plt.text(j, self.config.input_size[0] - i - 1, str(o), color='r' if primitive_action else 'b', fontsize=8)
+      plt.text(j, self.config.input_size[0] - i - 1, str(o), color='r' if primitive_action else 'b', fontsize=8)
       # plt.text(j + 0.5, self.config.input_size[0] - i - 1, '{0:.2f}'.format(max_q_val), fontsize=8)
 
       plt.arrow(j + 0.5, self.config.input_size[0] - i + 0.5 - 1, dx, dy,
