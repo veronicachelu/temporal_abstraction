@@ -514,8 +514,6 @@ class BaseAgent():
       o, primitive_action = option[0], primitive_action[0]
       # primitive_action = o >= self.config.nb_options
 
-
-
       # if primitive_action and self.config.include_primitive_options:
       #   a = o - self.nb_options
       #   o_term = True
