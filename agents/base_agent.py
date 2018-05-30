@@ -614,7 +614,7 @@ class BaseAgent():
       # primitive_action = o >= self.config.nb_options
 
       s1, r, done, idx1 = self.env.special_step(idx)
-      feed_dict = {self.local_network.observation: np.stack([s1])}
+      feed_dict = {self.local_network.observation: np.stack([s])}
       o_term = self.sess.run(self.local_network.termination,
         feed_dict=feed_dict)
       o_term = o_term[0, o] > np.random.uniform()
