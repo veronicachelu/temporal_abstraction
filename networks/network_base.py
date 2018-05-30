@@ -68,15 +68,15 @@ class BaseNetwork():
                                            dtype=tf.int32)
       self.local_random = tf.random_uniform(shape=[tf.shape(self.q_val)[0]], minval=0., maxval=1., dtype=tf.float32,
                                             name="rand_options")
-      self.condition = self.local_random > self.config.final_random_option_prob
+      self.condition = self.local_random > self.random_option_prob
 
       self.current_option = tf.where(self.condition, self.max_options, self.exp_options)
       self.primitive_action = tf.where(self.current_option >= self.nb_options,
                                        tf.ones_like(self.current_option),
                                        tf.zeros_like(self.current_option))
       self.summaries_option.append(tf.contrib.layers.summarize_activation(self.current_option))
-      self.v = self.max_q_val * (1 - self.config.final_random_option_prob) + \
-               self.config.final_random_option_prob * tf.reduce_mean(self.q_val, axis=1)
+      self.v = self.max_q_val * (1 - self.random_option_prob) + \
+               self.random_option_prob * tf.reduce_mean(self.q_val, axis=1)
       self.summaries_option.append(tf.contrib.layers.summarize_activation(self.v))
 
       return out
@@ -227,6 +227,7 @@ class BaseNetwork():
                                                 tf.summary.scalar('avg_termination_loss', self.term_loss),
                                                 tf.summary.scalar('avg_entropy_loss', self.entropy_loss),
                                                 tf.summary.scalar('avg_policy_loss', self.policy_loss),
+                                                tf.summary.scalar('random_option_prob', self.random_option_prob),
                                                 tf.summary.scalar('gradient_norm_option',
                                                                   tf.global_norm(gradients_option)),
                                                 tf.summary.scalar('cliped_gradient_norm_option',

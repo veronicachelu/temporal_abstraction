@@ -166,7 +166,6 @@ def oc():
   eigen_exploration_steps = 16*4
   max_length = 1000
   max_length_eval = 1000
-  include_primitive_options = True
   sf_matrix_size = 169
   sr_matrix = "static"
   goal_locations = [(11, 7), (5, 2), (1, 10), (2, 2), (6, 2)]
@@ -211,10 +210,13 @@ def test_options():
   env = functools.partial(
     GridWorld, goal_locations, "./mdps/4rooms.mdp")
 
-
+  decrease_option_prob = True
   # delib_cost_disc = 0.99
   delib_margin = 0.01
-  include_primitive_options = False
+
+  final_random_option_prob = 0.1
+  initial_random_option_prob = 1
+  explore_options_episodes = 500
 
   return locals()
 

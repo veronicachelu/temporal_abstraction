@@ -69,6 +69,9 @@ class EigenOCAgent(BaseAgent):
     self.stats_options = np.zeros((self.nb_states, self.nb_options + self.action_size))
     # self.delib = self.config.delib_cost_disc
 
+    if self.config.decrease_option_prob:
+      self.sess.run(self.local_network.decrease_prob_of_random_option)
+
   def SF_prediction(self, s1):
     self.sf_counter += 1
     if self.config.eigen and (self.sf_counter == self.config.max_update_freq or self.done):
@@ -173,7 +176,7 @@ class EigenOCAgent(BaseAgent):
             if self.done:
               s1 = s
 
-            self.store_general_info(s, s1, self.action, self.reward)
+            self.store_general_info(s, s1, self.action, self.original_reward)
             self.log_timestep()
 
             if self.total_steps > self.config.observation_steps:
@@ -228,6 +231,7 @@ class EigenOCAgent(BaseAgent):
           self.episode_count += 1
 
   def reward_deliberation(self):
+    self.original_reward = self.reward
     self.reward = self.reward - (float(self.o_term) * self.config.delib_margin * (1 - float(self.done)))
 
   def option_evaluation(self, s, s_idx=None):

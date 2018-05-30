@@ -5,6 +5,7 @@ import numpy as np
 from networks.network_base import BaseNetwork
 import os
 
+
 class EignOCNetwork(BaseNetwork):
   def __init__(self, scope, config, action_size, total_steps_tensor=None):
     super(EignOCNetwork, self).__init__(scope, config, action_size, total_steps_tensor)
@@ -52,10 +53,14 @@ class EignOCNetwork(BaseNetwork):
 
   def build_network(self):
     with tf.variable_scope(self.scope):
-      self.observation = tf.placeholder(shape=[None, self.config.input_size[0], self.config.input_size[1], self.config.history_size],
-                                        dtype=tf.float32, name="Inputs")
+      self.observation = tf.placeholder(
+        shape=[None, self.config.input_size[0], self.config.input_size[1], self.config.history_size],
+        dtype=tf.float32, name="Inputs")
       out = self.observation
       out = layers.flatten(out, scope="flatten")
+
+      self.decrease_prob_of_random_option = tf.assign_sub(self.random_option_prob, tf.constant(
+        (self.config.initial_random_option_prob - self.config.final_random_option_prob) / self.config.explore_options_episodes))
 
       _ = self.build_feature_net(out)
       _ = self.build_option_term_net()
