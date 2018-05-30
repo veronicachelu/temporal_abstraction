@@ -613,12 +613,6 @@ class BaseAgent():
       o, primitive_action = option[0], primitive_action[0]
       # primitive_action = o >= self.config.nb_options
 
-      # s1, r, done, idx1 = self.env.special_step(idx)
-      feed_dict = {self.local_network.observation: np.stack([s])}
-      o_term = self.sess.run(self.local_network.termination,
-        feed_dict=feed_dict)
-      o_term = o_term[0, o] > np.random.uniform()
-
       # if primitive_action and self.config.include_primitive_options:
       #   a = o - self.nb_options
       #   o_term = True
@@ -634,6 +628,12 @@ class BaseAgent():
       pi = options[0, o]
       action = np.random.choice(pi, p=pi)
       a = np.argmax(pi == action)
+
+      s1, r, done, idx1 = self.env.special_step(a, idx)
+      feed_dict = {self.local_network.observation: np.stack([s1])}
+      o_term = self.sess.run(self.local_network.termination,
+                             feed_dict=feed_dict)
+      o_term = o_term[0, o] > np.random.uniform()
 
       if a == 0:  # up
         dy = 0.35
