@@ -23,10 +23,12 @@ class BaseAgent():
     self.global_step = global_step
     self.model_path = os.path.join(config.stage_logdir, "models")
     self.summary_path = os.path.join(config.stage_logdir, "summaries")
+    self.stats_path = os.path.join(self.summary_path, "stats")
     self.test_path = os.path.join(config.stage_logdir, "test")
     tf.gfile.MakeDirs(self.test_path)
     tf.gfile.MakeDirs(self.model_path)
     tf.gfile.MakeDirs(self.summary_path)
+    tf.gfile.MakeDirs(self.stats_path)
     self.global_network = global_network
     if config.sr_matrix is not None:
       self.directions = self.global_network.directions
@@ -142,6 +144,7 @@ class BaseAgent():
     # tf.logging.warning("Writing step summary....")
 
   def write_episode_summary(self, ms_sf, ms_aux, ms_option, r):
+    self.write_option_map()
     self.summary = tf.Summary()
     if len(self.episode_rewards) != 0:
       last_reward = self.episode_rewards[-1]
@@ -174,6 +177,8 @@ class BaseAgent():
     self.summary_writer.add_summary(self.summary, self.episode_count)
     self.summary_writer.flush()
     self.write_step_summary(ms_sf, ms_aux, ms_option, r)
+
+
 
   def cosine_similarity(self, next_sf, evect):
     state_dif_norm = np.linalg.norm(next_sf)
@@ -478,3 +483,101 @@ class BaseAgent():
       ax = sns.heatmap(matrix[:, option, :], cmap="Blues")
       plt.savefig(os.path.join(folder_path, 'SR_matrix_o_{}.png'.format(option)))
       plt.close()
+
+  def write_option_map(self):
+    plt.clf()
+    option_colors = [(0.1, 0.2, 0.5, 0.4), (0.1, 0.2, 0.5, 0.6), (0.1, 0.2, 0.5, 0.8), (0.1, 0.2, 0.5, 1),
+                     (0.5, 0.2, 0.1, 0.4), (0.5, 0.2, 0.1, 0.6), (0.5, 0.2, 0.1, 0.8), (0.5, 0.2, 0.1, 1)]
+
+    for idx in range(self.nb_states):
+      dx = 0
+      dy = 0
+      d = False
+      s, i, j = self.env.get_state(idx)
+      if not self.env.not_wall(i, j):
+        plt.gca().add_patch(
+          patches.Rectangle(
+            (j, self.config.input_size[0] - i - 1),  # (x,y)
+            1.0,  # width
+            1.0,  # height
+            facecolor="gray"
+          )
+        )
+        continue
+
+      feed_dict = {self.local_network.observation: np.stack([s])}
+      max_q_val, q_vals, option, primitive_action, options, o_term = self.sess.run(
+        [self.local_network.max_q_val, self.local_network.q_val, self.local_network.current_option,
+         self.local_network.primitive_action, self.local_network.options, self.local_network.termination],
+        feed_dict=feed_dict)
+      # max_q_val = max_q_val[0]
+      o, primitive_action = option[0], primitive_action[0]
+      # primitive_action = o >= self.config.nb_options
+
+      s1, r, done, idx1 = self.env.special_step(idx)
+      feed_dict = {self.local_network.observation: np.stack([s1])}
+      o_term = self.sess.run(self.local_network.termination,
+                             feed_dict=feed_dict)
+      o_term = o_term[0, o] > np.random.uniform()
+
+      # if primitive_action and self.config.include_primitive_options:
+      #   a = o - self.nb_options
+      #   o_term = True
+      # else:
+      plt.gca().add_patch(
+        patches.Rectangle(
+          (j, self.config.input_size[0] - i - 1),  # (x,y)
+          1.0,  # width
+          1.0,  # height
+          facecolor=option_colors[o],
+        )
+      )
+      pi = options[0, o]
+      action = np.random.choice(pi, p=pi)
+      a = np.argmax(pi == action)
+
+      if a == 0:  # up
+        dy = 0.35
+      elif a == 1:  # right
+        dx = 0.35
+      elif a == 2:  # down
+        dy = -0.35
+      elif a == 3:  # left
+        dx = -0.35
+
+      if o_term and not primitive_action:  # termination
+        circle = plt.Circle(
+          (j + 0.5, self.config.input_size[0] - i + 0.5 - 1), 0.025, color='r' if primitive_action else 'k')
+        plt.gca().add_artist(circle)
+        plt.text(j, self.config.input_size[0] - i - 1, str(o), color='r' if primitive_action else 'b', fontsize=8)
+        continue
+      plt.text(j, self.config.input_size[0] - i - 1, str(o), color='r' if primitive_action else 'b', fontsize=8)
+      # plt.text(j + 0.5, self.config.input_size[0] - i - 1, '{0:.2f}'.format(max_q_val), fontsize=8)
+
+      plt.arrow(j + 0.5, self.config.input_size[0] - i + 0.5 - 1, dx, dy,
+                head_width=0.05, head_length=0.05, fc='r' if primitive_action else 'k',
+                ec='r' if primitive_action else 'k')
+
+    i, j = self.config.goal_locations[self.goal_position]
+    plt.gca().add_patch(
+      patches.Rectangle(
+        (j, self.config.input_size[0] - i - 1),  # (x,y)
+        1.0,  # width
+        1.0,  # height
+        facecolor='red',
+      )
+    )
+
+    plt.xlim([0, self.config.input_size[1]])
+    plt.ylim([0, self.config.input_size[0]])
+
+    for i in range(self.config.input_size[1]):
+      plt.axvline(i, color='k', linestyle=':')
+    plt.axvline(self.config.input_size[1], color='k', linestyle=':')
+
+    for j in range(self.config.input_size[0]):
+      plt.axhline(j, color='k', linestyle=':')
+    plt.axhline(self.config.input_size[0], color='k', linestyle=':')
+
+    plt.savefig(os.path.join(self.stats_path, "Option_map_{}.png".format(self.episode_count)))
+    plt.close()
