@@ -38,7 +38,7 @@ class EigenOCAgent(BaseAgent):
     # self.evalue = None
     tf.logging.info("Starting worker " + str(self.thread_id))
     self.aux_episode_buffer = deque()
-    self.ms_aux = self.ms_sf = self.ms_option = None
+    self.ms_aux = self.ms_sf = self.ms_option = self.ms_term = None
 
     if self.name == "worker_0":
       self.init_tracker()
@@ -127,9 +127,10 @@ class EigenOCAgent(BaseAgent):
       results = self.train_option(R, R_mix)
       if results is not None:
         if self.config.eigen:
-          self.ms_option, option_loss, policy_loss, entropy_loss, critic_loss, term_loss, eigen_critic_loss, self.R, self.eigen_R = results
+          self.ms_option, option_loss, policy_loss, entropy_loss, critic_loss, eigen_critic_loss, self.ms_term, term_loss, \
+          self.R, self.eigen_R = results
         else:
-          self.ms_option, option_loss, policy_loss, entropy_loss, critic_loss, term_loss, self.R = results
+          self.ms_option, option_loss, policy_loss, entropy_loss, critic_loss, self.ms_term, term_loss, self.R = results
 
       self.episode_buffer_option = []
       self.option_counter = 0
@@ -319,11 +320,11 @@ class EigenOCAgent(BaseAgent):
         print("NAN")
       self.episode_eigen_q_values.append(self.eigen_q_value)
       self.episode_buffer_option.append(
-        [s, self.option, a, r, r_i, self.primitive_action])
+        [s, self.option, a, r, r_i, self.primitive_action, s1])
     else:
       r_i = r
       self.episode_buffer_option.append(
-        [s, self.option, a, r, r_i, self.primitive_action])
+        [s, self.option, a, r, r_i, self.primitive_action, s1])
 
   def recompute_eigenvectors_NN(self):
     if self.config.eigen:
@@ -451,6 +452,7 @@ class EigenOCAgent(BaseAgent):
     rewards = rollout[:, 3]
     eigen_rewards = rollout[:, 4]
     primitive_actions = rollout[:, 5]
+    next_observations = rollout[:, 6]
     # delib_cost = rollout[:, 6]
 
     rewards_plus = np.asarray(rewards.tolist() + [bootstrap_value])
@@ -458,7 +460,8 @@ class EigenOCAgent(BaseAgent):
 
     options_primitive, options_highlevel, actions_primitive, actions_highlevel, \
     discounted_returns_primitive, discounted_returns_highlevel, \
-    observations_primitive, observations_highlevel, delib_cost_highlevel = [], [], [], [], [], [], [], [], []
+    observations_primitive, observations_highlevel, delib_cost_highlevel, next_observations_highlevel\
+      = [], [], [], [], [], [], [], [], [], []
 
     if self.config.eigen:
       eigen_rewards_plus = np.asarray(eigen_rewards.tolist() + [bootstrap_value_mix])
@@ -481,6 +484,7 @@ class EigenOCAgent(BaseAgent):
         if self.config.eigen:
           discounted_eigen_returns_highlevel.append(discounted_eigen_returns[i])
         observations_highlevel.append(observations[i])
+        next_observations_highlevel.append(next_observations[i])
         # delib_cost_highlevel.append(delib_cost[i])
 
     if len(observations_primitive) > 0:
@@ -505,13 +509,24 @@ class EigenOCAgent(BaseAgent):
                 self.local_network.policy_loss,
                 self.local_network.entropy_loss,
                 self.local_network.critic_loss,
-                self.local_network.term_loss]
+                ]
 
       if self.config.eigen:
         feed_dict[self.local_network.target_eigen_return] = discounted_eigen_returns_highlevel
         to_run.append(self.local_network.eigen_critic_loss)
 
       results = self.sess.run(to_run, feed_dict=feed_dict)
+
+      feed_dict = {
+                   self.local_network.observation: np.stack(next_observations_highlevel, axis=0),
+                   self.local_network.options_placeholder: options_highlevel,
+                   }
+      to_run = [self.local_network.apply_grads_term,
+                self.local_network.merged_summary_term,
+                self.local_network.term_loss,
+                ]
+      results2 = self.sess.run(to_run, feed_dict=feed_dict)
+      results += results2[1:]
       results.append(discounted_returns[-1])
       if self.config.eigen:
         results.append(discounted_eigen_returns[-1])

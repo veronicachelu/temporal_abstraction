@@ -21,6 +21,7 @@ class BaseNetwork():
     self.summaries_sf = []
     self.summaries_aux = []
     self.summaries_option = []
+    self.summaries_term = []
 
     self.network_optimizer = config.network_optimizer(
       self.config.lr, name='network_optimizer')
@@ -49,7 +50,7 @@ class BaseNetwork():
                                                 activation_fn=tf.nn.sigmoid,
                                                 variables_collections=tf.get_collection("variables"),
                                                 outputs_collections="activations", scope="fc_option_term")
-      self.summaries_option.append(tf.contrib.layers.summarize_activation(self.termination))
+      self.summaries_term.append(tf.contrib.layers.summarize_activation(self.termination))
 
       return out
 
@@ -174,11 +175,11 @@ class BaseNetwork():
     if self.config.eigen:
       with tf.name_scope('eigen_critic_loss'):
         eigen_td_error = self.target_eigen_return - eigen_q_val
-        self.eigen_critic_loss = tf.reduce_mean(0.5 * self.config.eigen_critic_coef * tf.square(eigen_td_error))
+        self.eigen_critic_loss = tf.reduce_mean(self.config.eigen_critic_coef * tf.square(eigen_td_error))
 
     with tf.name_scope('critic_loss'):
       td_error = self.target_return - q_val
-    self.critic_loss = tf.reduce_mean(0.5 * self.config.critic_coef * tf.square(td_error))
+    self.critic_loss = tf.reduce_mean(self.config.critic_coef * tf.square(td_error))
 
     with tf.name_scope('termination_loss'):
       self.term_loss = tf.reduce_mean(
@@ -192,7 +193,7 @@ class BaseNetwork():
       self.policy_loss = -tf.reduce_mean(tf.log(self.responsible_actions + 1e-7) * tf.stop_gradient(
         eigen_td_error if self.config.eigen else td_error))
 
-    self.option_loss = self.policy_loss - self.entropy_loss + self.critic_loss - self.term_loss
+    self.option_loss = self.policy_loss - self.entropy_loss + self.critic_loss
     if self.config.eigen:
       self.option_loss += self.eigen_critic_loss
 
@@ -203,6 +204,7 @@ class BaseNetwork():
     gradients_aux = tf.gradients(self.aux_loss, local_vars)
     gradients_option = tf.gradients(self.option_loss, local_vars)
     gradients_primitive_option = tf.gradients(self.critic_loss, local_vars)
+    gradients_term = tf.gradients(self.term_loss, local_vars)
 
     self.var_norms = tf.global_norm(local_vars)
     grads_sf, self.grad_norms_sf = tf.clip_by_global_norm(gradients_sf, self.config.gradient_clip_norm_value)
@@ -211,6 +213,7 @@ class BaseNetwork():
                                                                   self.config.gradient_clip_norm_value)
     grads_primitive_option, self.grad_norms_primitive_option = tf.clip_by_global_norm(gradients_primitive_option,
                                                                                       self.config.gradient_clip_norm_value)
+    grads_term, self.grad_norms_term = tf.clip_by_global_norm(gradients_term, self.config.gradient_clip_norm_value)
 
     self.merged_summary_sf = tf.summary.merge(
       self.summaries_sf + [tf.summary.scalar('avg_sf_loss', self.sf_loss)] + [
@@ -234,6 +237,12 @@ class BaseNetwork():
                                                 tf.summary.scalar('cliped_gradient_norm_option',
                                                                   tf.global_norm(grads_option)),
                                                 gradient_summaries(zip(grads_option, local_vars))]
+    self.merged_summary_term = tf.summary.merge(
+      self.summaries_term + [tf.summary.scalar('avg_sf_loss', self.term_loss)] + [
+        tf.summary.scalar('gradient_norm_term', tf.global_norm(gradients_term)),
+        tf.summary.scalar('cliped_gradient_norm_term', tf.global_norm(grads_term)),
+        gradient_summaries(zip(grads_term, local_vars))])
+
     if self.config.eigen:
       options_to_merge += [tf.summary.scalar('avg_eigen_critic_loss', self.eigen_critic_loss)]
 
@@ -243,6 +252,7 @@ class BaseNetwork():
     self.apply_grads_aux = self.network_optimizer.apply_gradients(zip(grads_aux, global_vars))
     self.apply_grads_option = self.network_optimizer.apply_gradients(zip(grads_option, global_vars))
     self.apply_grads_primitive_option = self.network_optimizer.apply_gradients(zip(grads_primitive_option, global_vars))
+    self.apply_grads_term = self.network_optimizer.apply_gradients(zip(grads_term, global_vars))
 
   def get_intra_option_policies(self, options):
     options_taken_one_hot = tf.one_hot(options, self.nb_options, dtype=tf.float32, name="options_one_hot")
