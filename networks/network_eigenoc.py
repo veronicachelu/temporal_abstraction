@@ -9,7 +9,8 @@ import os
 class EignOCNetwork(BaseNetwork):
   def __init__(self, scope, config, action_size, total_steps_tensor=None):
     super(EignOCNetwork, self).__init__(scope, config, action_size, total_steps_tensor)
-
+    self.random_option_prob = tf.Variable(self.config.initial_random_option_prob, trainable=False,
+                                         name="prob_of_random_option", dtype=tf.float32)
     self.build_network()
 
   def build_feature_net(self, out):
