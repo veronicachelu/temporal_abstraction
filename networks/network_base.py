@@ -181,7 +181,7 @@ class BaseNetwork():
 
     with tf.name_scope('termination_loss'):
       self.term_loss = tf.reduce_mean(
-        o_term * (tf.stop_gradient(q_val) - tf.stop_gradient(self.v) + self.config.delib_margin))
+        o_term * (tf.stop_gradient(q_val) - tf.stop_gradient(self.v) - self.config.delib_margin))
 
     with tf.name_scope('entropy_loss'):
       self.entropy_loss = -self.entropy_coef * tf.reduce_mean(tf.reduce_sum(self.policies *
