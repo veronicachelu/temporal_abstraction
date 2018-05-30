@@ -192,7 +192,7 @@ class BaseNetwork():
       self.policy_loss = -tf.reduce_mean(tf.log(self.responsible_actions + 1e-7) * tf.stop_gradient(
         eigen_td_error if self.config.eigen else td_error))
 
-    self.option_loss = self.policy_loss - self.entropy_loss + self.critic_loss + self.term_loss
+    self.option_loss = self.policy_loss - self.entropy_loss + self.critic_loss - self.term_loss
     if self.config.eigen:
       self.option_loss += self.eigen_critic_loss
 
