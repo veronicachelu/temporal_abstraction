@@ -181,11 +181,11 @@ class EigenOCAgent(BaseAgent):
                 self.SF_prediction(s1)
               self.next_frame_prediction()
 
-              if self.total_steps > self.config.eigen_exploration_steps:
-                self.option_prediction(s, s1)
+              # if self.total_steps > self.config.eigen_exploration_steps:
+              self.option_prediction(s, s1)
 
-                if not self.done and (self.o_term or self.primitive_action):
-                  self.option_evaluation(s1, s1_idx)
+              if not self.done and (self.o_term or self.primitive_action):
+                self.option_evaluation(s1, s1_idx)
 
               if self.total_steps % self.config.steps_checkpoint_interval == 0 and self.name == 'worker_0':
                 self.save_model()
@@ -243,56 +243,56 @@ class EigenOCAgent(BaseAgent):
     #   self.episode_options_lengths[self.option].append(self.episode_len)
 
   def option_terminate(self, s1):
-    if self.total_steps > self.config.eigen_exploration_steps:
-      if self.config.include_primitive_options and self.primitive_action:
-        self.o_term = True
-      else:
-        feed_dict = {self.local_network.observation: np.stack([s1])}
-        o_term = self.sess.run(self.local_network.termination, feed_dict=feed_dict)
-        self.o_term = o_term[0, self.option] > np.random.uniform()
-    else:
-      self.action = np.random.choice(range(self.action_size))
+    # if self.total_steps > self.config.eigen_exploration_steps:
+    if self.config.include_primitive_options and self.primitive_action:
       self.o_term = True
+    else:
+      feed_dict = {self.local_network.observation: np.stack([s1])}
+      o_term = self.sess.run(self.local_network.termination, feed_dict=feed_dict)
+      self.o_term = o_term[0, self.option] > np.random.uniform()
+    # else:
+    #   self.action = np.random.choice(range(self.action_size))
+    #   self.o_term = True
     self.episode_oterm.append(self.o_term)
 
     self.termination_counter += int(self.o_term)
     self.frame_counter += 1
 
   def policy_evaluation(self, s):
-    if self.total_steps > self.config.eigen_exploration_steps:
-      feed_dict = {self.local_network.observation: np.stack([s])}
+    # if self.total_steps > self.config.eigen_exploration_steps:
+    feed_dict = {self.local_network.observation: np.stack([s])}
 
-      if self.config.eigen:
-        tensor_list = [self.local_network.options, self.local_network.v, self.local_network.q_val,
-                       self.local_network.eigen_q_val, self.local_network.eigenv]
-        options, value, q_value, eigen_q_value, evalue = self.sess.run(tensor_list, feed_dict=feed_dict)
-        if not self.primitive_action:
-          self.eigen_q_value = eigen_q_value[0, self.option]
-          pi = options[0, self.option]
-          self.action = np.random.choice(pi, p=pi)
-          self.action = np.argmax(pi == self.action)
-          self.evalue = evalue[0]
-        else:
-          self.action = self.option - self.nb_options
-        self.q_value = q_value[0, self.option]
-        self.value = value[0]
+    if self.config.eigen:
+      tensor_list = [self.local_network.options, self.local_network.v, self.local_network.q_val,
+                     self.local_network.eigen_q_val, self.local_network.eigenv]
+      options, value, q_value, eigen_q_value, evalue = self.sess.run(tensor_list, feed_dict=feed_dict)
+      if not self.primitive_action:
+        self.eigen_q_value = eigen_q_value[0, self.option]
+        pi = options[0, self.option]
+        self.action = np.random.choice(pi, p=pi)
+        self.action = np.argmax(pi == self.action)
+        self.evalue = evalue[0]
       else:
-        tensor_list = [self.local_network.options, self.local_network.v, self.local_network.q_val]
-        options, value, q_value = self.sess.run(tensor_list, feed_dict=feed_dict)
-
-        if self.config.include_primitive_options and self.primitive_action:
-          self.action = self.option - self.nb_options
-        else:
-          pi = options[0, self.option]
-          self.action = np.random.choice(pi, p=pi)
-          self.action = np.argmax(pi == self.action)
-        self.q_value = q_value[0, self.option]
-        self.value = value[0]
-        self.episode_values.append(self.value)
-        self.episode_q_values.append(self.q_value)
+        self.action = self.option - self.nb_options
+      self.q_value = q_value[0, self.option]
+      self.value = value[0]
     else:
-      self.action = np.random.choice(range(self.action_size))
-      self.primitive_action = True
+      tensor_list = [self.local_network.options, self.local_network.v, self.local_network.q_val]
+      options, value, q_value = self.sess.run(tensor_list, feed_dict=feed_dict)
+
+      if self.config.include_primitive_options and self.primitive_action:
+        self.action = self.option - self.nb_options
+      else:
+        pi = options[0, self.option]
+        self.action = np.random.choice(pi, p=pi)
+        self.action = np.argmax(pi == self.action)
+      self.q_value = q_value[0, self.option]
+      self.value = value[0]
+      self.episode_values.append(self.value)
+      self.episode_q_values.append(self.q_value)
+    # else:
+    #   self.action = np.random.choice(range(self.action_size))
+    #   self.primitive_action = True
     self.episode_actions.append(self.action)
 
   def store_general_info(self, s, s1, a, r):

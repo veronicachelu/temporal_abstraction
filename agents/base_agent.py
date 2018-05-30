@@ -142,19 +142,19 @@ class BaseAgent():
     if ms_option is not None:
       self.summary_writer.add_summary(ms_option, self.total_steps)
 
-    if self.total_steps > self.config.eigen_exploration_steps:
-      self.summary.value.add(tag='Step/Reward', simple_value=r)
-      self.summary.value.add(tag='Step/Action', simple_value=self.action)
-      self.summary.value.add(tag='Step/Option', simple_value=self.option)
-      self.summary.value.add(tag='Step/Q', simple_value=self.q_value)
-      if self.config.eigen and not self.primitive_action and self.eigen_q_value is not None:
-        self.summary.value.add(tag='Step/EigenQ', simple_value=self.eigen_q_value)
-        # self.summary.value.add(tag='Step/EigenV', simple_value=self.evalue)
-      self.summary.value.add(tag='Step/V', simple_value=self.value)
-      self.summary.value.add(tag='Step/Term', simple_value=int(self.o_term))
-      self.summary.value.add(tag='Step/R', simple_value=self.R)
-      if self.config.eigen:
-        self.summary.value.add(tag='Step/EigenR', simple_value=self.eigen_R)
+    # if self.total_steps > self.config.eigen_exploration_steps:
+    self.summary.value.add(tag='Step/Reward', simple_value=r)
+    self.summary.value.add(tag='Step/Action', simple_value=self.action)
+    self.summary.value.add(tag='Step/Option', simple_value=self.option)
+    self.summary.value.add(tag='Step/Q', simple_value=self.q_value)
+    if self.config.eigen and not self.primitive_action and self.eigen_q_value is not None:
+      self.summary.value.add(tag='Step/EigenQ', simple_value=self.eigen_q_value)
+      # self.summary.value.add(tag='Step/EigenV', simple_value=self.evalue)
+    self.summary.value.add(tag='Step/V', simple_value=self.value)
+    self.summary.value.add(tag='Step/Term', simple_value=int(self.o_term))
+    self.summary.value.add(tag='Step/R', simple_value=self.R)
+    if self.config.eigen:
+      self.summary.value.add(tag='Step/EigenR', simple_value=self.eigen_R)
 
     self.summary_writer.add_summary(self.summary, self.total_steps)
     self.summary_writer.flush()
@@ -606,29 +606,34 @@ class BaseAgent():
 
       feed_dict = {self.local_network.observation: np.stack([s])}
       max_q_val, q_vals, option, primitive_action, options, o_term = self.sess.run(
-        [self.local_network.max_q_val, self.local_network.q_val, self.local_network.max_options,
+        [self.local_network.max_q_val, self.local_network.q_val, self.local_network.current_option,
          self.local_network.primitive_action, self.local_network.options, self.local_network.termination],
         feed_dict=feed_dict)
-      max_q_val = max_q_val[0]
+      # max_q_val = max_q_val[0]
       o, primitive_action = option[0], primitive_action[0]
-      primitive_action = o >= self.config.nb_options
+      # primitive_action = o >= self.config.nb_options
 
-      if primitive_action and self.config.include_primitive_options:
-        a = o - self.nb_options
-        o_term = True
-      else:
-        plt.gca().add_patch(
-          patches.Rectangle(
-            (j, self.config.input_size[0] - i - 1),  # (x,y)
-            1.0,  # width
-            1.0,  # height
-            facecolor=option_colors[o],
-          )
+      s1, r, done, idx1 = self.env.special_step(idx)
+      feed_dict = {self.local_network.observation: np.stack([s1])}
+      o_term = self.sess.run(self.local_network.termination,
+        feed_dict=feed_dict)
+      o_term = o_term[0, o] > np.random.uniform()
+
+      # if primitive_action and self.config.include_primitive_options:
+      #   a = o - self.nb_options
+      #   o_term = True
+      # else:
+      plt.gca().add_patch(
+        patches.Rectangle(
+          (j, self.config.input_size[0] - i - 1),  # (x,y)
+          1.0,  # width
+          1.0,  # height
+          facecolor=option_colors[o],
         )
-        pi = options[0, o]
-        action = np.random.choice(pi, p=pi)
-        a = np.argmax(pi == action)
-        o_term = o_term[0, o] > np.random.uniform()
+      )
+      pi = options[0, o]
+      action = np.random.choice(pi, p=pi)
+      a = np.argmax(pi == action)
 
       if a == 0:  # up
         dy = 0.35
@@ -643,6 +648,7 @@ class BaseAgent():
         circle = plt.Circle(
           (j + 0.5, self.config.input_size[0] - i + 0.5 - 1), 0.025, color='r' if primitive_action else 'k')
         plt.gca().add_artist(circle)
+        plt.text(j, self.config.input_size[0] - i - 1, str(o), color='r' if primitive_action else 'b', fontsize=8)
         continue
       plt.text(j, self.config.input_size[0] - i - 1, str(o), color='r' if primitive_action else 'b', fontsize=8)
       # plt.text(j + 0.5, self.config.input_size[0] - i - 1, '{0:.2f}'.format(max_q_val), fontsize=8)

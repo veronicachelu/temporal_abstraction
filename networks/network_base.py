@@ -137,7 +137,7 @@ class BaseNetwork():
     self.options_placeholder = tf.placeholder(shape=[None], dtype=tf.int32, name="options")
     self.target_eigen_return = tf.placeholder(shape=[None], dtype=tf.float32)
     self.target_return = tf.placeholder(shape=[None], dtype=tf.float32)
-    self.delib_cost = tf.placeholder(shape=[None], dtype=tf.float32, name="delib_cost")
+    # self.delib_cost = tf.placeholder(shape=[None], dtype=tf.float32, name="delib_cost")
 
   def build_losses(self):
     self.policies = self.get_intra_option_policies(self.options_placeholder)
