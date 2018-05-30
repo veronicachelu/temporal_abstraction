@@ -9,6 +9,7 @@ import os
 class EignOCNetwork(BaseNetwork):
   def __init__(self, scope, config, action_size, total_steps_tensor=None):
     super(EignOCNetwork, self).__init__(scope, config, action_size, total_steps_tensor)
+
     self.build_network()
 
   def build_feature_net(self, out):

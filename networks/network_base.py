@@ -40,6 +40,8 @@ class BaseNetwork():
           self.sf_matrix_buffer = np.zeros(shape=(self.config.sf_matrix_size, self.config.sf_layers[-1]), dtype=np.float32)
 
     self.entropy_coef = self.config.final_random_action_prob
+    self.random_option_prob = tf.Variable(self.config.initial_random_option_prob, trainable=False,
+                                          name="prob_of_random_option", dtype=tf.float32)
 
   def build_option_term_net(self):
     with tf.variable_scope("eigen_option_term"):
