@@ -606,7 +606,7 @@ class BaseAgent():
 
       feed_dict = {self.local_network.observation: np.stack([s])}
       max_q_val, q_vals, option, primitive_action, options, o_term = self.sess.run(
-        [self.local_network.max_q_val, self.local_network.q_val, self.local_network.current_option,
+        [self.local_network.max_q_val, self.local_network.q_val, self.local_network.max_options,
          self.local_network.primitive_action, self.local_network.options, self.local_network.termination],
         feed_dict=feed_dict)
       # max_q_val = max_q_val[0]
