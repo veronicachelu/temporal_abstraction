@@ -613,7 +613,7 @@ class BaseAgent():
       o, primitive_action = option[0], primitive_action[0]
       # primitive_action = o >= self.config.nb_options
 
-      s1, r, done, idx1 = self.env.special_step(idx)
+      # s1, r, done, idx1 = self.env.special_step(idx)
       feed_dict = {self.local_network.observation: np.stack([s])}
       o_term = self.sess.run(self.local_network.termination,
         feed_dict=feed_dict)
