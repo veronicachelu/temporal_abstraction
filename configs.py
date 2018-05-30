@@ -182,6 +182,42 @@ def oc():
 
   return locals()
 
+def test_options():
+  locals().update(default())
+  nb_options = 4
+  target_agent = EigenOCAgent
+  eigen = False
+  network = EignOCNetwork
+
+  fc_layers = 128,
+  sf_layers = 128,
+  aux_fc_layers = 507,
+
+  batch_size = 16
+  memory_size = 100000
+  observation_steps = 16*4
+
+  steps = -1  # 1M
+  episodes = 1e6  # 1M
+  eigen_exploration_steps = 16*4
+  max_length = 1000
+  max_length_eval = 1000
+  include_primitive_options = False
+  sf_matrix_size = 169
+  sr_matrix = "static"
+  goal_locations = [(1, 11),]
+  # goal_locations = [(1, 11), (3, 2), (6, 2), (1, 4), (1, 1), (8, 1), (2, 5), (11, 10)]
+  move_goal_nb_of_ep = 1000
+  env = functools.partial(
+    GridWorld, goal_locations, "./mdps/4rooms.mdp")
+
+
+  # delib_cost_disc = 0.99
+  delib_margin = 0.01
+  include_primitive_options = False
+
+  return locals()
+
 def eigenoc():
   locals().update(default())
   target_agent = EigenOCAgent
