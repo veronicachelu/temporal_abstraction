@@ -166,7 +166,7 @@ class BaseNetwork():
 
     with tf.name_scope('sf_loss'):
       sf_td_error = self.target_sf - self.sf
-    self.sf_loss = tf.reduce_mean(self.config.sf_coef * huber_loss(sf_td_error))
+    self.sf_loss = tf.reduce_mean(0.5 * self.config.sf_coef * huber_loss(sf_td_error))
 
     with tf.name_scope('aux_loss'):
       aux_error = self.next_obs - self.target_next_obs
@@ -175,7 +175,7 @@ class BaseNetwork():
     if self.config.eigen:
       with tf.name_scope('eigen_critic_loss'):
         eigen_td_error = self.target_eigen_return - eigen_q_val
-        self.eigen_critic_loss = tf.reduce_mean(self.config.eigen_critic_coef * tf.square(eigen_td_error))
+        self.eigen_critic_loss = tf.reduce_mean(0.5 * self.config.eigen_critic_coef * huber_loss(eigen_td_error))
 
     with tf.name_scope('critic_loss'):
       td_error = self.target_return - q_val
@@ -183,7 +183,7 @@ class BaseNetwork():
 
     with tf.name_scope('termination_loss'):
       self.term_loss = tf.reduce_mean(
-        o_term * (tf.stop_gradient(q_val) - tf.stop_gradient(self.v) - self.config.delib_margin))
+        o_term * (tf.stop_gradient(q_val) - tf.stop_gradient(self.v) + self.config.delib_margin))
 
     with tf.name_scope('entropy_loss'):
       self.entropy_loss = -self.entropy_coef * tf.reduce_mean(tf.reduce_sum(self.policies *
