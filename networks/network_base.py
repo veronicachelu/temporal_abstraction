@@ -166,7 +166,7 @@ class BaseNetwork():
 
     with tf.name_scope('sf_loss'):
       sf_td_error = self.target_sf - self.sf
-    self.sf_loss = tf.reduce_mean(0.5 * self.config.sf_coef * huber_loss(sf_td_error))
+    self.sf_loss = tf.reduce_mean(self.config.sf_coef * huber_loss(sf_td_error))
 
     with tf.name_scope('aux_loss'):
       aux_error = self.next_obs - self.target_next_obs
@@ -179,7 +179,7 @@ class BaseNetwork():
 
     with tf.name_scope('critic_loss'):
       td_error = self.target_return - q_val
-    self.critic_loss = tf.reduce_mean(self.config.critic_coef * tf.square(td_error))
+    self.critic_loss = tf.reduce_mean(0.5 * self.config.critic_coef * tf.square(td_error))
 
     with tf.name_scope('termination_loss'):
       self.term_loss = tf.reduce_mean(
