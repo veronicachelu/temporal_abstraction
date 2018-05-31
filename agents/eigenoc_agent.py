@@ -195,7 +195,7 @@ class EigenOCAgent(BaseAgent):
                 self.save_model()
 
               if self.total_steps % self.config.steps_summary_interval == 0 and self.name == 'worker_0':
-                self.write_step_summary(self.ms_sf, self.ms_aux, self.ms_option, r)
+                self.write_step_summary(r)
 
             s = s1
             self.episode_len += 1
@@ -224,7 +224,7 @@ class EigenOCAgent(BaseAgent):
 
           if self.episode_count % self.config.episode_summary_interval == 0 and self.total_steps != 0 and \
                   self.name == 'worker_0' and self.episode_count != 0:
-            self.write_episode_summary(self.ms_sf, self.ms_aux, self.ms_option, r)
+            self.write_episode_summary(r)
 
           if self.name == 'worker_0':
             sess.run(self.increment_global_step)
