@@ -133,14 +133,16 @@ class BaseAgent():
     tf.logging.info(
       "Saved Model at {}".format(self.model_path + '/model-{}.{}.cptk'.format(self.episode_count, self.total_steps)))
 
-  def write_step_summary(self, ms_sf, ms_aux, ms_option, r):
+  def write_step_summary(self, r):
     self.summary = tf.Summary()
-    if ms_sf is not None:
-      self.summary_writer.add_summary(ms_sf, self.total_steps)
-    if ms_aux is not None:
-      self.summary_writer.add_summary(ms_aux, self.total_steps)
-    if ms_option is not None:
-      self.summary_writer.add_summary(ms_option, self.total_steps)
+    if self.ms_sf is not None:
+      self.summary_writer.add_summary(self.ms_sf, self.total_steps)
+    if self.ms_aux is not None:
+      self.summary_writer.add_summary(self.ms_aux, self.total_steps)
+    if self.ms_option is not None:
+      self.summary_writer.add_summary(self.ms_option, self.total_steps)
+    if self.ms_term is not None:
+      self.summary_writer.add_summary(self.ms_term, self.total_steps)
 
     # if self.total_steps > self.config.eigen_exploration_steps:
     self.summary.value.add(tag='Step/Reward', simple_value=r)
@@ -160,7 +162,7 @@ class BaseAgent():
     self.summary_writer.flush()
     # tf.logging.warning("Writing step summary....")
 
-  def write_episode_summary(self, ms_sf, ms_aux, ms_option, r):
+  def write_episode_summary(self, r):
     self.tracker()
     self.write_option_map()
     # self.write_episode_summary_stats()
@@ -198,7 +200,7 @@ class BaseAgent():
 
     self.summary_writer.add_summary(self.summary, self.episode_count)
     self.summary_writer.flush()
-    self.write_step_summary(ms_sf, ms_aux, ms_option, r)
+    self.write_step_summary(r)
 
   def cosine_similarity(self, next_sf, evect):
     state_dif_norm = np.linalg.norm(np.linalg.norm(np.asarray(next_sf, np.float64)))

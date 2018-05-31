@@ -69,7 +69,7 @@ class EigenOCAgent(BaseAgent):
     self.stats_options = np.zeros((self.nb_states, self.nb_options + self.action_size))
     # self.delib = self.config.delib_cost_disc
 
-    if self.config.decrease_option_prob:
+    if self.config.decrease_option_prob and self.episode_count < self.config.explore_options_episodes:
       self.sess.run(self.local_network.decrease_prob_of_random_option)
 
   def SF_prediction(self, s1):
