@@ -487,7 +487,6 @@ class EigenOCAgent(BaseAgent):
           discounted_eigen_returns_highlevel.append(discounted_eigen_returns[i])
         observations_highlevel.append(observations[i])
         next_observations_highlevel.append(next_observations[i])
-        # delib_cost_highlevel.append(delib_cost[i])
 
     if len(observations_primitive) > 0:
       feed_dict = {self.local_network.target_return: discounted_returns_primitive,
@@ -503,7 +502,6 @@ class EigenOCAgent(BaseAgent):
                    self.local_network.observation: np.stack(observations_highlevel, axis=0),
                    self.local_network.actions_placeholder: actions_highlevel,
                    self.local_network.options_placeholder: options_highlevel,
-                   # self.local_network.delib_cost: delib_cost_highlevel
                    }
       to_run = [self.local_network.apply_grads_option,
                 self.local_network.merged_summary_option,

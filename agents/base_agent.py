@@ -101,7 +101,8 @@ class BaseAgent():
     csv_things += ["opt_steps" + str(ccc) for ccc in range(nb_cols)]
     with open(os.path.join(self.config.stage_logdir, "data.csv"), "a") as myfile:
       myfile.write(",".join([str(cc) for cc in csv_things]) + "\n")
-    csv_things = ["q_value_" + str(ccc) for ccc in range(nb_cols)]
+    csv_things = ["value"]
+    csv_things += ["q_value_" + str(ccc) for ccc in range(nb_cols)]
     csv_things += ["prob_term_" + str(ccc) for ccc in range(nb_cols)]
     with open(os.path.join(self.config.stage_logdir, "q_values.csv"), "a") as myfile:
       myfile.write(",".join([str(cc) for cc in csv_things]) + "\n")
@@ -112,7 +113,7 @@ class BaseAgent():
       self.o_tracker_steps)
     with open(os.path.join(self.config.stage_logdir, "data.csv"), "a") as myfile:
       myfile.write(",".join([str(cc) for cc in csv_things]) + "\n")
-    csv_things = [list(self.q_values) + list(self.prob_terms)]
+    csv_things = [self.value] + list(self.q_values) + list(self.prob_terms)
     with open(os.path.join(self.config.stage_logdir, "q_values.csv"), "a") as myfile:
       myfile.write(",".join([str(cc) for cc in csv_things]) + "\n")
 
