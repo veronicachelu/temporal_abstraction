@@ -61,7 +61,7 @@ class BaseNetwork():
         self.nb_options + self.action_size) if self.config.include_primitive_options else self.nb_options,
                                           activation_fn=None,
                                           variables_collections=tf.get_collection("variables"),
-                                          outputs_collections="activations", scope="fc_q_val")
+                                          outputs_collections="activations", scope="q_val")
       self.summaries_option.append(tf.contrib.layers.summarize_activation(self.q_val))
       self.max_q_val = tf.reduce_max(self.q_val, 1)
       self.max_options = tf.cast(tf.argmax(self.q_val, 1), dtype=tf.int32)
@@ -72,13 +72,13 @@ class BaseNetwork():
                                             name="rand_options")
       self.condition = self.local_random > self.random_option_prob
 
-      self.current_option = tf.where(self.condition, self.max_options, self.exp_options)
+      self.current_option = tf.where(self.condition, self.max_options, self.exp_options, name="current_option")
       self.primitive_action = tf.where(self.current_option >= self.nb_options,
                                        tf.ones_like(self.current_option),
                                        tf.zeros_like(self.current_option))
       self.summaries_option.append(tf.contrib.layers.summarize_activation(self.current_option))
-      self.v = self.max_q_val * (1 - self.random_option_prob) + \
-               self.random_option_prob * tf.reduce_mean(self.q_val, axis=1)
+      self.v = tf.identity(self.max_q_val * (1 - self.random_option_prob) + \
+               self.random_option_prob * tf.reduce_mean(self.q_val, axis=1), name="V")
       self.summaries_option.append(tf.contrib.layers.summarize_activation(self.v))
 
       return out

@@ -255,6 +255,7 @@ class EigenOCAgent(BaseAgent):
       feed_dict = {self.local_network.observation: np.stack([s1])}
       o_term = self.sess.run(self.local_network.termination, feed_dict=feed_dict)
       self.o_term = o_term[0, self.option] > np.random.uniform()
+      self.prob_terms = o_term[0]
     # else:
     #   self.action = np.random.choice(range(self.action_size))
     #   self.o_term = True
@@ -280,6 +281,7 @@ class EigenOCAgent(BaseAgent):
       else:
         self.action = self.option - self.nb_options
       self.q_value = q_value[0, self.option]
+      self.q_values = q_value[0]
       self.value = value[0]
     else:
       tensor_list = [self.local_network.options, self.local_network.v, self.local_network.q_val]
@@ -292,6 +294,7 @@ class EigenOCAgent(BaseAgent):
         self.action = np.random.choice(pi, p=pi)
         self.action = np.argmax(pi == self.action)
       self.q_value = q_value[0, self.option]
+      self.q_values = q_value[0]
       self.value = value[0]
       self.episode_values.append(self.value)
       self.episode_q_values.append(self.q_value)
@@ -453,7 +456,6 @@ class EigenOCAgent(BaseAgent):
     eigen_rewards = rollout[:, 4]
     primitive_actions = rollout[:, 5]
     next_observations = rollout[:, 6]
-    # delib_cost = rollout[:, 6]
 
     rewards_plus = np.asarray(rewards.tolist() + [bootstrap_value])
     discounted_returns = reward_discount(rewards_plus, self.config.discount)[:-1]

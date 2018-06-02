@@ -96,9 +96,14 @@ class BaseAgent():
 
   def init_tracker(self):
     csv_things = ["steps", "reward", "term_prob"]
-    csv_things += ["opt_chosen" + str(ccc) for ccc in range(self.nb_options + self.action_size)]
-    csv_things += ["opt_steps" + str(ccc) for ccc in range(self.nb_options + self.action_size)]
+    nb_cols = self.nb_options + self.action_size if self.config.include_primitive_options else self.nb_options
+    csv_things += ["opt_chosen" + str(ccc) for ccc in range(nb_cols)]
+    csv_things += ["opt_steps" + str(ccc) for ccc in range(nb_cols)]
     with open(os.path.join(self.config.stage_logdir, "data.csv"), "a") as myfile:
+      myfile.write(",".join([str(cc) for cc in csv_things]) + "\n")
+    csv_things = ["q_value_" + str(ccc) for ccc in range(nb_cols)]
+    csv_things += ["prob_term_" + str(ccc) for ccc in range(nb_cols)]
+    with open(os.path.join(self.config.stage_logdir, "q_values.csv"), "a") as myfile:
       myfile.write(",".join([str(cc) for cc in csv_things]) + "\n")
 
   def tracker(self):
@@ -106,6 +111,9 @@ class BaseAgent():
     csv_things = [self.episode_len, self.episode_reward, round(term_prob, 1)] + list(self.o_tracker_chosen) + list(
       self.o_tracker_steps)
     with open(os.path.join(self.config.stage_logdir, "data.csv"), "a") as myfile:
+      myfile.write(",".join([str(cc) for cc in csv_things]) + "\n")
+    csv_things = [list(self.q_values) + list(self.prob_terms)]
+    with open(os.path.join(self.config.stage_logdir, "q_values.csv"), "a") as myfile:
       myfile.write(",".join([str(cc) for cc in csv_things]) + "\n")
 
   def update_episode_stats(self):
