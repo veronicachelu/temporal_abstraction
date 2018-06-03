@@ -201,9 +201,10 @@ class BaseAgent():
     if len(self.episode_mean_options) != 0:
       last_frequent_action = self.episode_mean_actions[-1]
       self.summary.value.add(tag='Perf/FreqActions', simple_value=last_frequent_action)
-    for op in range(self.nb_options + self.action_size):
+    col_size = self.nb_options + self.action_size if self.config.include_primitive_options else self.nb_options
+    for op in range(col_size):
       self.summary.value.add(tag='Perf/Options_chosen_{}'.format(op), simple_value=self.o_tracker_chosen[op])
-    for op in range(self.nb_options + self.action_size):
+    for op in range(col_size):
       self.summary.value.add(tag='Perf/Options_steps_{}'.format(op), simple_value=self.o_tracker_steps[op])
     self.summary.value.add(tag='Perf/Goal_position', simple_value=self.goal_position)
 
