@@ -95,7 +95,7 @@ class BaseAgent():
 
 
   def init_tracker(self):
-    csv_things = ["steps", "reward", "term_prob"]
+    csv_things = ["total_steps", "episode_steps", "reward", "term_prob"]
     nb_cols = self.nb_options + self.action_size if self.config.include_primitive_options else self.nb_options
     csv_things += ["opt_chosen" + str(ccc) for ccc in range(nb_cols)]
     csv_things += ["opt_steps" + str(ccc) for ccc in range(nb_cols)]
@@ -109,7 +109,7 @@ class BaseAgent():
 
   def tracker(self):
     term_prob = float(self.termination_counter) / self.frame_counter * 100
-    csv_things = [self.episode_len, self.episode_reward, round(term_prob, 1)] + list(self.o_tracker_chosen) + list(
+    csv_things = [self.total_steps, self.episode_len, self.episode_reward, round(term_prob, 1)] + list(self.o_tracker_chosen) + list(
       self.o_tracker_steps)
     with open(os.path.join(self.config.stage_logdir, "data.csv"), "a") as myfile:
       myfile.write(",".join([str(cc) for cc in csv_things]) + "\n")
@@ -555,20 +555,33 @@ class BaseAgent():
       if y - 1 > 0:
         states.append((x, y - 1))
 
-      if o >= self.nb_options:
-        a = o - self.nb_options
+      if self.config.eigen:
+        if o >= self.nb_options:
+          a = o - self.nb_options
+        else:
+          state_idxs = [self.env.get_state_index(x, y) for x, y in states]
+          possible_next_states = [self.env.fake_get_state(idx)[0] for idx in state_idxs]
+
+          feed_dict = {self.local_network.observation: np.stack([s] + possible_next_states)}
+          fis = self.sess.run(self.local_network.fi, feed_dict=feed_dict)
+          fi_s = fis[0]
+
+          fi_diffs = fi_s - fis[1:]
+          cosine_sims = [self.cosine_similarity(d, self.directions[o]) for d in fi_diffs]
+          a = np.argmax(cosine_sims)
       else:
-        state_idxs = [self.env.get_state_index(x, y) for x, y in states]
-        possible_next_states = [self.env.fake_get_state(idx)[0] for idx in state_idxs]
+        feed_dict = {self.local_network.observation: np.stack([s])}
+        options, o_term = self.sess.run([self.local_network.options, self.local_network.termination],
+                        feed_dict=feed_dict)
+        pi = options[0, o]
+        action = np.random.choice(pi, p=pi)
+        a = np.argmax(pi == action)
 
-        feed_dict = {self.local_network.observation: np.stack([s] + possible_next_states)}
-        fis = self.sess.run(self.local_network.fi, feed_dict=feed_dict)
-        fi_s = fis[0]
-
-        fi_diffs = fi_s - fis[1:]
-        cosine_sims = [self.cosine_similarity(d, self.directions[o]) for d in fi_diffs]
-        a = np.argmax(cosine_sims)
-
+        # s1, r, done, idx1 = self.env.special_step(a, idx)
+        # feed_dict = {self.local_network.observation: np.stack([s1])}
+        # o_term = self.sess.run(self.local_network.termination,
+        #                        feed_dict=feed_dict)
+        # o_term = o_term[0, o] > np.random.uniform()
       if a == 0:  # up
         dy = 0.35
       elif a == 1:  # right
@@ -656,13 +669,13 @@ class BaseAgent():
       elif a == 3:  # left
         dx = -0.35
 
-      if o_term and not primitive_action:  # termination
-        circle = plt.Circle(
-          (j + 0.5, self.config.input_size[0] - i + 0.5 - 1), 0.025, color='r' if primitive_action else 'k')
-        plt.gca().add_artist(circle)
-        plt.text(j, self.config.input_size[0] - i - 1, str(o), color='r' if primitive_action else 'b', fontsize=8)
-        continue
-      plt.text(j, self.config.input_size[0] - i - 1, str(o), color='r' if primitive_action else 'b', fontsize=8)
+      # if o_term and not primitive_action:  # termination
+      #   circle = plt.Circle(
+      #     (j + 0.5, self.config.input_size[0] - i + 0.5 - 1), 0.025, color='r' if primitive_action else 'k')
+      #   plt.gca().add_artist(circle)
+      #   plt.text(j, self.config.input_size[0] - i - 1, str(o), color='r' if primitive_action else 'b', fontsize=8)
+      #   continue
+      plt.text(j, self.config.input_size[0] - i + 0.2 - 1, str(o), color='r' if primitive_action else 'b', fontsize=10)
       # plt.text(j + 0.5, self.config.input_size[0] - i - 1, '{0:.2f}'.format(max_q_val), fontsize=8)
 
       plt.arrow(j + 0.5, self.config.input_size[0] - i + 0.5 - 1, dx, dy,

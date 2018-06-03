@@ -210,13 +210,16 @@ def test_options():
   env = functools.partial(
     GridWorld, goal_locations, "./mdps/4rooms.mdp")
 
-  decrease_option_prob = True
+  decrease_option_prob = False
   # delib_cost_disc = 0.99
-  delib_margin = 0.01
+  delib_margin = 0.0
+  lr = 7e-4
+  network_optimizer = 'RMSPropOptimizer'
 
   final_random_option_prob = 0.1
   initial_random_option_prob = 1
   explore_options_episodes = 500
+  episode_summary_interval = 10
 
   return locals()
 

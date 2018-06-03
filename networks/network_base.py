@@ -45,7 +45,8 @@ class BaseNetwork():
 
   def build_option_term_net(self):
     with tf.variable_scope("eigen_option_term"):
-      out = tf.stop_gradient(self.fi_relu)
+      # out = tf.stop_gradient(self.fi_relu)
+      out = self.fi_relu
       self.termination = layers.fully_connected(out, num_outputs=self.nb_options,
                                                 activation_fn=tf.nn.sigmoid,
                                                 variables_collections=tf.get_collection("variables"),
@@ -56,7 +57,8 @@ class BaseNetwork():
 
   def build_option_q_val_net(self):
     with tf.variable_scope("option_q_val"):
-      out = tf.stop_gradient(self.fi_relu)
+      # out = tf.stop_gradient(self.fi_relu)
+      out = self.fi_relu
       self.q_val = layers.fully_connected(out, num_outputs=(
         self.nb_options + self.action_size) if self.config.include_primitive_options else self.nb_options,
                                           activation_fn=None,
@@ -85,7 +87,8 @@ class BaseNetwork():
 
   def build_eigen_option_q_val_net(self):
     with tf.variable_scope("eigen_option_q_val"):
-      out = tf.stop_gradient(self.fi_relu)
+      # out = tf.stop_gradient(self.fi_relu)
+      out = self.fi_relu
       self.eigen_q_val = layers.fully_connected(out, num_outputs=self.nb_options,
                                                 activation_fn=None,
                                                 variables_collections=tf.get_collection("variables"),
@@ -102,7 +105,8 @@ class BaseNetwork():
 
   def build_intraoption_policies_nets(self):
     with tf.variable_scope("eigen_option_i_o_policies"):
-      out = tf.stop_gradient(self.fi_relu)
+      # out = tf.stop_gradient(self.fi_relu)
+      out = self.fi_relu
       self.options = []
       for i in range(self.nb_options):
         option = layers.fully_connected(out, num_outputs=self.action_size,

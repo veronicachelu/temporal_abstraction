@@ -186,7 +186,7 @@ class EigenOCAgent(BaseAgent):
             # if self.total_steps > self.config.observation_steps:
             if self.config.behaviour_agent is None and self.config.eigen:
               self.SF_prediction(s1)
-            self.next_frame_prediction()
+            # self.next_frame_prediction()
 
             # if self.total_steps > self.config.eigen_exploration_steps:
             self.option_prediction(s, s1)
@@ -255,13 +255,13 @@ class EigenOCAgent(BaseAgent):
 
   def option_terminate(self, s1):
     # if self.total_steps > self.config.eigen_exploration_steps:
-    if self.config.include_primitive_options and self.primitive_action:
-      self.o_term = True
-    else:
-      feed_dict = {self.local_network.observation: np.stack([s1])}
-      o_term = self.sess.run(self.local_network.termination, feed_dict=feed_dict)
-      self.o_term = o_term[0, self.option] > np.random.uniform()
-      self.prob_terms = o_term[0]
+    # if self.config.include_primitive_options and self.primitive_action:
+    #   self.o_term = True
+    # else:
+    feed_dict = {self.local_network.observation: np.stack([s1])}
+    o_term = self.sess.run(self.local_network.termination, feed_dict=feed_dict)
+    self.o_term = o_term[0, self.option] > np.random.uniform()
+    self.prob_terms = o_term[0]
     # else:
     #   self.action = np.random.choice(range(self.action_size))
     #   self.o_term = True
