@@ -52,9 +52,7 @@ class EigenOCAgent(BaseAgent):
     self.episode_oterm = []
     self.episode_options = []
     self.episode_actions = []
-    # self.episode_options_lengths = [[] for o in range(self.config.nb_options)]
     self.episode_reward = 0
-    # self.episode_option_histogram = np.zeros(self.config.nb_options)
     self.done = False
     self.o_term = True
     self.episode_len = 0
