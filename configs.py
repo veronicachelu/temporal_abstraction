@@ -213,12 +213,10 @@ def test_options():
   decrease_option_prob = False
   # delib_cost_disc = 0.99
   delib_margin = 0.0
-  lr = 1e-3
 
   final_random_option_prob = 0.1
   initial_random_option_prob = 1
   explore_options_episodes = 500
-  episode_summary_interval = 10
 
   return locals()
 

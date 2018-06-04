@@ -187,7 +187,7 @@ class BaseAgent():
       mean_length = np.mean(self.episode_lengths[-self.config.episode_summary_interval:])
     if len(self.episode_term_prob) != 0:
       mean_term_prob = np.mean(self.episode_term_prob[-self.config.episode_summary_interval:])
-      self.summary.value.add(tag='Perf/Term_prob', simple_value=float(mean_length))
+      self.summary.value.add(tag='Perf/Term_prob', simple_value=float(mean_term_prob))
     if len(self.episode_mean_values) != 0:
       last_mean_value = self.episode_mean_values[-1]
       self.summary.value.add(tag='Perf/Value', simple_value=float(last_mean_value))
