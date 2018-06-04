@@ -34,6 +34,7 @@ class BaseAgent():
     self.increment_global_step = self.global_step.assign_add(1)
     self.episode_rewards = []
     self.episode_lengths = []
+    self.episode_term_prob = []
     self.episode_mean_values = []
     self.episode_mean_q_values = []
     self.episode_mean_eigen_q_values = []
@@ -95,7 +96,7 @@ class BaseAgent():
 
 
   def init_tracker(self):
-    csv_things = ["total_steps", "episode_steps", "reward", "term_prob"]
+    csv_things = ["episode", "total_steps", "episode_steps", "reward", "term_prob"]
     nb_cols = self.nb_options + self.action_size if self.config.include_primitive_options else self.nb_options
     csv_things += ["opt_chosen" + str(ccc) for ccc in range(nb_cols)]
     csv_things += ["opt_steps" + str(ccc) for ccc in range(nb_cols)]
@@ -108,8 +109,8 @@ class BaseAgent():
       myfile.write(",".join([str(cc) for cc in csv_things]) + "\n")
 
   def tracker(self):
-    term_prob = float(self.termination_counter) / self.frame_counter * 100
-    csv_things = [self.total_steps, self.episode_len, self.episode_reward, round(term_prob, 1)] + list(self.o_tracker_chosen) + list(
+    term_prob = float(self.termination_counter) / self.episode_len * 100
+    csv_things = [self.episode_count, self.total_steps, self.episode_len, self.episode_reward, round(term_prob, 1)] + list(self.o_tracker_chosen) + list(
       self.o_tracker_steps)
     with open(os.path.join(self.config.stage_logdir, "data.csv"), "a") as myfile:
       myfile.write(",".join([str(cc) for cc in csv_things]) + "\n")
@@ -120,6 +121,8 @@ class BaseAgent():
   def update_episode_stats(self):
     self.episode_rewards.append(self.episode_reward)
     self.episode_lengths.append(self.episode_len)
+    term_prob = float(self.termination_counter) / self.episode_len * 100
+    self.episode_term_prob.append(term_prob)
     if len(self.episode_values) != 0:
       self.episode_mean_values.append(np.mean(self.episode_values))
     if len(self.episode_q_values) != 0:
@@ -182,7 +185,9 @@ class BaseAgent():
       self.summary.value.add(tag='Perf/Reward', simple_value=float(last_reward))
     if len(self.episode_lengths) != 0:
       mean_length = np.mean(self.episode_lengths[-self.config.episode_summary_interval:])
-      self.summary.value.add(tag='Perf/Length', simple_value=float(mean_length))
+    if len(self.episode_term_prob) != 0:
+      mean_term_prob = np.mean(self.episode_term_prob[-self.config.episode_summary_interval:])
+      self.summary.value.add(tag='Perf/Term_prob', simple_value=float(mean_length))
     if len(self.episode_mean_values) != 0:
       last_mean_value = self.episode_mean_values[-1]
       self.summary.value.add(tag='Perf/Value', simple_value=float(last_mean_value))

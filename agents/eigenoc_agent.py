@@ -64,7 +64,6 @@ class EigenOCAgent(BaseAgent):
     self.o_tracker_chosen = np.zeros((col_size, ), dtype=np.int32)
     self.o_tracker_steps = np.zeros(col_size, dtype=np.int32)
     self.termination_counter = 0
-    self.frame_counter = 0
     self.stats_options = np.zeros((self.nb_states, col_size))
 
     if self.config.decrease_option_prob and self.episode_count < self.config.explore_options_episodes:
@@ -149,14 +148,14 @@ class EigenOCAgent(BaseAgent):
 
           self.sync_threads()
 
-          if self.name == "worker_0" and self.episode_count > 0 and self.config.eigen and self.config.behaviour_agent is None:
-            if self.config.eigen_approach == "SVD":
-              self.recompute_eigenvectors_svd()
-            else:
-              self.recompute_eigenvectors_NN()
-
-          if self.config.sr_matrix is not None:
-            self.load_directions()
+          # if self.name == "worker_0" and self.episode_count > 0 and self.config.eigen and self.config.behaviour_agent is None:
+          #   if self.config.eigen_approach == "SVD":
+          #     self.recompute_eigenvectors_svd()
+          #   else:
+          #     self.recompute_eigenvectors_NN()
+          #
+          # if self.config.sr_matrix is not None:
+          #   self.load_directions()
           self.init_episode()
 
           s = self.env.reset()
@@ -171,14 +170,12 @@ class EigenOCAgent(BaseAgent):
             self.episode_reward += r
             self.reward = np.clip(r, -1, 1)
 
-            self.option_terminate(s1)
 
-            self.reward_deliberation()
 
             if self.done:
               s1 = s
 
-            self.store_general_info(s, s1, self.action, self.original_reward)
+            self.store_general_info(s, s1, self.action)
             self.log_timestep()
 
             # if self.total_steps > self.config.observation_steps:
@@ -187,10 +184,14 @@ class EigenOCAgent(BaseAgent):
             # self.next_frame_prediction()
 
             # if self.total_steps > self.config.eigen_exploration_steps:
+            self.option_terminate(s1)
+            self.reward_deliberation()
             self.option_prediction(s, s1)
 
             if not self.done and (self.o_term or self.primitive_action):
               self.option_evaluation(s1, s1_idx)
+              self.termination_counter += 1
+
 
             if not self.done:
               self.o_tracker_steps[self.option] += 1
@@ -265,9 +266,6 @@ class EigenOCAgent(BaseAgent):
     #   self.o_term = True
     self.episode_oterm.append(self.o_term)
 
-    self.termination_counter += self.o_term
-    self.frame_counter += 1
-
   def policy_evaluation(self, s):
     # if self.total_steps > self.config.eigen_exploration_steps:
     feed_dict = {self.local_network.observation: np.stack([s])}
@@ -307,7 +305,7 @@ class EigenOCAgent(BaseAgent):
     #   self.primitive_action = True
     self.episode_actions.append(self.action)
 
-  def store_general_info(self, s, s1, a, r):
+  def store_general_info(self, s, s1, a):
     if self.config.eigen:
       self.episode_buffer_sf.append([s, s1, a])
     if len(self.aux_episode_buffer) == self.config.memory_size:
@@ -330,8 +328,8 @@ class EigenOCAgent(BaseAgent):
     else:
       r_i = r
       self.episode_buffer_option.append(
-        [np.copy(s), np.copy(self.option), np.copy(a), np.copy(r), np.copy(r_i),
-         np.copy(self.primitive_action), np.copy(s1)])
+        [s, self.option, a, r, r_i,
+         self.primitive_action, s1])
 
   def recompute_eigenvectors_NN(self):
     if self.config.eigen:
