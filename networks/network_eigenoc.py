@@ -21,14 +21,16 @@ class EignOCNetwork(BaseNetwork):
                                      variables_collections=tf.get_collection("variables"),
                                      outputs_collections="activations", scope="fc_{}".format(i))
 
-        if i < len(self.fc_layers) - 1:
-          out = tf.nn.relu(out)
+        # if i < len(self.fc_layers) - 1:
+        #   out = tf.nn.relu(out)
         self.summaries_sf.append(tf.contrib.layers.summarize_activation(out))
         self.summaries_aux.append(tf.contrib.layers.summarize_activation(out))
         self.summaries_option.append(tf.contrib.layers.summarize_activation(out))
       self.fi = out
-      self.fi_relu = tf.nn.relu(self.fi)
-      self.fi_relu = self.layer_norm_fn(out, relu=True)
+      self.fi_relu = tf.identity(self.layer_norm_fn(self.fi, relu=True), "fi_relu")
+      self.summaries_sf.append(tf.contrib.layers.summarize_activation(self.fi_relu))
+      self.summaries_aux.append(tf.contrib.layers.summarize_activation(self.fi_relu))
+      self.summaries_option.append(tf.contrib.layers.summarize_activation(self.fi_relu))
 
       return out
 
