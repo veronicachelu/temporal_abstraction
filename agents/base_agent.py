@@ -103,7 +103,7 @@ class BaseAgent():
     with open(os.path.join(self.config.stage_logdir, "data.csv"), "a") as myfile:
       myfile.write(",".join([str(cc) for cc in csv_things]) + "\n")
     csv_things = ["value"]
-    csv_things += ["q_value_" + str(ccc) for ccc in range(nb_cols)]
+    csv_things += ["A_" + str(ccc) for ccc in range(nb_cols)]
     csv_things += ["prob_term_" + str(ccc) for ccc in range(nb_cols)]
     with open(os.path.join(self.config.stage_logdir, "q_values.csv"), "a") as myfile:
       myfile.write(",".join([str(cc) for cc in csv_things]) + "\n")
@@ -112,9 +112,10 @@ class BaseAgent():
     term_prob = float(self.termination_counter) / self.episode_len * 100
     csv_things = [self.episode_count, self.total_steps, self.episode_len, self.episode_reward, round(term_prob, 1)] + list(self.o_tracker_chosen) + list(
       self.o_tracker_steps)
+    self.advantages = [q - self.value for q in self.q_values]
     with open(os.path.join(self.config.stage_logdir, "data.csv"), "a") as myfile:
       myfile.write(",".join([str(cc) for cc in csv_things]) + "\n")
-    csv_things = [self.value] + list(self.q_values) + list(self.prob_terms)
+    csv_things = [self.value] + list(self.advantages) + list(self.prob_terms)
     with open(os.path.join(self.config.stage_logdir, "q_values.csv"), "a") as myfile:
       myfile.write(",".join([str(cc) for cc in csv_things]) + "\n")
 
