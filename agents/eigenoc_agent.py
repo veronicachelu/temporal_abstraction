@@ -477,12 +477,13 @@ class EigenOCAgent(BaseAgent):
                  self.local_network.observation: np.stack(next_observations, axis=0),
                  self.local_network.options_placeholder: options,
                  }
-    to_run = [self.local_network.apply_grads_term,
+    to_run = [
+      # self.local_network.apply_grads_term,
               self.local_network.merged_summary_term,
               self.local_network.term_loss,
               ]
     results2 = self.sess.run(to_run, feed_dict=feed_dict)
-    results += results2[1:]
+    results += results2
     results.append(discounted_returns[-1])
 
 

@@ -230,10 +230,10 @@ class BaseNetwork():
     local_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, self.scope)
     global_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, 'global')
 
-    grads_sf, self.apply_grads_sf = self.take_gradient(self.sf_loss)
-    grads_aux, self.apply_grads_aux = self.take_gradient(self.aux_loss)
-    grads_option, self.apply_grads_option = self.take_gradient(self.option_loss)
-    grads_primitive_option, self.apply_grads_primitive_option = self.take_gradient(self.critic_loss)
+    self.grads_sf, self.apply_grads_sf = self.take_gradient(self.sf_loss)
+    self.grads_aux, self.apply_grads_aux = self.take_gradient(self.aux_loss)
+    self.grads_option, self.apply_grads_option = self.take_gradient(self.option_loss)
+    self.grads_primitive_option, self.apply_grads_primitive_option = self.take_gradient(self.critic_loss)
     grads_term, self.apply_grads_term = self.take_gradient(self.term_loss)
 
     # self.apply_grads_sf = self.network_optimizer.apply_gradients(zip(grads_sf, global_vars))
@@ -245,20 +245,20 @@ class BaseNetwork():
 
     self.merged_summary_sf = tf.summary.merge(
       self.summaries_sf + [tf.summary.scalar('avg_sf_loss', self.sf_loss)] + [
-        tf.summary.scalar('cliped_gradient_norm_sf', tf.global_norm(grads_sf)),
-        gradient_summaries(zip(grads_sf, local_vars))])
+        tf.summary.scalar('cliped_gradient_norm_sf', tf.global_norm(self.grads_sf)),
+        gradient_summaries(zip(self.grads_sf, local_vars))])
     self.merged_summary_aux = tf.summary.merge(self.image_summaries + self.summaries_aux +
                                                [tf.summary.scalar('aux_loss', self.aux_loss)] + [
                                                  tf.summary.scalar('cliped_gradient_norm_aux',
-                                                                   tf.global_norm(grads_aux)),
-                                                 gradient_summaries(zip(grads_aux, local_vars))])
+                                                                   tf.global_norm(self.grads_aux)),
+                                                 gradient_summaries(zip(self.grads_aux, local_vars))])
     options_to_merge = self.summaries_option + [tf.summary.scalar('avg_critic_loss', self.critic_loss),
                                                 tf.summary.scalar('avg_entropy_loss', self.entropy_loss),
                                                 tf.summary.scalar('avg_policy_loss', self.policy_loss),
                                                 tf.summary.scalar('random_option_prob', self.random_option_prob),
                                                 tf.summary.scalar('cliped_gradient_norm_option',
-                                                                  tf.global_norm(grads_option)),
-                                                gradient_summaries(zip(grads_option, local_vars))]
+                                                                  tf.global_norm(self.grads_option)),
+                                                gradient_summaries(zip(self.grads_option, local_vars))]
     self.merged_summary_term = tf.summary.merge(
       self.summaries_term + [tf.summary.scalar('avg_termination_loss', self.term_loss)] + [
         tf.summary.scalar('cliped_gradient_norm_term', tf.global_norm(grads_term)),
