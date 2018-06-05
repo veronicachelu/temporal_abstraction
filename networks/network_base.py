@@ -52,12 +52,12 @@ class BaseNetwork():
     with tf.variable_scope("eigen_option_term"):
       # out = tf.stop_gradient(self.fi_relu)
       out = self.fi_relu
-      self.termination = layers.fully_connected(out, num_outputs=self.nb_options,
+      out = layers.fully_connected(out, num_outputs=self.nb_options,
                                                 activation_fn=None,
                                                 variables_collections=tf.get_collection("variables"),
                                                 outputs_collections="activations", scope="option_term_logit")
       self.summaries_term.append(tf.contrib.layers.summarize_activation(out))
-      self.termination = tf.nn.sigmoid(self.termination, name="option_term")
+      self.termination = tf.nn.sigmoid(out, name="option_term")
       self.summaries_term.append(tf.contrib.layers.summarize_activation(self.termination))
 
       return out
