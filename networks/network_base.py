@@ -234,7 +234,7 @@ class BaseNetwork():
     self.grads_aux, self.apply_grads_aux = self.take_gradient(self.aux_loss)
     self.grads_option, self.apply_grads_option = self.take_gradient(self.option_loss)
     self.grads_primitive_option, self.apply_grads_primitive_option = self.take_gradient(self.critic_loss)
-    grads_term, self.apply_grads_term = self.take_gradient(self.term_loss)
+    self.grads_term, self.apply_grads_term = self.take_gradient(self.term_loss)
 
     # self.apply_grads_sf = self.network_optimizer.apply_gradients(zip(grads_sf, global_vars))
     # self.apply_grads_aux = self.network_optimizer.apply_gradients(zip(grads_aux, global_vars))
@@ -261,8 +261,7 @@ class BaseNetwork():
                                                 gradient_summaries(zip(self.grads_option, local_vars))]
     self.merged_summary_term = tf.summary.merge(
       self.summaries_term + [tf.summary.scalar('avg_termination_loss', self.term_loss)] + [
-        tf.summary.scalar('cliped_gradient_norm_term', tf.global_norm(grads_term)),
-        gradient_summaries(zip(grads_term, local_vars))])
+        gradient_summaries(zip(self.grads_term, local_vars))])
 
     if self.config.eigen:
       options_to_merge += [tf.summary.scalar('avg_eigen_critic_loss', self.eigen_critic_loss)]
