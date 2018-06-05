@@ -203,7 +203,7 @@ def test_options():
   max_length_eval = 1000
   include_primitive_options = False
   sf_matrix_size = 169
-  sr_matrix = "static"
+  sr_matrix = None
   goal_locations = [(1, 11),]
   # goal_locations = [(1, 11), (3, 2), (6, 2), (1, 4), (1, 1), (8, 1), (2, 5), (11, 10)]
   move_goal_nb_of_ep = 1000
@@ -211,12 +211,13 @@ def test_options():
     GridWorld, goal_locations, "./mdps/4rooms.mdp")
 
   decrease_option_prob = False
-  # delib_cost_disc = 0.99
-  delib_margin = 0.0
+  delib_cost_disc = 0.99
+  delib_margin = 0.01
 
   final_random_option_prob = 0.1
   initial_random_option_prob = 1
   explore_options_episodes = 500
+
 
   return locals()
 

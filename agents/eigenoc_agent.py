@@ -181,7 +181,7 @@ class EigenOCAgent(BaseAgent):
             # if self.total_steps > self.config.observation_steps:
             if self.config.behaviour_agent is None and self.config.eigen:
               self.SF_prediction(s1)
-            # self.next_frame_prediction()
+            self.next_frame_prediction()
 
             # if self.total_steps > self.config.eigen_exploration_steps:
             self.option_terminate(s1)
@@ -238,7 +238,7 @@ class EigenOCAgent(BaseAgent):
 
   def reward_deliberation(self):
     self.original_reward = self.reward
-    self.reward = float(self.reward) - (float(self.o_term) * self.config.delib_margin * (1 - float(self.done)))
+    self.reward = float(self.reward) - self.config.discount * (float(self.o_term) * self.config.delib_margin * (1 - float(self.done)))
 
   def option_evaluation(self, s, s_idx=None):
     feed_dict = {self.local_network.observation: np.stack([s])}
