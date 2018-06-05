@@ -211,12 +211,12 @@ def test_options():
     GridWorld, goal_locations, "./mdps/4rooms.mdp")
 
   decrease_option_prob = False
-  delib_cost_disc = 0.99
+  # delib_cost_disc = 0.99
   delib_margin = 0.01
 
-  final_random_option_prob = 0.1
-  initial_random_option_prob = 1
-  explore_options_episodes = 500
+  # final_random_option_prob = 0.1
+  initial_random_option_prob = 0.1
+  # explore_options_episodes = 500
 
 
   return locals()
