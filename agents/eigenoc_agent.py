@@ -218,12 +218,12 @@ class EigenOCAgent(BaseAgent):
             self.barrier.wait()
             self.goal_position = self.env.set_goal(self.episode_count, self.config.move_goal_nb_of_ep)
 
-          if self.episode_count % self.config.episode_checkpoint_interval == 0 and self.name == 'worker_0' and \
+          if self.episode_count % self.config.episode_checkpoint_interval == 0  and \
                   self.episode_count != 0:
             self.save_model()
 
           if self.episode_count % self.config.episode_summary_interval == 0 and self.total_steps != 0 and \
-                  self.name == 'worker_0' and self.episode_count != 0:
+                   self.episode_count != 0:
             self.write_episode_summary(r)
 
           if self.name == 'worker_0':
