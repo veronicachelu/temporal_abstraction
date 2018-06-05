@@ -53,9 +53,11 @@ class BaseNetwork():
       # out = tf.stop_gradient(self.fi_relu)
       out = self.fi_relu
       self.termination = layers.fully_connected(out, num_outputs=self.nb_options,
-                                                activation_fn=tf.nn.sigmoid,
+                                                activation_fn=None,
                                                 variables_collections=tf.get_collection("variables"),
-                                                outputs_collections="activations", scope="fc_option_term")
+                                                outputs_collections="activations", scope="option_term_logit")
+      self.summaries_term.append(tf.contrib.layers.summarize_activation(out))
+      self.termination = tf.nn.sigmoid(self.termination, name="option_term")
       self.summaries_term.append(tf.contrib.layers.summarize_activation(self.termination))
 
       return out
@@ -77,15 +79,15 @@ class BaseNetwork():
                                            dtype=tf.int32)
       self.local_random = tf.random_uniform(shape=[tf.shape(self.q_val)[0]], minval=0., maxval=1., dtype=tf.float32,
                                             name="rand_options")
-      self.condition = self.local_random > self.random_option_prob
+      self.condition = self.local_random > 0.1
 
       self.current_option = tf.where(self.condition, self.max_options, self.exp_options, name="current_option")
       self.primitive_action = tf.where(self.current_option >= self.nb_options,
                                        tf.ones_like(self.current_option),
                                        tf.zeros_like(self.current_option))
       self.summaries_option.append(tf.contrib.layers.summarize_activation(self.current_option))
-      self.v = tf.identity(self.max_q_val * (1 - self.random_option_prob) + \
-               self.random_option_prob * tf.reduce_mean(self.q_val, axis=1), name="V")
+      self.v = tf.identity(self.max_q_val * (1 - 0.1) + \
+                           0.1 * tf.reduce_mean(self.q_val, axis=1), name="V")
       self.summaries_option.append(tf.contrib.layers.summarize_activation(self.v))
 
       return out
