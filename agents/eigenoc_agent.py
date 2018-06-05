@@ -169,9 +169,6 @@ class EigenOCAgent(BaseAgent):
 
             self.episode_reward += r
             self.reward = np.clip(r, -1, 1)
-
-
-
             if self.done:
               s1 = s
 
@@ -190,8 +187,6 @@ class EigenOCAgent(BaseAgent):
 
             if not self.done and (self.o_term or self.primitive_action):
               self.option_evaluation(s1, s1_idx)
-              self.termination_counter += 1
-
 
             if not self.done:
               self.o_tracker_steps[self.option] += 1
@@ -261,6 +256,7 @@ class EigenOCAgent(BaseAgent):
     o_term = self.sess.run(self.local_network.termination, feed_dict=feed_dict)
     self.o_term = o_term[0, self.option] > np.random.uniform()
     self.prob_terms = o_term[0]
+    self.termination_counter += self.o_term * (1 - self.done)
     # else:
     #   self.action = np.random.choice(range(self.action_size))
     #   self.o_term = True

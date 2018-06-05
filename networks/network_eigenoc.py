@@ -28,8 +28,15 @@ class EignOCNetwork(BaseNetwork):
         self.summaries_option.append(tf.contrib.layers.summarize_activation(out))
       self.fi = out
       self.fi_relu = tf.nn.relu(self.fi)
+      self.fi_relu = self.layer_norm_fn(out, relu=True)
 
       return out
+
+  def layer_norm_fn(self, x, relu=True):
+    x = layers.layer_norm(x, scale=True, center=True)
+    if relu:
+      x = tf.nn.relu(x)
+    return x
 
   def build_next_frame_prediction_net(self):
     with tf.variable_scope("aux_action_fc"):
