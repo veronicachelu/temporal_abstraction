@@ -19,7 +19,7 @@ class EignOCNetwork(BaseNetwork):
         out = layers.fully_connected(out, num_outputs=nb_filt,
                                      activation_fn=None,
                                      variables_collections=tf.get_collection("variables"),
-                                     outputs_collections="activations", scope="FI")
+                                     outputs_collections="activations", scope="fi_{}".format(i))
         if i < len(self.fc_layers) - 1:
           out = layers.layer_norm(out, scale=True, center=True)
           out = tf.nn.elu(out)
