@@ -188,7 +188,7 @@ def test_options():
   eigen = False
   network = EignOCNetwork
 
-  fc_layers = 128,
+  fc_layers = 128, 64
   sf_layers = 128,
   aux_fc_layers = 507,
 
