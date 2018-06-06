@@ -26,9 +26,9 @@ class BaseNetwork():
     self.summaries_term = []
 
 
-    self.network_optimizer = network_optimizer
-    # self.network_optimizer = config.network_optimizer(
-    #   self.config.lr, name='network_optimizer')
+    # self.network_optimizer = network_optimizer
+    self.network_optimizer = config.network_optimizer(
+      self.config.lr, name='network_optimizer')
 
     if scope == 'global' and self.config.sr_matrix is not None:
       self.directions_path = os.path.join(config.logdir, "eigen_directions.npy")
@@ -49,8 +49,8 @@ class BaseNetwork():
 
   def build_option_term_net(self):
     with tf.variable_scope("eigen_option_term"):
-      # out = tf.stop_gradient(self.fi_relu)
-      out = self.fi_relu
+      out = tf.stop_gradient(self.fi_relu)
+      # out = self.fi_relu
       self.summaries_term.append(tf.contrib.layers.summarize_activation(tf.identity(out, name="before_oterm")))
       out = layers.fully_connected(out, num_outputs=self.nb_options,
                                                 activation_fn=None, weights_initializer=layers.xavier_initializer(uniform=False),
@@ -63,8 +63,8 @@ class BaseNetwork():
 
   def build_option_q_val_net(self):
     with tf.variable_scope("option_q_val"):
-      # out = tf.stop_gradient(self.fi_relu)
-      out = self.fi_relu
+      out = tf.stop_gradient(self.fi_relu)
+      # out = self.fi_relu
       self.q_val = layers.fully_connected(out, num_outputs=(
         self.nb_options + self.action_size) if self.config.include_primitive_options else self.nb_options,
                                           activation_fn=None,
@@ -92,8 +92,8 @@ class BaseNetwork():
 
   def build_eigen_option_q_val_net(self):
     with tf.variable_scope("eigen_option_q_val"):
-      # out = tf.stop_gradient(self.fi_relu)
-      out = self.fi_relu
+      out = tf.stop_gradient(self.fi_relu)
+      # out = self.fi_relu
       self.eigen_q_val = layers.fully_connected(out, num_outputs=self.nb_options,
                                                 activation_fn=None,
                                                 variables_collections=tf.get_collection("variables"),
@@ -110,8 +110,8 @@ class BaseNetwork():
 
   def build_intraoption_policies_nets(self):
     with tf.variable_scope("eigen_option_i_o_policies"):
-      # out = tf.stop_gradient(self.fi_relu)
-      out = self.fi_relu
+      out = tf.stop_gradient(self.fi_relu)
+      # out = self.fi_relu
       self.options = []
       for i in range(self.nb_options):
         option = layers.fully_connected(out, num_outputs=self.action_size,
@@ -209,31 +209,31 @@ class BaseNetwork():
     if self.config.eigen:
       self.option_loss += self.eigen_critic_loss
 
-  def take_gradient(self, loss):
-    local_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, self.scope)
-    global_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, 'global')
-    with tf.device("/cpu:0"):
-      var_refs = [v._ref() for v in local_vars]
-      gradients = tf.gradients(
-        loss, var_refs,
-        gate_gradients=False,
-        aggregation_method=None,
-        colocate_gradients_with_ops=False)
-
-      apply_gradients = self.network_optimizer.apply_gradients(
-        global_vars,
-        gradients)
-
-      return gradients, apply_gradients
-
   # def take_gradient(self, loss):
   #   local_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, self.scope)
   #   global_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, 'global')
-  #   gradients = tf.gradients(loss, local_vars)
-  #   var_norms = tf.global_norm(local_vars)
-  #   grads, grad_norms = tf.clip_by_global_norm(gradients, self.config.gradient_clip_norm_value)
-  #   apply_grads = self.network_optimizer.apply_gradients(zip(grads, global_vars))
-  #   return grads, apply_grads
+  #   with tf.device("/cpu:0"):
+  #     var_refs = [v._ref() for v in local_vars]
+  #     gradients = tf.gradients(
+  #       loss, var_refs,
+  #       gate_gradients=False,
+  #       aggregation_method=None,
+  #       colocate_gradients_with_ops=False)
+  #
+  #     apply_gradients = self.network_optimizer.apply_gradients(
+  #       global_vars,
+  #       gradients)
+  #
+  #     return gradients, apply_gradients
+
+  def take_gradient(self, loss):
+    local_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, self.scope)
+    global_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, 'global')
+    gradients = tf.gradients(loss, local_vars)
+    var_norms = tf.global_norm(local_vars)
+    grads, grad_norms = tf.clip_by_global_norm(gradients, self.config.gradient_clip_norm_value)
+    apply_grads = self.network_optimizer.apply_gradients(zip(grads, global_vars))
+    return grads, apply_grads
 
   def gradients_and_summaries(self):
     local_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, self.scope)

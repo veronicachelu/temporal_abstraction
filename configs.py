@@ -218,7 +218,7 @@ def test_options():
 
 
   # final_random_option_prob = 0.1
-  initial_random_option_prob = 1e-5
+  initial_random_option_prob = 0.1
   # explore_options_episodes = 500
   episode_summary_interval = 10
   lr = 7e-4
