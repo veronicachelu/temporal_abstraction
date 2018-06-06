@@ -60,7 +60,6 @@ class BaseNetwork():
       self.termination = tf.nn.sigmoid(out, name="option_term")
       self.summaries_term.append(tf.contrib.layers.summarize_activation(self.termination))
 
-      return out
 
   def build_option_q_val_net(self):
     with tf.variable_scope("option_q_val"):
@@ -90,7 +89,6 @@ class BaseNetwork():
                self.random_option_prob * tf.reduce_mean(self.q_val, axis=1), name="V")
       self.summaries_option.append(tf.contrib.layers.summarize_activation(self.v))
 
-      return out
 
   def build_eigen_option_q_val_net(self):
     with tf.variable_scope("eigen_option_q_val"):
