@@ -161,7 +161,7 @@ class BaseNetwork():
     o_term = self.get_o_term(self.options_placeholder)
 
     self.image_summaries.append(
-      tf.summary.image('next', tf.concat([self.next_obs, self.target_next_obs], 2), max_outputs=30))
+      tf.summary.image('next', tf.concat([self.next_obs * 255 * 128, self.target_next_obs * 255 * 128], 2), max_outputs=30))
 
     # self.matrix_sf = tf.placeholder(shape=[self.config.sf_matrix_size, self.sf_layers[-1]],
     #                                 dtype=tf.float32, name="matrix_sf")
