@@ -178,7 +178,7 @@ class BaseAgent():
 
   def write_episode_summary(self, r):
     self.tracker()
-    self.write_option_map()
+    # self.write_option_map()
     # self.write_episode_summary_stats()
     # self.viz_options()
     self.summary = tf.Summary()
