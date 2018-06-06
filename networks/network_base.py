@@ -265,7 +265,7 @@ class BaseNetwork():
                                                 tf.summary.scalar('avg_entropy_loss', self.entropy_loss),
                                                 tf.summary.scalar('avg_policy_loss', self.policy_loss),
                                                 tf.summary.scalar('random_option_prob', self.random_option_prob),
-                                                tf.summary.scalar('self.lr'),
+                                                tf.summary.scalar('LR', self.lr),
                                                 gradient_summaries(zip(self.grads_option, local_vars))]
     self.merged_summary_term = tf.summary.merge(
       self.summaries_term + [tf.summary.scalar('avg_termination_loss', self.term_loss)] + [
