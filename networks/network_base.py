@@ -180,9 +180,9 @@ class BaseNetwork():
       sf_td_error = self.target_sf - self.sf
     self.sf_loss = tf.reduce_mean(self.config.sf_coef * huber_loss(sf_td_error))
 
-    with tf.name_scope('aux_loss'):
-      aux_error = self.next_obs - self.target_next_obs
-    self.aux_loss = tf.reduce_mean(self.config.aux_coef * huber_loss(aux_error))
+    # with tf.name_scope('aux_loss'):
+    #   aux_error = self.next_obs - self.target_next_obs
+    # self.aux_loss = tf.reduce_mean(self.config.aux_coef * huber_loss(aux_error))
 
     if self.config.eigen:
       with tf.name_scope('eigen_critic_loss'):
@@ -231,7 +231,7 @@ class BaseNetwork():
     global_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, 'global')
 
     self.grads_sf, self.apply_grads_sf = self.take_gradient(self.sf_loss)
-    self.grads_aux, self.apply_grads_aux = self.take_gradient(self.aux_loss)
+    # self.grads_aux, self.apply_grads_aux = self.take_gradient(self.aux_loss)
     self.grads_option, self.apply_grads_option = self.take_gradient(self.option_loss)
     self.grads_primitive_option, self.apply_grads_primitive_option = self.take_gradient(self.critic_loss)
     self.grads_term, self.apply_grads_term = self.take_gradient(self.term_loss)
