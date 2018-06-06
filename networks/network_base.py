@@ -24,12 +24,15 @@ class BaseNetwork():
     self.summaries_option = []
     self.summaries_term = []
 
-    self.network_optimizer = RMSPropApplier(learning_rate=self.config.lr,
-                   decay=0.99,
-                   momentum=0.0,
-                   epsilon=0.1,
-                   clip_norm=40,
-                   device="/cpu:0")
+    if total_steps_tensor:
+      lr = tf.train.polynomial_decay(self.config.lr, total_steps_tensor, self.config.episodes * 1e3,
+                                     0, power=1)
+      self.network_optimizer = RMSPropApplier(learning_rate=lr,
+                     decay=0.99,
+                     momentum=0.0,
+                     epsilon=0.1,
+                     clip_norm=40,
+                     device="/cpu:0")
     # self.network_optimizer = config.network_optimizer(
     #   self.config.lr, name='network_optimizer')
 
@@ -261,8 +264,6 @@ class BaseNetwork():
                                                 tf.summary.scalar('avg_entropy_loss', self.entropy_loss),
                                                 tf.summary.scalar('avg_policy_loss', self.policy_loss),
                                                 tf.summary.scalar('random_option_prob', self.random_option_prob),
-                                                tf.summary.scalar('cliped_gradient_norm_option',
-                                                                  tf.global_norm(self.grads_option)),
                                                 gradient_summaries(zip(self.grads_option, local_vars))]
     self.merged_summary_term = tf.summary.merge(
       self.summaries_term + [tf.summary.scalar('avg_termination_loss', self.term_loss)] + [

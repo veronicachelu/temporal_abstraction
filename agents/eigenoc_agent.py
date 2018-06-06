@@ -183,7 +183,7 @@ class EigenOCAgent(BaseAgent):
             # if self.total_steps > self.config.eigen_exploration_steps:
             self.option_terminate(s1)
             self.reward_deliberation()
-            self.option_prediction(s, s1)
+            # self.option_prediction(s, s1)
 
             if not self.done and (self.o_term or self.primitive_action):
               self.option_evaluation(s1, s1_idx)
@@ -194,7 +194,7 @@ class EigenOCAgent(BaseAgent):
             if self.total_steps % self.config.steps_checkpoint_interval == 0 and self.name == 'worker_0':
               self.save_model()
 
-            if self.total_steps % self.config.steps_summary_interval == 0:
+            if self.total_steps % self.config.steps_summary_interval == 0 and self.name == "worker_0":
               self.write_step_summary(r)
 
             s = s1
@@ -223,7 +223,7 @@ class EigenOCAgent(BaseAgent):
             self.save_model()
 
           if self.episode_count % self.config.episode_summary_interval == 0 and self.total_steps != 0 and \
-                   self.episode_count != 0:
+                   self.episode_count != 0 and self.name == 'worker_0':
             self.write_episode_summary(r)
 
           if self.name == 'worker_0':
