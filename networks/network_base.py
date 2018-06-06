@@ -25,9 +25,10 @@ class BaseNetwork():
     self.summaries_term = []
 
     if total_steps_tensor:
-      lr = tf.train.polynomial_decay(self.config.lr, total_steps_tensor, self.config.episodes * 1e3,
-                                     0, power=1)
-      self.network_optimizer = RMSPropApplier(learning_rate=lr,
+      self.lr = tf.train.polynomial_decay(self.config.lr, total_steps_tensor, self.config.episodes * 1e3,
+                                      7e-5, power=1)
+
+      self.network_optimizer = RMSPropApplier(learning_rate=self.lr,
                      decay=0.99,
                      momentum=0.0,
                      epsilon=0.1,
@@ -264,6 +265,7 @@ class BaseNetwork():
                                                 tf.summary.scalar('avg_entropy_loss', self.entropy_loss),
                                                 tf.summary.scalar('avg_policy_loss', self.policy_loss),
                                                 tf.summary.scalar('random_option_prob', self.random_option_prob),
+                                                tf.summary.scalar('self.lr'),
                                                 gradient_summaries(zip(self.grads_option, local_vars))]
     self.merged_summary_term = tf.summary.merge(
       self.summaries_term + [tf.summary.scalar('avg_termination_loss', self.term_loss)] + [
@@ -273,6 +275,7 @@ class BaseNetwork():
       options_to_merge += [tf.summary.scalar('avg_eigen_critic_loss', self.eigen_critic_loss)]
 
     self.merged_summary_option = tf.summary.merge(options_to_merge)
+
 
 
   def get_intra_option_policies(self, options):
