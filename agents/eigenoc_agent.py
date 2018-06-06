@@ -194,7 +194,7 @@ class EigenOCAgent(BaseAgent):
             if self.total_steps % self.config.steps_checkpoint_interval == 0 and self.name == 'worker_0':
               self.save_model()
 
-            if self.total_steps % self.config.steps_summary_interval == 0 and self.name == 'worker_0':
+            if self.total_steps % self.config.steps_summary_interval == 0:
               self.write_step_summary(r)
 
             s = s1
