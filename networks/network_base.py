@@ -162,8 +162,8 @@ class BaseNetwork():
     q_val = self.get_q(self.options_placeholder)
     o_term = self.get_o_term(self.options_placeholder)
 
-    self.image_summaries.append(
-      tf.summary.image('next', tf.concat([self.next_obs, self.target_next_obs], 2), max_outputs=30))
+    # self.image_summaries.append(
+    #   tf.summary.image('next', tf.concat([self.next_obs, self.target_next_obs], 2), max_outputs=30))
 
     # self.matrix_sf = tf.placeholder(shape=[self.config.sf_matrix_size, self.sf_layers[-1]],
     #                                 dtype=tf.float32, name="matrix_sf")
@@ -247,10 +247,10 @@ class BaseNetwork():
       self.summaries_sf + [tf.summary.scalar('avg_sf_loss', self.sf_loss)] + [
         tf.summary.scalar('cliped_gradient_norm_sf', tf.global_norm(self.grads_sf)),
         gradient_summaries(zip(self.grads_sf, local_vars))])
-    self.merged_summary_aux = tf.summary.merge(self.image_summaries + self.summaries_aux +
-                                               [tf.summary.scalar('aux_loss', self.aux_loss)] + [
-                                                 tf.summary.scalar('cliped_gradient_norm_aux',
-                                                                   tf.global_norm(self.grads_aux)),
+    # self.merged_summary_aux = tf.summary.merge(self.image_summaries + self.summaries_aux +
+    #                                            [tf.summary.scalar('aux_loss', self.aux_loss)] + [
+    #                                              tf.summary.scalar('cliped_gradient_norm_aux',
+    #                                                                tf.global_norm(self.grads_aux)),
                                                  gradient_summaries(zip(self.grads_aux, local_vars))])
     options_to_merge = self.summaries_option + [tf.summary.scalar('avg_critic_loss', self.critic_loss),
                                                 tf.summary.scalar('avg_entropy_loss', self.entropy_loss),
