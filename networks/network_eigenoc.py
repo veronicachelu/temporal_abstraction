@@ -67,7 +67,7 @@ class EignOCNetwork(BaseNetwork):
       self.observation = tf.placeholder(
         shape=[None, self.config.input_size[0], self.config.input_size[1], self.config.history_size],
         dtype=tf.float32, name="Inputs")
-      out = self.observation / np.float32(255)
+      out = self.observation
       out = layers.flatten(out, scope="flatten")
       self.actions_placeholder = tf.placeholder(shape=[None], dtype=tf.float32, name="Actions")
 
