@@ -53,7 +53,7 @@ class BaseNetwork():
       out = self.fi_relu
       self.summaries_term.append(tf.contrib.layers.summarize_activation(tf.identity(out, name="before_oterm")))
       out = layers.fully_connected(out, num_outputs=self.nb_options,
-                                                activation_fn=None,
+                                                activation_fn=None, weights_initializer=layers.xavier_initializer(uniform=False),
                                                 variables_collections=tf.get_collection("variables"),
                                                 outputs_collections="activations", scope="option_term_logit")
       self.summaries_term.append(tf.contrib.layers.summarize_activation(out))

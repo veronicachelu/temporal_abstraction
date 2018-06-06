@@ -15,7 +15,7 @@ def _create_environment(config):
     env = config.env()
   if config.max_length:
     env = wrappers.LimitDuration(env, config.max_length)
-  if config.history_size == 3 or config.history_size == 1 :
+  if config.history_size == 3 or config.history_size == 1:
     env = wrappers.FrameResize(env, config.input_size)
   else:
     env = wrappers.ActionRepeat(env, config.history_size)

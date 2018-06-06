@@ -73,7 +73,7 @@ class GridWorld:
     self.win.update()
 
   def build_screen(self):
-    mdp_screen = np.array(self.MDP)
+    mdp_screen = np.zeros_like(self.MDP)
     mdp_screen = np.expand_dims(mdp_screen, 2)
     mdp_screen[mdp_screen == -1] = 1
     # mdp_screen[mdp_screen == -1] = 255
@@ -81,9 +81,9 @@ class GridWorld:
     # mdp_screen[self.agentX, self.agentY] = [0, 255, 0]
     mdp_screen[self.agentX, self.agentY] = 3
     # mdp_screen[self.goalX, self.goalY] = [255, 0, 0]
-    mdp_screen[self.goalX, self.goalY] = 4
+    mdp_screen[self.goalX, self.goalY] = 2
     self.pix_state = mdp_screen
-    self.pix_state /= 255.
+    # self.pix_state /= 255.
     # self.pix_state -= 0.5
     # self.pix_state *= 2.
     # self.pix_state = scipy.misc.imresize(mdp_screen, [200, 200, 3], interp='nearest')
