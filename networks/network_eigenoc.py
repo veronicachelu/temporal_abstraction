@@ -17,20 +17,20 @@ class EignOCNetwork(BaseNetwork):
     with tf.variable_scope("fi"):
       for i, nb_filt in enumerate(self.fc_layers):
         out = layers.fully_connected(out, num_outputs=nb_filt,
-                                     activation_fn=None,
+                                     activation_fn=tf.nn.elu,
                                      variables_collections=tf.get_collection("variables"),
-                                     outputs_collections="activations", scope="fc_{}".format(i))
+                                     outputs_collections="activations", scope="FI")
 
         # if i < len(self.fc_layers) - 1:
         #   out = tf.nn.relu(out)
         self.summaries_sf.append(tf.contrib.layers.summarize_activation(out))
         self.summaries_aux.append(tf.contrib.layers.summarize_activation(out))
         self.summaries_option.append(tf.contrib.layers.summarize_activation(out))
-      self.fi = out
-      self.fi_relu = tf.identity(self.layer_norm_fn(self.fi, relu=True), "fi_relu")
-      self.summaries_sf.append(tf.contrib.layers.summarize_activation(self.fi_relu))
-      self.summaries_aux.append(tf.contrib.layers.summarize_activation(self.fi_relu))
-      self.summaries_option.append(tf.contrib.layers.summarize_activation(self.fi_relu))
+      self.fi_relu = out
+      # self.fi_relu = tf.identity(self.layer_norm_fn(self.fi, relu=True), "fi_relu")
+      # self.summaries_sf.append(tf.contrib.layers.summarize_activation(self.fi_relu))
+      # self.summaries_aux.append(tf.contrib.layers.summarize_activation(self.fi_relu))
+      # self.summaries_option.append(tf.contrib.layers.summarize_activation(self.fi_relu))
 
       return out
 
