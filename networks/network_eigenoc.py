@@ -24,11 +24,11 @@ class EignOCNetwork(BaseNetwork):
           out = tf.nn.elu(out)
           # out = layers.layer_norm(out, scale=True, center=True)
           # out = layers.layer_norm(out, scale=False, center=False)
-          out = tf.contrib.layers.layer_norm(out, scale=False, center=False)
+          out = tf.contrib.layers.layer_norm(out, scale=True, center=True)
 
 
       out = tf.nn.elu(out)
-      out = tf.contrib.layers.layer_norm(out, scale=False, center=False)
+      out = tf.contrib.layers.layer_norm(out, scale=True, center=True)
       # out = layers.layer_norm(out, scale=False, center=False)
 
       self.summaries_sf.append(tf.contrib.layers.summarize_activation(out))
@@ -74,7 +74,7 @@ class EignOCNetwork(BaseNetwork):
       self.observation = tf.placeholder(
         shape=[None, self.config.input_size[0], self.config.input_size[1], self.config.history_size],
         dtype=tf.float32, name="Inputs")
-      out = self.observation
+      out = self.observation / np.float32(255)
       out = layers.flatten(out, scope="flatten")
       self.actions_placeholder = tf.placeholder(shape=[None], dtype=tf.float32, name="Actions")
 

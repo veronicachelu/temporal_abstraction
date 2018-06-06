@@ -183,6 +183,7 @@ def oc():
 
 def test_options():
   locals().update(default())
+  history_size = 1
   nb_options = 4
   target_agent = EigenOCAgent
   eigen = False
@@ -214,6 +215,7 @@ def test_options():
   decrease_option_prob = False
   # delib_cost_disc = 0.99
   delib_margin = 0.0
+
 
   # final_random_option_prob = 0.1
   initial_random_option_prob = 1e-5
