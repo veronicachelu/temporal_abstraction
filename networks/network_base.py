@@ -25,8 +25,8 @@ class BaseNetwork():
     self.summaries_term = []
 
     if total_steps_tensor:
-      self.lr = tf.train.polynomial_decay(self.config.lr, total_steps_tensor, self.config.episodes * 1e3,
-                                      7e-5, power=1)
+      self.lr = tf.train.polynomial_decay(self.config.lr, total_steps_tensor, 1e7,
+                                      7e-5, power=0.5)
 
       self.network_optimizer = RMSPropApplier(learning_rate=self.lr,
                      decay=0.99,
