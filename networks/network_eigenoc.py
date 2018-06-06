@@ -69,6 +69,7 @@ class EignOCNetwork(BaseNetwork):
         dtype=tf.float32, name="Inputs")
       out = self.observation / np.float32(255)
       out = layers.flatten(out, scope="flatten")
+      self.actions_placeholder = tf.placeholder(shape=[None], dtype=tf.float32, name="Actions")
 
       self.decrease_prob_of_random_option = tf.assign_sub(self.random_option_prob, tf.constant(
         (self.config.initial_random_option_prob - self.config.final_random_option_prob) / self.config.explore_options_episodes))
