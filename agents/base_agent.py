@@ -15,7 +15,7 @@ FLAGS = tf.app.flags.FLAGS
 
 
 class BaseAgent():
-  def __init__(self, game, thread_id, global_step, config, global_network):
+  def __init__(self, game, thread_id, global_step, config, lr, network_optimizer, global_network):
     self.name = "worker_" + str(thread_id)
     self.config = config
     self.thread_id = thread_id
@@ -54,7 +54,7 @@ class BaseAgent():
     self.nb_states = config.input_size[0] * config.input_size[1]
     self.summary_writer = tf.summary.FileWriter(self.summary_path + "/worker_" + str(self.thread_id))
 
-    self.local_network = config.network(self.name, config, self.action_size, self.total_steps_tensor)
+    self.local_network = config.network(self.name, config, self.action_size, lr, network_optimizer, self.total_steps_tensor)
 
     self.update_local_vars_aux = update_target_graph_aux('global', self.name)
     self.update_local_vars_sf = update_target_graph_sf('global', self.name)

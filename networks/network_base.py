@@ -3,11 +3,11 @@ import tensorflow.contrib.layers as layers
 from config_utility import gradient_summaries, huber_loss
 import numpy as np
 import os
-from tools.rmsprop_applier import RMSPropApplier
+
 
 
 class BaseNetwork():
-  def __init__(self, scope, config, action_size, total_steps_tensor=None):
+  def __init__(self, scope, config, action_size, lr, network_optimizer, total_steps_tensor=None):
     self.scope = scope
     self.nb_states = config.input_size[0] * config.input_size[1]
     self.fc_layers = config.fc_layers
@@ -17,6 +17,7 @@ class BaseNetwork():
     self.nb_options = config.nb_options
     self.nb_envs = config.num_agents
     self.config = config
+    self.lr = lr
 
     self.image_summaries = []
     self.summaries_sf = []
@@ -24,16 +25,8 @@ class BaseNetwork():
     self.summaries_option = []
     self.summaries_term = []
 
-    if total_steps_tensor:
-      self.lr = tf.train.polynomial_decay(self.config.lr, total_steps_tensor, 1e7,
-                                      7e-5, power=0.5)
 
-      self.network_optimizer = RMSPropApplier(learning_rate=self.lr,
-                     decay=0.99,
-                     momentum=0.0,
-                     epsilon=0.1,
-                     clip_norm=40,
-                     device="/cpu:0")
+    self.network_optimizer = network_optimizer
     # self.network_optimizer = config.network_optimizer(
     #   self.config.lr, name='network_optimizer')
 

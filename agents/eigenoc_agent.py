@@ -21,8 +21,8 @@ FLAGS = tf.app.flags.FLAGS
 
 
 class EigenOCAgent(BaseAgent):
-  def __init__(self, game, thread_id, global_step, config, global_network, barrier):
-    super(EigenOCAgent, self).__init__(game, thread_id, global_step, config, global_network)
+  def __init__(self, game, thread_id, global_step, config, lr, network_optimizer, global_network, barrier):
+    super(EigenOCAgent, self).__init__(game, thread_id, global_step, config, lr, network_optimizer, global_network)
     self.barrier = barrier
 
   def init_play(self, sess, saver):
