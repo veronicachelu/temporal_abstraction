@@ -96,39 +96,32 @@ class EigenOCAgent(BaseAgent):
         R_mix = 0
       else:
         feed_dict = {self.local_network.observation: np.stack([s1])}
-        # if self.config.eigen:
-        #   value, evalue, q_value, q_eigen = self.sess.run(
-        #     [self.local_network.v, self.local_network.eigenv, self.local_network.q_val,
-        #      self.local_network.eigen_q_val],
-        #     feed_dict=feed_dict)
-        #   q_value = q_value[0, self.option]
-        #   value = value[0]
-        #   # evalue = evalue[0]
-        #
-        #   # if self.primitive_action:
-        #   #   R_mix = value if self.o_term else q_value
-        #   # else:
-        #   #   q_eigen = q_eigen[0, self.option]
-        #   #   # R_mix = evalue if self.o_term else q_eigen
-        #   #   R_mix = value if self.o_term else q_eigen
-        #
-        # else:
-        value, q_value = self.sess.run(
-          [self.local_network.v, self.local_network.q_val],
-          feed_dict=feed_dict)
-        q_value = q_value[0, self.option]
-        value = value[0]
+        if self.config.eigen:
+          value, evalue, q_value, q_eigen = self.sess.run(
+            [self.local_network.v, self.local_network.eigenv, self.local_network.q_val,
+             self.local_network.eigen_q_val],
+            feed_dict=feed_dict)
+          q_value = q_value[0, self.option]
+          value = value[0]
+          # evalue = evalue[0]
+
+          if self.primitive_action:
+            R_mix = value if self.o_term else q_value
+          else:
+            q_eigen = q_eigen[0, self.option]
+            # R_mix = evalue if self.o_term else q_eigen
+            R_mix = value if self.o_term else q_eigen
+
+        else:
+          value, q_value = self.sess.run(
+            [self.local_network.v, self.local_network.q_val],
+            feed_dict=feed_dict)
+          q_value = q_value[0, self.option]
+          value = value[0]
         R = value if self.o_term else q_value
-        # if not self.config.eigen:
-        #   R_mix = R
-      results = self.train_option(R, None)
-      # results = self.train_option(R, R_mix)
-      if results is not None:
-        # if self.config.eigen:
-        #   self.ms_option, option_loss, policy_loss, entropy_loss, critic_loss, eigen_critic_loss, self.ms_term, term_loss, \
-        #   self.R, self.eigen_R = results
-        # else:
-        self.ms_option, option_loss, policy_loss, entropy_loss, critic_loss, self.ms_term, term_loss, self.R = results
+        if not self.config.eigen:
+          R_mix = R
+      self.train_option(R, R_mix)
 
       self.episode_buffer_option = []
       self.option_counter = 0
@@ -169,6 +162,11 @@ class EigenOCAgent(BaseAgent):
 
             self.episode_reward += r
             self.reward = np.clip(r, -1, 1)
+
+            self.option_terminate(s1)
+
+            self.reward_deliberation()
+
             if self.done:
               s1 = s
 
@@ -178,11 +176,9 @@ class EigenOCAgent(BaseAgent):
             # if self.total_steps > self.config.observation_steps:
             if self.config.behaviour_agent is None and self.config.eigen:
               self.SF_prediction(s1)
-            # self.next_frame_prediction()
+            self.next_frame_prediction()
 
             # if self.total_steps > self.config.eigen_exploration_steps:
-            self.option_terminate(s1)
-            self.reward_deliberation()
             self.option_prediction(s, s1)
 
             if not self.done and (self.o_term or self.primitive_action):
@@ -218,7 +214,7 @@ class EigenOCAgent(BaseAgent):
             self.barrier.wait()
             self.goal_position = self.env.set_goal(self.episode_count, self.config.move_goal_nb_of_ep)
 
-          if self.episode_count % self.config.episode_checkpoint_interval == 0  and \
+          if self.episode_count % self.config.episode_checkpoint_interval == 0 and self.name == 'worker_0' and \
                   self.episode_count != 0:
             self.save_model()
 
@@ -244,18 +240,16 @@ class EigenOCAgent(BaseAgent):
     self.episode_options.append(self.option)
     if s_idx is not None:
       self.stats_options[s_idx][self.option] += 1
-    # if not self.primitive_action:
-    #   self.episode_options_lengths[self.option].append(self.episode_len)
 
   def option_terminate(self, s1):
     # if self.total_steps > self.config.eigen_exploration_steps:
-    # if self.config.include_primitive_options and self.primitive_action:
-    #   self.o_term = True
-    # else:
-    feed_dict = {self.local_network.observation: np.stack([s1])}
-    o_term = self.sess.run(self.local_network.termination, feed_dict=feed_dict)
-    self.o_term = o_term[0, self.option] > np.random.uniform()
-    self.prob_terms = o_term[0]
+    if self.config.include_primitive_options and self.primitive_action:
+      self.o_term = True
+    else:
+      feed_dict = {self.local_network.observation: np.stack([s1])}
+      o_term = self.sess.run(self.local_network.termination, feed_dict=feed_dict)
+      self.o_term = o_term[0, self.option] > np.random.uniform()
+      self.prob_terms = o_term[0]
     self.termination_counter += self.o_term * (1 - self.done)
     # else:
     #   self.action = np.random.choice(range(self.action_size))
@@ -458,109 +452,35 @@ class EigenOCAgent(BaseAgent):
     rewards_plus = np.asarray(rewards.tolist() + [bootstrap_value])
     discounted_returns = reward_discount(rewards_plus, self.config.discount)[:-1]
 
+    eigen_rewards_plus = np.asarray(eigen_rewards.tolist() + [bootstrap_value_mix])
+    discounted_eigen_returns = discount(eigen_rewards_plus, self.config.discount)[:-1]
+
     feed_dict = {self.local_network.target_return: discounted_returns,
+                 self.local_network.target_eigen_return: discounted_eigen_returns,
                    self.local_network.observation: np.stack(observations, axis=0),
                    self.local_network.actions_placeholder: actions,
                    self.local_network.options_placeholder: options,
+                   self.local_network.primitive_actions_placeholder: primitive_actions
                    }
-    to_run = [self.local_network.apply_grads_option,
-              self.local_network.merged_summary_option,
-              self.local_network.option_loss,
-              self.local_network.policy_loss,
-              self.local_network.entropy_loss,
-              self.local_network.critic_loss,
-              ]
 
-    results = self.sess.run(to_run, feed_dict=feed_dict)
+    _, self.ms_option = self.sess.run([self.local_network.apply_grads_option,
+              self.local_network.merged_summary_option,
+              ], feed_dict=feed_dict)
 
     feed_dict = {
                  self.local_network.observation: np.stack(next_observations, axis=0),
                  self.local_network.options_placeholder: options,
+                 self.local_network.primitive_actions_placeholder: primitive_actions
                  }
-    to_run = [
-      self.local_network.apply_grads_term,
+
+    _, self.ms_term = self.sess.run([
+              self.local_network.apply_grads_term,
               self.local_network.merged_summary_term,
-              self.local_network.term_loss,
-              ]
-    results2 = self.sess.run(to_run, feed_dict=feed_dict)
-    results += results2[1:]
-    results.append(discounted_returns[-1])
+              ], feed_dict=feed_dict)
 
+    self.R = discounted_returns[-1]
+    self.eigen_R = discounted_eigen_returns[-1]
 
-    # options_primitive, options_highlevel, actions_primitive, actions_highlevel, \
-    # discounted_returns_primitive, discounted_returns_highlevel, \
-    # observations_primitive, observations_highlevel, delib_cost_highlevel, next_observations_highlevel\
-    #   = [], [], [], [], [], [], [], [], [], []
-    #
-    # if self.config.eigen:
-    #   eigen_rewards_plus = np.asarray(eigen_rewards.tolist() + [bootstrap_value_mix])
-    #   discounted_eigen_returns = discount(eigen_rewards_plus, self.config.discount)[:-1]
-    #
-    #   discounted_eigen_returns_primitive, discounted_eigen_returns_highlevel = [], []
-    #
-    # for i, primitive in enumerate(primitive_actions):
-    #   if primitive:
-    #     options_primitive.append(options[i])
-    #     actions_primitive.append(actions[i])
-    #     discounted_returns_primitive.append(discounted_returns[i])
-    #     if self.config.eigen:
-    #       discounted_eigen_returns_primitive.append(discounted_eigen_returns[i])
-    #     observations_primitive.append(observations[i])
-    #   else:
-    #     options_highlevel.append(options[i])
-    #     actions_highlevel.append(actions[i])
-    #     discounted_returns_highlevel.append(discounted_returns[i])
-    #     if self.config.eigen:
-    #       discounted_eigen_returns_highlevel.append(discounted_eigen_returns[i])
-    #     observations_highlevel.append(observations[i])
-    #     next_observations_highlevel.append(next_observations[i])
-    #
-    # if len(observations_primitive) > 0:
-    #   feed_dict = {self.local_network.target_return: discounted_returns_primitive,
-    #                self.local_network.observation: np.stack(observations_primitive, axis=0),
-    #                self.local_network.options_placeholder: options_primitive
-    #                }
-    #   to_run = [self.local_network.apply_grads_primitive_option]
-    #
-    #   _ = self.sess.run(to_run, feed_dict=feed_dict)
-    #
-    # if len(observations_highlevel) > 0:
-    #   feed_dict = {self.local_network.target_return: discounted_returns_highlevel,
-    #                self.local_network.observation: np.stack(observations_highlevel, axis=0),
-    #                self.local_network.actions_placeholder: actions_highlevel,
-    #                self.local_network.options_placeholder: options_highlevel,
-    #                }
-    #   to_run = [self.local_network.apply_grads_option,
-    #             self.local_network.merged_summary_option,
-    #             self.local_network.option_loss,
-    #             self.local_network.policy_loss,
-    #             self.local_network.entropy_loss,
-    #             self.local_network.critic_loss,
-    #             ]
-    #
-    #   if self.config.eigen:
-    #     feed_dict[self.local_network.target_eigen_return] = discounted_eigen_returns_highlevel
-    #     to_run.append(self.local_network.eigen_critic_loss)
-    #
-    #   results = self.sess.run(to_run, feed_dict=feed_dict)
-    #
-    #   feed_dict = {
-    #                self.local_network.observation: np.stack(next_observations_highlevel, axis=0),
-    #                self.local_network.options_placeholder: options_highlevel,
-    #                }
-    #   to_run = [self.local_network.apply_grads_term,
-    #             self.local_network.merged_summary_term,
-    #             self.local_network.term_loss,
-    #             ]
-    #   results2 = self.sess.run(to_run, feed_dict=feed_dict)
-    #   results += results2[1:]
-    #   results.append(discounted_returns[-1])
-    #   if self.config.eigen:
-    #     results.append(discounted_eigen_returns[-1])
-    # else:
-    #   return None
-
-    return results[1:]
 
   def evaluate_agent(self):
     episodes_won = 0

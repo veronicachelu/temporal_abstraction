@@ -26,7 +26,7 @@ class EignOCNetwork(BaseNetwork):
           # out = layers.layer_norm(out, scale=False, center=False)
           # out = tf.contrib.layers.layer_norm(out, scale=True, center=True)
 
-
+      self.fi = out
       out = tf.nn.elu(out)
       # out = tf.contrib.layers.layer_norm(out, scale=True, center=True)
       # out = layers.layer_norm(out, scale=False, center=False)
@@ -76,7 +76,6 @@ class EignOCNetwork(BaseNetwork):
         dtype=tf.float32, name="Inputs")
       out = self.observation / np.float32(255)
       out = layers.flatten(out, scope="flatten")
-      self.actions_placeholder = tf.placeholder(shape=[None], dtype=tf.float32, name="Actions")
 
       self.decrease_prob_of_random_option = tf.assign_sub(self.random_option_prob, tf.constant(
         (self.config.initial_random_option_prob - self.config.final_random_option_prob) / self.config.explore_options_episodes))
@@ -90,7 +89,7 @@ class EignOCNetwork(BaseNetwork):
 
       self.build_intraoption_policies_nets()
       self.build_SF_net(layer_norm=False)
-      # self.build_next_frame_prediction_net()
+      self.build_next_frame_prediction_net()
       self.build_placeholders(self.config.history_size)
 
       if self.scope != 'global':

@@ -8,9 +8,11 @@ import matplotlib.pylab as plt
 import numpy as np
 from collections import deque
 import seaborn as sns
+
 sns.set()
 import random
 import matplotlib.pyplot as plt
+
 FLAGS = tf.app.flags.FLAGS
 
 
@@ -54,7 +56,8 @@ class BaseAgent():
     self.nb_states = config.input_size[0] * config.input_size[1]
     self.summary_writer = tf.summary.FileWriter(self.summary_path + "/worker_" + str(self.thread_id))
 
-    self.local_network = config.network(self.name, config, self.action_size, lr, network_optimizer, self.total_steps_tensor)
+    self.local_network = config.network(self.name, config, self.action_size, lr, network_optimizer,
+                                        self.total_steps_tensor)
 
     self.update_local_vars_aux = update_target_graph_aux('global', self.name)
     self.update_local_vars_sf = update_target_graph_sf('global', self.name)
@@ -63,7 +66,6 @@ class BaseAgent():
 
     self.stats_path = os.path.join(self.summary_path, 'stats')
     tf.gfile.MakeDirs(self.stats_path)
-
 
   def load_directions(self):
     self.directions = self.global_network.directions
@@ -75,11 +77,11 @@ class BaseAgent():
       self.sess.run(self.update_local_vars_aux)
       self.sess.run(self.update_local_vars_option)
     else:
-      # if self.config.behaviour_agent is None:
-      #   if self.total_steps % self.config.target_update_iter_sf == 0:
-      #     self.sess.run(self.update_local_vars_sf)
-      # if self.total_steps % self.config.target_update_iter_aux == 0:
-      #   self.sess.run(self.update_local_vars_aux)
+      if self.config.behaviour_agent is None:
+        if self.total_steps % self.config.target_update_iter_sf == 0:
+          self.sess.run(self.update_local_vars_sf)
+      if self.total_steps % self.config.target_update_iter_aux == 0:
+        self.sess.run(self.update_local_vars_aux)
       if self.total_steps % self.config.target_update_iter_option == 0:
         self.sess.run(self.update_local_vars_option)
 
@@ -93,7 +95,6 @@ class BaseAgent():
       tf.logging.info("Episode {} >> Step {} >> Length: {} >>> Reward: {}".format(self.episode_count,
                                                                                   self.total_steps, self.episode_len,
                                                                                   self.episode_reward))
-
 
   def init_tracker(self):
     csv_things = ["episode", "total_steps", "episode_steps", "reward", "term_prob"]
@@ -110,7 +111,8 @@ class BaseAgent():
 
   def tracker(self):
     term_prob = float(self.termination_counter) / self.episode_len * 100
-    csv_things = [self.episode_count, self.total_steps, self.episode_len, self.episode_reward, round(term_prob, 1)] + list(self.o_tracker_chosen) + list(
+    csv_things = [self.episode_count, self.total_steps, self.episode_len, self.episode_reward,
+                  round(term_prob, 1)] + list(self.o_tracker_chosen) + list(
       self.o_tracker_steps)
 
     with open(os.path.join(self.config.stage_logdir, "data.csv"), "a") as myfile:
@@ -137,9 +139,9 @@ class BaseAgent():
       self.episode_mean_options.append(get_mode(self.episode_options))
     if len(self.episode_actions) != 0:
       self.episode_mean_actions.append(get_mode(self.episode_actions))
-    # for op, option_lengths in enumerate(self.episode_options_lengths):
-    #   if len(option_lengths) != 0:
-    #     self.episode_mean_options_lengths[op] = np.mean(option_lengths)
+      # for op, option_lengths in enumerate(self.episode_options_lengths):
+      #   if len(option_lengths) != 0:
+      #     self.episode_mean_options_lengths[op] = np.mean(option_lengths)
 
   def save_model(self):
     self.saver.save(self.sess, self.model_path + '/model-{}.{}.cptk'.format(self.episode_count, self.total_steps),
@@ -498,7 +500,7 @@ class BaseAgent():
       for idx in range(self.nb_states):
         ii, jj = self.env.get_state_xy(idx)
         if self.env.not_wall(ii, jj):
-         continue
+          continue
         else:
           sns.plt.gca().add_patch(
             patches.Rectangle(
@@ -580,7 +582,7 @@ class BaseAgent():
       else:
         feed_dict = {self.local_network.observation: np.stack([s])}
         options, o_term = self.sess.run([self.local_network.options, self.local_network.termination],
-                        feed_dict=feed_dict)
+                                        feed_dict=feed_dict)
         pi = options[0, o]
         action = np.random.choice(pi, p=pi)
         a = np.argmax(pi == action)

@@ -50,8 +50,8 @@ def update_target_graph_reward(from_scope, to_scope):
   return op_holder
 
 def update_target_graph_option(from_scope, to_scope):
-  from_vars = [v for v in tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, from_scope) if "option" in v.name or "fi" in v.name]
-  to_vars = [v for v in tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, to_scope) if "option" in v.name or "fi" in v.name]
+  from_vars = [v for v in tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, from_scope) if "option" in v.name]
+  to_vars = [v for v in tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, to_scope) if "option" in v.name]
 
   op_holder = []
   for from_var, to_var in zip(from_vars, to_vars):

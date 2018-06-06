@@ -176,7 +176,7 @@ def oc():
 
 
   # delib_cost_disc = 0.99
-  delib_margin = 0.02
+  delib_margin = 0.0
   include_primitive_options = False
 
   return locals()
@@ -191,7 +191,7 @@ def test_options():
 
   fc_layers = 128,
   sf_layers = 128,
-  aux_fc_layers = 507,
+  aux_fc_layers = 13 * 13,
 
   batch_size = 16
   memory_size = 100000

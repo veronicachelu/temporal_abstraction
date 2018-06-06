@@ -148,7 +148,8 @@ class BaseNetwork():
     self.options_placeholder = tf.placeholder(shape=[None], dtype=tf.int32, name="options")
     self.target_eigen_return = tf.placeholder(shape=[None], dtype=tf.float32)
     self.target_return = tf.placeholder(shape=[None], dtype=tf.float32)
-    # self.delib_cost = tf.placeholder(shape=[None], dtype=tf.float32, name="delib_cost")
+    self.primitive_actions_placeholder = tf.placeholder(shape=[None], dtype=tf.bool,
+                                                        name="primitive_actions_placeholder")
 
   def build_losses(self):
     self.policies = self.get_intra_option_policies(self.options_placeholder)
@@ -159,8 +160,8 @@ class BaseNetwork():
     q_val = self.get_q(self.options_placeholder)
     o_term = self.get_o_term(self.options_placeholder)
 
-    # self.image_summaries.append(
-    #   tf.summary.image('next', tf.concat([self.next_obs, self.target_next_obs], 2), max_outputs=30))
+    self.image_summaries.append(
+      tf.summary.image('next', tf.concat([self.next_obs, self.target_next_obs], 2), max_outputs=30))
 
     # self.matrix_sf = tf.placeholder(shape=[self.config.sf_matrix_size, self.sf_layers[-1]],
     #                                 dtype=tf.float32, name="matrix_sf")
@@ -177,30 +178,32 @@ class BaseNetwork():
       sf_td_error = self.target_sf - self.sf
     self.sf_loss = tf.reduce_mean(self.config.sf_coef * huber_loss(sf_td_error))
 
-    # with tf.name_scope('aux_loss'):
-    #   aux_error = self.next_obs - self.target_next_obs
-    # self.aux_loss = tf.reduce_mean(self.config.aux_coef * huber_loss(aux_error))
+    with tf.name_scope('aux_loss'):
+      aux_error = self.next_obs - self.target_next_obs
+    self.aux_loss = tf.reduce_mean(self.config.aux_coef * huber_loss(aux_error))
 
     if self.config.eigen:
       with tf.name_scope('eigen_critic_loss'):
-        eigen_td_error = self.target_eigen_return - eigen_q_val
-        self.eigen_critic_loss = tf.reduce_mean(0.5 * self.config.eigen_critic_coef * huber_loss(eigen_td_error))
+        eigen_td_error = tf.where(self.primitive_actions_placeholder, tf.zeros_like(self.target_eigen_return),
+                                  self.target_eigen_return - self.eigen_q_val)
+        self.eigen_critic_loss = tf.reduce_mean(0.5 * self.config.eigen_critic_coef * tf.square(eigen_td_error))
 
     with tf.name_scope('critic_loss'):
       td_error = self.target_return - q_val
     self.critic_loss = tf.reduce_mean(0.5 * self.config.critic_coef * tf.square(td_error))
 
     with tf.name_scope('termination_loss'):
-      self.term_loss = tf.reduce_mean(
-        o_term * (tf.stop_gradient(q_val) - tf.stop_gradient(self.v) + self.config.delib_margin))
+      self.term_loss = tf.reduce_mean(tf.where(self.primitive_actions_placeholder, tf.zeros_like(q_val),
+        o_term * (tf.stop_gradient(q_val) - tf.stop_gradient(self.v) + self.config.delib_margin)))
 
     with tf.name_scope('entropy_loss'):
-      self.entropy_loss = -self.entropy_coef * tf.reduce_mean(tf.reduce_sum(self.policies *
-                                                                            tf.log(self.policies + 1e-7),
-                                                                            axis=1))
+      self.entropy_loss = -self.entropy_coef * tf.reduce_mean(tf.where(self.primitive_actions_placeholder,
+                                                                       tf.zeros(tf.shape(self.primitive_actions_placeholder), dtype=tf.float32),
+                                                                            tf.reduce_sum(self.policies * tf.log(self.policies + 1e-7), axis=1)))
     with tf.name_scope('policy_loss'):
-      self.policy_loss = -tf.reduce_mean(tf.log(self.responsible_actions + 1e-7) * tf.stop_gradient(
-        eigen_td_error if self.config.eigen else td_error))
+      self.policy_loss = -tf.reduce_mean(tf.where(self.primitive_actions_placeholder, tf.zeros_like(self.responsible_actions),
+                                                  tf.log(self.responsible_actions + 1e-7) * tf.stop_gradient(
+        eigen_td_error if self.config.eigen else td_error)))
 
     self.option_loss = self.policy_loss - self.entropy_loss + self.critic_loss
     if self.config.eigen:
@@ -237,9 +240,14 @@ class BaseNetwork():
     global_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, 'global')
 
     self.grads_sf, self.apply_grads_sf = self.take_gradient(self.sf_loss)
-    # self.grads_aux, self.apply_grads_aux = self.take_gradient(self.aux_loss)
-    self.grads_option, self.apply_grads_option = self.take_gradient(self.option_loss)
+    self.grads_aux, self.apply_grads_aux = self.take_gradient(self.aux_loss)
     self.grads_primitive_option, self.apply_grads_primitive_option = self.take_gradient(self.critic_loss)
+    if self.config.eigen:
+      self.gradients_eigen_critic, self.apply_grad_eigen_critic = self.take_gradient(self.eigen_critic_loss)
+      with tf.control_dependencies([self.gradients_eigen_critic, self.apply_grad_eigen_critic]):
+        self.grads_option, self.apply_grads_option = self.take_gradient(self.option_loss)
+
+    self.grads_option, self.apply_grads_option = self.take_gradient(self.option_loss)
     self.grads_term, self.apply_grads_term = self.take_gradient(self.term_loss)
 
 
@@ -247,11 +255,11 @@ class BaseNetwork():
       self.summaries_sf + [tf.summary.scalar('avg_sf_loss', self.sf_loss)] + [
         tf.summary.scalar('cliped_gradient_norm_sf', tf.global_norm(self.grads_sf)),
         gradient_summaries(zip(self.grads_sf, local_vars))])
-    # self.merged_summary_aux = tf.summary.merge(self.image_summaries + self.summaries_aux +
-    #                                            [tf.summary.scalar('aux_loss', self.aux_loss)] + [
-    #                                              tf.summary.scalar('cliped_gradient_norm_aux',
-    #                                                                tf.global_norm(self.grads_aux)),
-    #                                              gradient_summaries(zip(self.grads_aux, local_vars))])
+    self.merged_summary_aux = tf.summary.merge(self.image_summaries + self.summaries_aux +
+                                               [tf.summary.scalar('aux_loss', self.aux_loss)] + [
+                                                 tf.summary.scalar('cliped_gradient_norm_aux',
+                                                                   tf.global_norm(self.grads_aux)),
+                                                 gradient_summaries(zip(self.grads_aux, local_vars))])
     options_to_merge = self.summaries_option + [tf.summary.scalar('avg_critic_loss', self.critic_loss),
                                                 tf.summary.scalar('avg_entropy_loss', self.entropy_loss),
                                                 tf.summary.scalar('avg_policy_loss', self.policy_loss),
@@ -263,7 +271,8 @@ class BaseNetwork():
         gradient_summaries(zip(self.grads_term, local_vars))])
 
     if self.config.eigen:
-      options_to_merge += [tf.summary.scalar('avg_eigen_critic_loss', self.eigen_critic_loss)]
+      options_to_merge += [tf.summary.scalar('avg_eigen_critic_loss', self.eigen_critic_loss),
+                           gradient_summaries(zip(self.grads_eigen_critic, local_vars))]
 
     self.merged_summary_option = tf.summary.merge(options_to_merge)
 
