@@ -644,13 +644,12 @@ class BaseAgent():
         [self.local_network.max_q_val, self.local_network.q_val, self.local_network.max_options,
          self.local_network.primitive_action, self.local_network.options],
         feed_dict=feed_dict)
+      o, primitive_action = option[0], primitive_action[0]
       # max_q_val = max_q_val[0]
-
 
       if primitive_action and self.config.include_primitive_options:
         a = o - self.nb_options
       else:
-        o, primitive_action = option[0], primitive_action[0]
         plt.gca().add_patch(
           patches.Rectangle(
             (j, self.config.input_size[0] - i - 1),  # (x,y)
