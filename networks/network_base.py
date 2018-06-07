@@ -185,7 +185,7 @@ class BaseNetwork():
     if self.config.eigen:
       with tf.name_scope('eigen_critic_loss'):
         eigen_td_error = tf.where(self.primitive_actions_placeholder, tf.zeros_like(self.target_eigen_return),
-                                  self.target_eigen_return - self.eigen_q_val)
+                                  self.target_eigen_return - eigen_q_val)
         self.eigen_critic_loss = tf.reduce_mean(0.5 * self.config.eigen_critic_coef * tf.square(eigen_td_error))
 
     with tf.name_scope('critic_loss'):
@@ -243,8 +243,8 @@ class BaseNetwork():
     self.grads_aux, self.apply_grads_aux = self.take_gradient(self.aux_loss)
     self.grads_primitive_option, self.apply_grads_primitive_option = self.take_gradient(self.critic_loss)
     if self.config.eigen:
-      self.gradients_eigen_critic, self.apply_grad_eigen_critic = self.take_gradient(self.eigen_critic_loss)
-      with tf.control_dependencies([self.gradients_eigen_critic, self.apply_grad_eigen_critic]):
+      self.grads_eigen_critic, self.apply_grad_eigen_critic = self.take_gradient(self.eigen_critic_loss)
+      with tf.control_dependencies([self.apply_grad_eigen_critic]):
         self.grads_option, self.apply_grads_option = self.take_gradient(self.option_loss)
 
     self.grads_option, self.apply_grads_option = self.take_gradient(self.option_loss)

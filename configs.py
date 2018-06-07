@@ -237,12 +237,13 @@ def eigenoc():
   locals().update(default())
   target_agent = EigenOCAgent
   nb_options = 4
+  history_size = 1
   eigen = True
   network = EignOCNetwork
 
   fc_layers = 128,
   sf_layers = 128,
-  aux_fc_layers = 507,
+  aux_fc_layers = 13*13,
   sf_coef = 1
   batch_size = 16
   memory_size = 100000
@@ -253,17 +254,29 @@ def eigenoc():
   max_length = 1000
   max_length_eval = 1000
   first_eigenoption = 1
-  include_primitive_options = True
+  include_primitive_options = False
   sf_matrix_size = 169
   sr_matrix = "static"
   # goal_locations = [(11, 7), (5, 2)] #, (1, 10), (2, 2), (6, 2)]
   # goal_locations = [(1, 11), (3, 2)]
   goal_locations = [(11, 7), (5, 2), (1, 10), (2, 2), (6, 2)]
+  episodes = len(goal_locations)
   move_goal_nb_of_ep = 1000
   env = functools.partial(
     GridWorld, goal_locations, "./mdps/4rooms.mdp")
   tau = 0.1
   eigen_approach = "SVD"
+
+
+  decrease_option_prob = False
+  delib_margin = 0.0
+
+  # final_random_option_prob = 0.1
+  initial_random_option_prob = 0.1
+  # explore_options_episodes = 500
+  episode_summary_interval = 10
+  lr = 7e-4
+
   return locals()
 
 def eigenoc_dyn():
