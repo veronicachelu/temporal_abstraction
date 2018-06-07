@@ -185,8 +185,8 @@ class BaseNetwork():
 
     with tf.name_scope('aux_loss'):
       aux_error = self.next_obs - self.target_next_obs
-      l2_loss = tf.losses.get_regularization_loss(self.scope)
-    self.aux_loss = tf.reduce_mean(self.config.aux_coef * huber_loss(aux_error)) + l2_loss
+      # l2_loss = tf.losses.get_regularization_loss(self.scope)
+    self.aux_loss = tf.reduce_mean(self.config.aux_coef * huber_loss(aux_error)) #+ l2_loss
 
     if self.config.eigen:
       with tf.name_scope('eigen_critic_loss'):
@@ -201,7 +201,7 @@ class BaseNetwork():
     with tf.name_scope('termination_loss'):
       self.term_err = (tf.stop_gradient(q_val) - tf.stop_gradient(self.v) + self.config.delib_margin)
 
-      self.term_loss = 0.1 * tf.reduce_mean(tf.where(self.primitive_actions_placeholder, tf.zeros_like(q_val),
+      self.term_loss = tf.reduce_mean(tf.where(self.primitive_actions_placeholder, tf.zeros_like(q_val),
         self.o_term * self.term_err))
 
     with tf.name_scope('entropy_loss'):
