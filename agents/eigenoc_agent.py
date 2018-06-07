@@ -17,6 +17,7 @@ import matplotlib.pyplot as plt
 import copy
 from threading import Barrier, Thread
 from tools.timer import Timer
+
 FLAGS = tf.app.flags.FLAGS
 
 
@@ -61,7 +62,7 @@ class EigenOCAgent(BaseAgent):
     self.R = 0
     self.eigen_R = 0
     col_size = self.nb_options + self.action_size if self.config.include_primitive_options else self.nb_options
-    self.o_tracker_chosen = np.zeros((col_size, ), dtype=np.int32)
+    self.o_tracker_chosen = np.zeros((col_size,), dtype=np.int32)
     self.o_tracker_steps = np.zeros(col_size, dtype=np.int32)
     self.termination_counter = 0
     self.stats_options = np.zeros((self.nb_states, col_size))
@@ -219,7 +220,7 @@ class EigenOCAgent(BaseAgent):
             self.save_model()
 
           if self.episode_count % self.config.episode_summary_interval == 0 and self.total_steps != 0 and \
-                   self.episode_count != 0 and self.name == 'worker_0':
+                  self.episode_count != 0 and self.name == 'worker_0':
             self.write_episode_summary(r)
 
           if self.name == 'worker_0':
@@ -229,7 +230,8 @@ class EigenOCAgent(BaseAgent):
 
   def reward_deliberation(self):
     self.original_reward = self.reward
-    self.reward = float(self.reward) - self.config.discount * (float(self.o_term) * self.config.delib_margin * (1 - float(self.done)))
+    self.reward = float(self.reward) - self.config.discount * (
+    float(self.o_term) * self.config.delib_margin * (1 - float(self.done)))
 
   def option_evaluation(self, s, s_idx=None):
     feed_dict = {self.local_network.observation: np.stack([s])}
@@ -301,7 +303,6 @@ class EigenOCAgent(BaseAgent):
     if len(self.aux_episode_buffer) == self.config.memory_size:
       self.aux_episode_buffer.popleft()
     self.aux_episode_buffer.append([s, s1, a])
-
 
   def store_option_info(self, s, s1, a, r):
     if self.config.eigen and not self.primitive_action:
@@ -439,8 +440,9 @@ class EigenOCAgent(BaseAgent):
                     feed_dict=feed_dict)
     return ms, aux_loss
 
-  def train_option(self, bootstrap_value, bootstrap_value_mix): #
-    rollout = np.array(self.episode_buffer_option)  # s, self.option, a, r, r_i, self.primitive_action, delib s, self.option, self.action, r, r_i
+  def train_option(self, bootstrap_value, bootstrap_value_mix):  #
+    rollout = np.array(
+      self.episode_buffer_option)  # s, self.option, a, r, r_i, self.primitive_action, delib s, self.option, self.action, r, r_i
     observations = rollout[:, 0]
     options = rollout[:, 1]
     actions = rollout[:, 2]
@@ -457,30 +459,29 @@ class EigenOCAgent(BaseAgent):
 
     feed_dict = {self.local_network.target_return: discounted_returns,
                  self.local_network.target_eigen_return: discounted_eigen_returns,
-                   self.local_network.observation: np.stack(observations, axis=0),
-                   self.local_network.actions_placeholder: actions,
-                   self.local_network.options_placeholder: options,
-                   self.local_network.primitive_actions_placeholder: primitive_actions
-                   }
-
-    _, self.ms_option = self.sess.run([self.local_network.apply_grads_option,
-              self.local_network.merged_summary_option,
-              ], feed_dict=feed_dict)
-
-    feed_dict = {
-                 self.local_network.observation: np.stack(next_observations, axis=0),
+                 self.local_network.observation: np.stack(observations, axis=0),
+                 self.local_network.actions_placeholder: actions,
                  self.local_network.options_placeholder: options,
                  self.local_network.primitive_actions_placeholder: primitive_actions
                  }
 
+    _, self.ms_option = self.sess.run([self.local_network.apply_grads_option,
+                                       self.local_network.merged_summary_option,
+                                       ], feed_dict=feed_dict)
+
+    feed_dict = {
+      self.local_network.observation: np.stack(next_observations, axis=0),
+      self.local_network.options_placeholder: options,
+      self.local_network.primitive_actions_placeholder: primitive_actions
+    }
+
     _, self.ms_term = self.sess.run([
-              self.local_network.apply_grads_term,
-              self.local_network.merged_summary_term,
-              ], feed_dict=feed_dict)
+      self.local_network.apply_grads_term,
+      self.local_network.merged_summary_term,
+    ], feed_dict=feed_dict)
 
     self.R = discounted_returns[-1]
     self.eigen_R = discounted_eigen_returns[-1]
-
 
   def evaluate_agent(self):
     episodes_won = 0
@@ -598,4 +599,3 @@ class EigenOCAgent(BaseAgent):
       # make_gif(images, os.path.join(self.test_path, 'test_episodes.gif'),
       #          duration=len(images) * 1.0, true_image=True)
       tf.logging.info("Won {} episodes of {}".format(ep_rewards.count(1), self.config.nb_test_ep))
-

@@ -284,11 +284,11 @@ def eigenoc_dyn():
   target_agent = EigenOCAgentDyn
   sf_matrix_size = 10000
   sr_matrix = "dynamic"
-  eigen_approach = "SVD"
-  goal_locations = [(11, 7), (5, 2), (1, 10), (2, 2), (6, 2)]
-  move_goal_nb_of_ep = 1000
-  env = functools.partial(
-    GridWorld, goal_locations, "./mdps/4rooms.mdp")
+  # eigen_approach = "SVD"
+  # goal_locations = [(11, 7), (5, 2), (1, 10), (2, 2), (6, 2)]
+  # move_goal_nb_of_ep = 1000
+  # env = functools.partial(
+  #   GridWorld, goal_locations, "./mdps/4rooms.mdp")
   return locals()
 
 def embedding():
