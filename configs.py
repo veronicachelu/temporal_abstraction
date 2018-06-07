@@ -163,13 +163,14 @@ def oc():
   observation_steps = 16*4
 
   steps = -1  # 1M
-  episodes = 1e6  # 1M
   eigen_exploration_steps = 16*4
   max_length = 1000
   max_length_eval = 1000
   sf_matrix_size = 169
   sr_matrix = None
+  include_primitive_options = False
   goal_locations = [(11, 7), (5, 2), (1, 10), (2, 2), (6, 2)]
+  episodes = len(goal_locations)
   # goal_locations = [(1, 11), (3, 2), (6, 2), (1, 4), (1, 1), (8, 1), (2, 5), (11, 10)]
   move_goal_nb_of_ep = 1000
   env = functools.partial(
