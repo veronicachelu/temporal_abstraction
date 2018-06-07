@@ -125,7 +125,8 @@ class BaseNetwork():
 
   def build_SF_net(self, layer_norm=False):
     with tf.variable_scope("succ_feat"):
-      out = tf.stop_gradient(self.fi_relu)
+      # out = tf.stop_gradient(self.fi_relu)
+      out = self.fi_relu
       for i, nb_filt in enumerate(self.sf_layers):
         out = layers.fully_connected(out, num_outputs=nb_filt,
                                      activation_fn=None,
