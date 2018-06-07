@@ -65,6 +65,7 @@ class EigenOCAgent(BaseAgent):
     self.o_tracker_chosen = np.zeros((col_size,), dtype=np.int32)
     self.o_tracker_steps = np.zeros(col_size, dtype=np.int32)
     self.termination_counter = 0
+    self.primitive_action_counter = 0
     self.stats_options = np.zeros((self.nb_states, col_size))
 
     if self.config.decrease_option_prob and self.episode_count < self.config.explore_options_episodes:
@@ -240,6 +241,7 @@ class EigenOCAgent(BaseAgent):
     self.option, self.primitive_action = self.option[0], self.primitive_action[0]
     self.o_tracker_chosen[self.option] += 1
     self.episode_options.append(self.option)
+    self.primitive_action_counter += self.primitive_action * (1 - self.done)
     if s_idx is not None:
       self.stats_options[s_idx][self.option] += 1
 
