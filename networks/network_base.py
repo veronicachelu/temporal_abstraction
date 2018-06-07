@@ -157,7 +157,7 @@ class BaseNetwork():
     self.responsible_actions = self.get_responsible_actions(self.policies, self.actions_placeholder)
 
     q_val = self.get_q(self.options_placeholder)
-    only_non_primitve_options = tf.map_fn(lambda x: x if x <= self.nb_options else 0, self.options_placeholder)
+    only_non_primitve_options = tf.map_fn(lambda x: tf.cond(tf.less_equal(x, self.nb_options), lambda: x, lambda: 0), self.options_placeholder)
 
     if self.config.eigen:
       eigen_q_val = tf.where(self.primitive_actions_placeholder, q_val, self.get_eigen_q(only_non_primitve_options))
