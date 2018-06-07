@@ -92,8 +92,8 @@ class BaseNetwork():
 
   def build_eigen_option_q_val_net(self):
     with tf.variable_scope("eigen_option_q_val"):
-      # out = tf.stop_gradient(self.fi_relu)
-      out = self.fi_relu
+      out = tf.stop_gradient(self.fi_relu)
+      # out = self.fi_relu
       self.eigen_q_val = layers.fully_connected(out, num_outputs=self.nb_options,
                                                 activation_fn=None,
                                                 variables_collections=tf.get_collection("variables"),
@@ -125,8 +125,8 @@ class BaseNetwork():
 
   def build_SF_net(self, layer_norm=False):
     with tf.variable_scope("succ_feat"):
-      # out = tf.stop_gradient(self.fi_relu)
-      out = self.fi_relu
+      out = tf.stop_gradient(self.fi_relu)
+      # out = self.fi_relu
       for i, nb_filt in enumerate(self.sf_layers):
         out = layers.fully_connected(out, num_outputs=nb_filt,
                                      activation_fn=None,
@@ -156,10 +156,14 @@ class BaseNetwork():
     self.policies = self.get_intra_option_policies(self.options_placeholder)
     self.responsible_actions = self.get_responsible_actions(self.policies, self.actions_placeholder)
 
-    if self.config.eigen:
-      eigen_q_val = self.get_eigen_q(self.options_placeholder)
     q_val = self.get_q(self.options_placeholder)
-    o_term = self.get_o_term(self.options_placeholder)
+    only_non_primitve_options = tf.map_fn(lambda x: x if x <= self.nb_options else 0, self.options_placeholder)
+
+    if self.config.eigen:
+      eigen_q_val = tf.where(self.primitive_actions_placeholder, q_val, self.get_eigen_q(only_non_primitve_options))
+
+    o_term = tf.where(self.primitive_actions_placeholder, tf.zeros(tf.shape(self.primitive_actions_placeholder), dtype=tf.float32),
+                      self.get_o_term(only_non_primitve_options))
 
     self.image_summaries.append(
       tf.summary.image('next', tf.concat([self.next_obs * 255 * 128, self.target_next_obs * 255 * 128], 2), max_outputs=30))
