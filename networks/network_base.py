@@ -137,7 +137,7 @@ class BaseNetwork():
           if layer_norm:
             out = self.layer_norm_fn(out, relu=True)
           else:
-            out = tf.nn.relu(out)
+            out = tf.nn.elu(out)
         self.summaries_sf.append(tf.contrib.layers.summarize_activation(out))
       self.sf = out
 
@@ -198,8 +198,10 @@ class BaseNetwork():
     self.critic_loss = tf.reduce_mean(0.5 * self.config.critic_coef * tf.square(td_error))
 
     with tf.name_scope('termination_loss'):
-      self.term_loss = tf.reduce_mean(tf.where(self.primitive_actions_placeholder, tf.zeros_like(q_val),
-        self.o_term * (tf.stop_gradient(q_val) - tf.stop_gradient(self.v) + self.config.delib_margin)))
+      self.term_err = (tf.stop_gradient(q_val) - tf.stop_gradient(self.v) + self.config.delib_margin)
+
+      self.term_loss = 0.1 * tf.reduce_mean(tf.where(self.primitive_actions_placeholder, tf.zeros_like(q_val),
+        self.o_term * self.term_err))
 
     with tf.name_scope('entropy_loss'):
       self.entropy_loss = -self.entropy_coef * tf.reduce_mean(tf.where(self.primitive_actions_placeholder,
@@ -273,6 +275,7 @@ class BaseNetwork():
                                                 gradient_summaries(zip(self.grads_option, local_vars))]
     self.merged_summary_term = tf.summary.merge(
       self.summaries_term + [tf.summary.scalar('avg_termination_loss', self.term_loss)] + [
+        tf.summary.scalar('avg_termination_error', self.term_err),
         gradient_summaries(zip(self.grads_term, local_vars))])
 
     if self.config.eigen:

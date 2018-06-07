@@ -77,7 +77,7 @@ class EigenOCAgent(BaseAgent):
       sf = self.sess.run(self.local_network.sf,
                          feed_dict=feed_dict)[0]
       bootstrap_sf = np.zeros_like(sf) if self.done else sf
-      self.ms_sf, self.sf_loss = self.train_sf(bootstrap_sf)
+      self.train_sf(bootstrap_sf)
       self.episode_buffer_sf = []
       self.sf_counter = 0
 
@@ -415,13 +415,11 @@ class EigenOCAgent(BaseAgent):
     feed_dict = {self.local_network.target_sf: np.stack(discounted_sf, axis=0),
                  self.local_network.observation: np.stack(observations, axis=0)}  # ,
 
-    _, ms, sf_loss = \
+    _, self.ms_sf = \
       self.sess.run([self.local_network.apply_grads_sf,
-                     self.local_network.merged_summary_sf,
-                     self.local_network.sf_loss],
+                     self.local_network.merged_summary_sf],
                     feed_dict=feed_dict)
 
-    return ms, sf_loss
 
   def train_aux(self):
     minibatch = random.sample(self.aux_episode_buffer, self.config.batch_size)
