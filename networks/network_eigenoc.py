@@ -29,6 +29,7 @@ class EignOCNetwork(BaseNetwork):
       self.fi = out
       out = tf.nn.elu(out)
       out = tf.contrib.layers.layer_norm(out, scale=False, center=False)
+
       # out = layers.layer_norm(out, scale=False, center=False)
 
       self.summaries_sf.append(tf.contrib.layers.summarize_activation(out))
