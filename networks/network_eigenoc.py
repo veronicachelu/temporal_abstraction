@@ -16,7 +16,7 @@ class EignOCNetwork(BaseNetwork):
   def build_feature_net(self, out):
     with tf.variable_scope("fi"):
       for i, nb_filt in enumerate(self.fc_layers):
-        out = layers.fully_connected(out, num_outputs=nb_filt,
+        out = layers.fully_connected(out, num_outputs=nb_filt, weights_regularizer=tf.contrib.layers.l2_regularizer(scale=0.1),
                                      activation_fn=None, weights_initializer=layers.xavier_initializer(uniform=False),
                                      variables_collections=tf.get_collection("variables"),
                                      outputs_collections="activations", scope="fi_{}".format(i))
