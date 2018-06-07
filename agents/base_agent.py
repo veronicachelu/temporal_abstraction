@@ -640,35 +640,28 @@ class BaseAgent():
         continue
 
       feed_dict = {self.local_network.observation: np.stack([s])}
-      max_q_val, q_vals, option, primitive_action, options, o_term = self.sess.run(
+      max_q_val, q_vals, option, primitive_action, options = self.sess.run(
         [self.local_network.max_q_val, self.local_network.q_val, self.local_network.max_options,
-         self.local_network.primitive_action, self.local_network.options, self.local_network.termination],
+         self.local_network.primitive_action, self.local_network.options],
         feed_dict=feed_dict)
       # max_q_val = max_q_val[0]
-      o, primitive_action = option[0], primitive_action[0]
-      # primitive_action = o >= self.config.nb_options
 
-      # if primitive_action and self.config.include_primitive_options:
-      #   a = o - self.nb_options
-      #   o_term = True
-      # else:
-      plt.gca().add_patch(
-        patches.Rectangle(
-          (j, self.config.input_size[0] - i - 1),  # (x,y)
-          1.0,  # width
-          1.0,  # height
-          facecolor=option_colors[o],
+
+      if primitive_action and self.config.include_primitive_options:
+        a = o - self.nb_options
+      else:
+        o, primitive_action = option[0], primitive_action[0]
+        plt.gca().add_patch(
+          patches.Rectangle(
+            (j, self.config.input_size[0] - i - 1),  # (x,y)
+            1.0,  # width
+            1.0,  # height
+            facecolor=option_colors[o],
+          )
         )
-      )
-      pi = options[0, o]
-      action = np.random.choice(pi, p=pi)
-      a = np.argmax(pi == action)
-
-      s1, r, done, idx1 = self.env.special_step(a, idx)
-      feed_dict = {self.local_network.observation: np.stack([s1])}
-      o_term = self.sess.run(self.local_network.termination,
-                             feed_dict=feed_dict)
-      o_term = o_term[0, o] > np.random.uniform()
+        pi = options[0, o]
+        action = np.random.choice(pi, p=pi)
+        a = np.argmax(pi == action)
 
       if a == 0:  # up
         dy = 0.35
@@ -685,7 +678,7 @@ class BaseAgent():
       #   plt.gca().add_artist(circle)
       #   plt.text(j, self.config.input_size[0] - i - 1, str(o), color='r' if primitive_action else 'b', fontsize=8)
       #   continue
-      plt.text(j, self.config.input_size[0] - i + 0.2 - 1, str(o), color='r' if primitive_action else 'b', fontsize=10)
+      plt.text(j, self.config.input_size[0] - i + 0.2 - 1, str(o), color='r' if primitive_action else 'b', fontsize=12)
       # plt.text(j + 0.5, self.config.input_size[0] - i - 1, '{0:.2f}'.format(max_q_val), fontsize=8)
 
       plt.arrow(j + 0.5, self.config.input_size[0] - i + 0.5 - 1, dx, dy,

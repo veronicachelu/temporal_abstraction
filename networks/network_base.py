@@ -97,7 +97,7 @@ class BaseNetwork():
       self.eigen_q_val = layers.fully_connected(out, num_outputs=self.nb_options,
                                                 activation_fn=None,
                                                 variables_collections=tf.get_collection("variables"),
-                                                outputs_collections="activations", scope="fc_q_val")
+                                                outputs_collections="activations", scope="q_val")
       self.summaries_option.append(tf.contrib.layers.summarize_activation(self.eigen_q_val))
     if self.config.include_primitive_options:
       concatenated_eigen_q = tf.concat([self.q_val[:, self.config.nb_options:], self.eigen_q_val], 1)
