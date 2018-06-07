@@ -275,7 +275,7 @@ class BaseNetwork():
                                                 gradient_summaries(zip(self.grads_option, local_vars))]
     self.merged_summary_term = tf.summary.merge(
       self.summaries_term + [tf.summary.scalar('avg_termination_loss', self.term_loss)] + [
-        tf.summary.scalar('avg_termination_error', self.term_err),
+        tf.summary.scalar('avg_termination_error', tf.reduce_mean(self.term_err)),
         gradient_summaries(zip(self.grads_term, local_vars))])
 
     if self.config.eigen:
