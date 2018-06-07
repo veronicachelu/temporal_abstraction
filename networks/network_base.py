@@ -157,13 +157,13 @@ class BaseNetwork():
     self.responsible_actions = self.get_responsible_actions(self.policies, self.actions_placeholder)
 
     q_val = self.get_q(self.options_placeholder)
-    only_non_primitve_options = tf.map_fn(lambda x: tf.cond(tf.less_equal(x, self.nb_options), lambda: x, lambda: 0), self.options_placeholder)
+    self.only_non_primitve_options = tf.map_fn(lambda x: tf.cond(tf.less(x, self.nb_options), lambda: x, lambda: 0), self.options_placeholder)
 
     if self.config.eigen:
-      eigen_q_val = tf.where(self.primitive_actions_placeholder, q_val, self.get_eigen_q(only_non_primitve_options))
+      eigen_q_val = tf.where(self.primitive_actions_placeholder, q_val, self.get_eigen_q(self.only_non_primitve_options))
 
-    o_term = tf.where(self.primitive_actions_placeholder, tf.zeros(tf.shape(self.primitive_actions_placeholder), dtype=tf.float32),
-                      self.get_o_term(only_non_primitve_options))
+    self.o_term = tf.where(self.primitive_actions_placeholder, tf.zeros(tf.shape(self.primitive_actions_placeholder), dtype=tf.float32),
+                      self.get_o_term(self.only_non_primitve_options))
 
     self.image_summaries.append(
       tf.summary.image('next', tf.concat([self.next_obs * 255 * 128, self.target_next_obs * 255 * 128], 2), max_outputs=30))
@@ -199,7 +199,7 @@ class BaseNetwork():
 
     with tf.name_scope('termination_loss'):
       self.term_loss = tf.reduce_mean(tf.where(self.primitive_actions_placeholder, tf.zeros_like(q_val),
-        o_term * (tf.stop_gradient(q_val) - tf.stop_gradient(self.v) + self.config.delib_margin)))
+        self.o_term * (tf.stop_gradient(q_val) - tf.stop_gradient(self.v) + self.config.delib_margin)))
 
     with tf.name_scope('entropy_loss'):
       self.entropy_loss = -self.entropy_coef * tf.reduce_mean(tf.where(self.primitive_actions_placeholder,
