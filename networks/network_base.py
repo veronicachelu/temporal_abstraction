@@ -185,7 +185,7 @@ class BaseNetwork():
 
     with tf.name_scope('aux_loss'):
       aux_error = self.next_obs - self.target_next_obs
-      l2_loss = tf.losses.get_regularization_loss()
+      l2_loss = tf.losses.get_regularization_loss(self.scope)
     self.aux_loss = tf.reduce_mean(self.config.aux_coef * huber_loss(aux_error)) + l2_loss
 
     if self.config.eigen:
