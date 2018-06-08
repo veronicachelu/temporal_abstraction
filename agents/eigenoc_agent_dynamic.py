@@ -72,12 +72,10 @@ class EigenOCAgentDyn(EigenOCAgent):
             self.store_general_info(s, s1, self.action)
             self.log_timestep()
 
-            # if self.total_steps > self.config.observation_steps:
             if self.config.behaviour_agent is None and self.config.eigen:
               self.SF_prediction(s1)
             self.next_frame_prediction()
 
-            # if self.total_steps > self.config.eigen_exploration_steps:
             self.option_prediction(s, s1)
 
             if not self.done and (self.o_term or self.primitive_action):
@@ -129,7 +127,7 @@ class EigenOCAgentDyn(EigenOCAgent):
   def reward_deliberation(self):
     self.original_reward = self.reward
     self.reward = float(self.reward) - self.config.discount * (
-    float(self.o_term) * self.config.delib_margin * (1 - float(self.done)))
+      float(self.o_term) * self.config.delib_margin * (1 - float(self.done)))
 
   def add_SF(self, sf):
     if self.config.eigen_approach == "SVD":
@@ -146,7 +144,6 @@ class EigenOCAgentDyn(EigenOCAgent):
       self.directions = self.global_network.directions
 
   def option_terminate(self, s1):
-    # if self.total_steps > self.config.eigen_exploration_steps:
     if self.config.include_primitive_options and self.primitive_action:
       self.o_term = True
     else:
@@ -155,13 +152,9 @@ class EigenOCAgentDyn(EigenOCAgent):
       self.o_term = o_term[0, self.option] > np.random.uniform()
       self.prob_terms = o_term[0]
     self.termination_counter += self.o_term * (1 - self.done)
-    # else:
-    #   self.action = np.random.choice(range(self.action_size))
-    #   self.o_term = True
     self.episode_oterm.append(self.o_term)
 
   def policy_evaluation(self, s):
-    # if self.total_steps > self.config.eigen_exploration_steps:
     feed_dict = {self.local_network.observation: np.stack([s])}
 
     if self.config.eigen:
@@ -273,7 +266,6 @@ class EigenOCAgentDyn(EigenOCAgent):
       to_return[old_v_idx] = v
 
     return to_return
-
 
   def save_SF_matrix(self):
     np.save(self.global_network.sf_matrix_path, self.global_network.sf_matrix_buffer)

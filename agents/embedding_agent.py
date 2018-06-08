@@ -22,25 +22,14 @@ FLAGS = tf.app.flags.FLAGS
 
 
 class EmbeddingAgent(EigenOCAgentDyn):
-  def __init__(self, game, thread_id, global_step, config, global_network, barrier):
-    super(EmbeddingAgent, self).__init__(game, thread_id, global_step, config, global_network, barrier)
+  def __init__(self, game, thread_id, global_step, config, lr, network_optimizer, global_network, barrier):
+    super(EmbeddingAgent, self).__init__(game, thread_id, global_step, config, lr, network_optimizer, global_network,
+                                         barrier)
     self.barrier = barrier
 
   def init_play(self, sess, saver):
-    self.sess = sess
-    self.saver = saver
-    self.episode_count = sess.run(self.global_step)
-
-    if self.config.move_goal_nb_of_ep and self.config.multi_task:
-      self.goal_position = self.env.set_goal(self.episode_count, self.config.move_goal_nb_of_ep)
-
-    self.total_steps = sess.run(self.total_steps_tensor)
-    self.eigen_q_value = None
-    # self.evalue = None
-    tf.logging.info("Starting worker " + str(self.thread_id))
-    self.aux_episode_buffer = deque()
-    self.ms_aux = self.ms_sf = self.ms_option = self.ms_term = self.ms_critic = self.ms_eigen_critic = None
-    # self.init_tracker()
+    super(EmbeddingAgent, self).init_play()
+    self.ms_critic = self.ms_eigen_critic = None
 
   def play(self, sess, coord, saver):
     with sess.as_default(), sess.graph.as_default():
@@ -63,40 +52,44 @@ class EmbeddingAgent(EigenOCAgentDyn):
 
           if self.config.sr_matrix is not None:
             self.load_directions()
-
           self.init_episode()
 
           s = self.env.reset()
-          self.option_evaluation(s)
+          self.option_evaluation(s, None)
+          self.o_tracker_steps[self.option] += 1
           while not self.done:
             self.sync_threads()
             self.policy_evaluation(s)
 
             s1, r, self.done, s1_idx = self.env.step(self.action)
 
-            r = np.clip(r, -1, 1)
+            self.episode_reward += r
+            self.reward = np.clip(r, -1, 1)
 
             self.option_terminate(s1)
+
+            self.reward_deliberation()
 
             if self.done:
               s1 = s
 
-            self.store_general_info(s, s1, self.action, r)
+            self.store_general_info(s, s1, self.action)
             self.log_timestep()
 
-            if self.total_steps > self.config.observation_steps:
+            if self.config.behaviour_agent is None and self.config.eigen:
               self.SF_prediction(s1)
+            # self.next_frame_prediction()
 
             self.old_option = self.option
             self.old_primitive_action = self.primitive_action
 
+            if not self.done and (self.o_term or self.primitive_action):
+              self.option_evaluation(s1, s1_idx)
 
-            if self.total_steps > self.config.eigen_exploration_steps:
-              if not self.done and (self.o_term or self.primitive_action):
-                self.option_evaluation(s1)
+            if not self.done:
+              self.o_tracker_steps[self.option] += 1
 
-            if self.total_steps > self.config.eigen_exploration_steps:
-              self.option_prediction(s, s1, r)
+            self.option_prediction(s, s1, r)
 
             if self.total_steps % self.config.steps_checkpoint_interval == 0 and self.name == 'worker_0':
               self.save_model()
@@ -107,7 +100,7 @@ class EmbeddingAgent(EigenOCAgentDyn):
             s = s1
             self.episode_len += 1
             self.total_steps += 1
-            self.o_tracker_steps[self.option] += 1
+
             sess.run(self.increment_total_steps_tensor)
 
           self.log_episode()
@@ -120,7 +113,7 @@ class EmbeddingAgent(EigenOCAgentDyn):
             self.write_eval_summary(eval_episodes_won, mean_ep_length)
 
           if self.episode_count % self.config.move_goal_nb_of_ep == 0 and \
-                  self.episode_count != 0 and self.config.multi_task:
+                  self.episode_count != 0:
             tf.logging.info("Moving GOAL....")
             self.barrier.wait()
             self.goal_position = self.env.set_goal(self.episode_count, self.config.move_goal_nb_of_ep)
@@ -130,21 +123,30 @@ class EmbeddingAgent(EigenOCAgentDyn):
             self.save_model()
 
           if self.episode_count % self.config.episode_summary_interval == 0 and self.total_steps != 0 and \
-                  self.name == 'worker_0' and self.episode_count != 0:
+                  self.name == 'worker_0':
             self.write_episode_summary(r)
 
           if self.name == 'worker_0':
             sess.run(self.increment_global_step)
+
           self.episode_count += 1
 
+  def reward_deliberation(self):
+    self.original_reward = self.reward
+    self.reward = float(self.reward) - self.config.discount * (
+      float(self.o_term) * self.config.delib_margin * (1 - float(self.done)))
+
   def option_terminate(self, s1):
-    if not self.primitive_action:
+    if self.config.include_primitive_options and self.primitive_action:
+      self.o_term = True
+    else:
       feed_dict = {self.local_network.observation: np.stack([s1]),
                    self.local_network.option_direction_placeholder: self.global_network.directions[self.option]}
       o_term = self.sess.run(self.local_network.termination, feed_dict=feed_dict)
-      self.o_term = o_term[0] > np.random.uniform()
-    else:
-      self.o_term = True
+      self.prob_terms = o_term[0]
+      self.o_term = o_term[0][0] > np.random.uniform()
+
+    self.termination_counter += self.o_term * (1 - self.done)
     self.episode_oterm.append(self.o_term)
 
   def add_SF(self, sf):
@@ -162,44 +164,39 @@ class EmbeddingAgent(EigenOCAgentDyn):
       self.directions = self.global_network.directions
 
   def policy_evaluation(self, s):
-    if self.total_steps > self.config.eigen_exploration_steps:
-      feed_dict = {self.local_network.observation: np.stack([s])}
-      tensor_list = [self.local_network.fi, self.local_network.sf, self.local_network.v, self.local_network.q_val]
-      if not self.primitive_action:
-        feed_dict[self.local_network.option_direction_placeholder] = [self.global_network.directions[self.option]]
-        tensor_list += [self.local_network.eigen_q_val, self.local_network.option]
+    feed_dict = {self.local_network.observation: np.stack([s])}
 
-      results = self.sess.run(tensor_list, feed_dict=feed_dict)
+    tensor_list = [self.local_network.fi, self.local_network.sf, self.local_network.v, self.local_network.q_val]
+    if not self.primitive_action:
+      feed_dict[self.local_network.option_direction_placeholder] = [self.global_network.directions[self.option]]
+      tensor_list += [self.local_network.eigen_q_val, self.local_network.option]
 
-      if not self.primitive_action:
-        fi, sf, value, q_value, eigen_q_value, option_policy = results
-        self.eigen_q_value = eigen_q_value[0]
-        self.episode_eigen_q_values.append(self.eigen_q_value)
-        pi = option_policy[0]
-        self.action = np.random.choice(pi, p=pi)
-        self.action = np.argmax(pi == self.action)
-      else:
-        fi, sf, value, q_value = results
-        self.action = self.option - self.nb_options
-      self.q_value = q_value[0, self.option]
-      self.value = value[0]
+    results = self.sess.run(tensor_list, feed_dict=feed_dict)
 
-      sf = sf[0]
-      self.fi = fi[0]
-      self.add_SF(sf)
-      self.episode_actions.append(self.action)
-      self.episode_values.append(self.value)
-      self.episode_q_values.append(self.q_value)
+    if not self.primitive_action:
+      fi, sf, value, q_value, eigen_q_value, option_policy = results
+      self.eigen_q_value = eigen_q_value[0][0]
+      self.episode_eigen_q_values.append(self.eigen_q_value)
+      pi = option_policy[0]
+      self.action = np.random.choice(pi, p=pi)
+      self.action = np.argmax(pi == self.action)
     else:
-      feed_dict = {self.local_network.observation: np.stack([s])}
-      self.fi = self.sess.run(self.local_network.fi, feed_dict=feed_dict)[0]
-      self.action = np.random.choice(range(self.action_size))
-      self.primitive_action = True
+      fi, sf, value, q_value = results
+      self.action = self.option - self.nb_options
+    self.q_value = q_value[0, self.option]
+    self.q_values = q_value[0]
+    self.value = value[0]
+
+    sf = sf[0]
+    self.fi = fi[0]
+    self.add_SF(sf)
+    self.episode_actions.append(self.action)
+    self.episode_values.append(self.value)
+    self.episode_q_values.append(self.q_value)
 
   def store_general_info(self, s, s1, a, r):
     if self.config.eigen:
       self.episode_buffer_sf.append([s, s1, a, r, self.fi])
-    self.episode_reward += r
 
   def save_model(self):
     self.saver.save(self.sess, self.model_path + '/model-{}.{}.cptk'.format(self.episode_count, self.total_steps),
@@ -419,7 +416,7 @@ class EmbeddingAgent(EigenOCAgentDyn):
                  }
 
     try:
-      _, _, _, _, ms_option, ms_critic, ms_eigen_critic, ms_term, option_loss, policy_loss, entropy_loss, critic_loss,\
+      _, _, _, _, ms_option, ms_critic, ms_eigen_critic, ms_term, option_loss, policy_loss, entropy_loss, critic_loss, \
       eigen_critic_loss, term_loss = \
         self.sess.run([self.local_network.apply_grads_option,
                        self.local_network.apply_grads_critic,
@@ -438,7 +435,6 @@ class EmbeddingAgent(EigenOCAgentDyn):
                        ], feed_dict=feed_dict)
     except:
       print("Error")
-
 
     return ms_option, ms_term, ms_critic, ms_eigen_critic, option_loss, policy_loss, entropy_loss, critic_loss, eigen_critic_loss, term_loss, \
            discounted_returns[-1], discounted_eigen_returns[-1]

@@ -74,15 +74,14 @@ class GridWorld:
 
   def build_screen(self):
     mdp_screen = np.zeros_like(self.MDP)
-    mdp_screen = np.expand_dims(mdp_screen, 2)
-    mdp_screen[mdp_screen == -1] = 1
+    mdp_screen[self.MDP == -1] = 1
     # mdp_screen[mdp_screen == -1] = 255
     # mdp_screen = np.tile(mdp_screen, [1, 1, 3])
     # mdp_screen[self.agentX, self.agentY] = [0, 255, 0]
     mdp_screen[self.agentX, self.agentY] = 3
     # mdp_screen[self.goalX, self.goalY] = [255, 0, 0]
     mdp_screen[self.goalX, self.goalY] = 2
-    self.pix_state = mdp_screen
+    self.pix_state = np.expand_dims(mdp_screen, 2)
     # self.pix_state /= 255.
     # self.pix_state -= 0.5
     # self.pix_state *= 2.
@@ -379,7 +378,7 @@ if __name__ == '__main__':
   # game = GridWorld("../mdps/longI.mdp")
   game = GridWorld("../mdps/4rooms.mdp")
   game = wrappers.LimitDuration(game, 100000)
-  game = wrappers.FrameResize(game, (13,13))
+  game = wrappers.FrameResize(game, (13, 13))
   game = wrappers.ConvertTo32Bit(game)
 
   start = time.time()

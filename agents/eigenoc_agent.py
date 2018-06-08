@@ -105,15 +105,14 @@ class EigenOCAgent(BaseAgent):
             feed_dict=feed_dict)
           q_value = q_value[0, self.option]
           value = value[0]
-          # evalue = evalue[0]
+          evalue = evalue[0]
 
           if self.primitive_action:
             R_mix = value if self.o_term else q_value
           else:
             q_eigen = q_eigen[0, self.option]
-            # R_mix = evalue if self.o_term else q_eigen
-            R_mix = value if self.o_term else q_eigen
-
+            R_mix = evalue if self.o_term else q_eigen
+            # R_mix = value if self.o_term else q_eigen
         else:
           value, q_value = self.sess.run(
             [self.local_network.v, self.local_network.q_val],
@@ -246,7 +245,6 @@ class EigenOCAgent(BaseAgent):
       self.stats_options[s_idx][self.option] += 1
 
   def option_terminate(self, s1):
-    # if self.total_steps > self.config.eigen_exploration_steps:
     if self.config.include_primitive_options and self.primitive_action:
       self.o_term = True
     else:
@@ -255,13 +253,9 @@ class EigenOCAgent(BaseAgent):
       self.o_term = o_term[0, self.option] > np.random.uniform()
       self.prob_terms = o_term[0]
     self.termination_counter += self.o_term * (1 - self.done)
-    # else:
-    #   self.action = np.random.choice(range(self.action_size))
-    #   self.o_term = True
     self.episode_oterm.append(self.o_term)
 
   def policy_evaluation(self, s):
-    # if self.total_steps > self.config.eigen_exploration_steps:
     feed_dict = {self.local_network.observation: np.stack([s])}
 
     if self.config.eigen:
@@ -270,6 +264,7 @@ class EigenOCAgent(BaseAgent):
       options, value, q_value, eigen_q_value, evalue = self.sess.run(tensor_list, feed_dict=feed_dict)
       if not self.primitive_action:
         self.eigen_q_value = eigen_q_value[0, self.option]
+        self.episode_eigen_q_values.append(self.eigen_q_value)
         pi = options[0, self.option]
         self.action = np.random.choice(pi, p=pi)
         self.action = np.argmax(pi == self.action)
@@ -289,14 +284,12 @@ class EigenOCAgent(BaseAgent):
         pi = options[0, self.option]
         self.action = np.random.choice(pi, p=pi)
         self.action = np.argmax(pi == self.action)
+
       self.q_value = q_value[0, self.option]
       self.q_values = q_value[0]
       self.value = value[0]
       self.episode_values.append(self.value)
       self.episode_q_values.append(self.q_value)
-    # else:
-    #   self.action = np.random.choice(range(self.action_size))
-    #   self.primitive_action = True
     self.episode_actions.append(self.action)
 
   def store_general_info(self, s, s1, a):
@@ -315,7 +308,6 @@ class EigenOCAgent(BaseAgent):
       r_i = self.config.alpha_r * eigen_r + (1 - self.config.alpha_r) * r
       if np.isnan(r_i):
         print("NAN")
-      self.episode_eigen_q_values.append(self.eigen_q_value)
       self.episode_buffer_option.append(
         [s, self.option, a, r, r_i, self.primitive_action, s1])
     else:
@@ -442,7 +434,7 @@ class EigenOCAgent(BaseAgent):
 
   def train_option(self, bootstrap_value, bootstrap_value_mix):  #
     rollout = np.array(
-      self.episode_buffer_option)  # s, self.option, a, r, r_i, self.primitive_action, delib s, self.option, self.action, r, r_i
+      self.episode_buffer_option)  # s, self.option, a, r, r_i, self.primitive_action, s1
     observations = rollout[:, 0]
     options = rollout[:, 1]
     actions = rollout[:, 2]
@@ -455,7 +447,7 @@ class EigenOCAgent(BaseAgent):
     discounted_returns = reward_discount(rewards_plus, self.config.discount)[:-1]
 
     eigen_rewards_plus = np.asarray(eigen_rewards.tolist() + [bootstrap_value_mix])
-    discounted_eigen_returns = discount(eigen_rewards_plus, self.config.discount)[:-1]
+    discounted_eigen_returns = reward_discount(eigen_rewards_plus, self.config.discount)[:-1]
 
     feed_dict = {self.local_network.target_return: discounted_returns,
                  self.local_network.target_eigen_return: discounted_eigen_returns,

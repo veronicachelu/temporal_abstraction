@@ -168,8 +168,6 @@ class BaseNetwork():
     self.image_summaries.append(
       tf.summary.image('next', tf.concat([self.next_obs * 255 * 128, self.target_next_obs * 255 * 128], 2), max_outputs=30))
 
-    # self.matrix_sf = tf.placeholder(shape=[self.config.sf_matrix_size, self.sf_layers[-1]],
-    #                                 dtype=tf.float32, name="matrix_sf")
     if self.config.sr_matrix == "dynamic":
       self.sf_matrix_size = self.config.sf_matrix_size
     else:
@@ -245,7 +243,6 @@ class BaseNetwork():
 
   def gradients_and_summaries(self):
     local_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, self.scope)
-    global_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, 'global')
 
     self.grads_sf, self.apply_grads_sf = self.take_gradient(self.sf_loss)
     self.grads_aux, self.apply_grads_aux = self.take_gradient(self.aux_loss)
