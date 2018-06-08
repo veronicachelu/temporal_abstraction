@@ -566,28 +566,32 @@ class BaseAgent():
           facecolor=option_colors[o],
         )
       )
+      if o < self.nb_options:
+        x, y = self.env.get_state_xy(idx)
+        states = []  # up, right, down, leftƒpo
+        if x - 1 > 0:
+          states.append((x - 1, y))
+        if y + 1 < self.config.input_size[1]:
+          states.append((x, y + 1))
+        if x + 1 < self.config.input_size[0]:
+          states.append((x + 1, y))
+        if y - 1 > 0:
+          states.append((x, y - 1))
 
-      x, y = self.env.get_state_xy(idx)
-      states = []  # up, right, down, leftƒpo
-      if x - 1 > 0:
-        states.append((x - 1, y))
-      if y + 1 < self.config.input_size[1]:
-        states.append((x, y + 1))
-      if x + 1 < self.config.input_size[0]:
-        states.append((x + 1, y))
-      if y - 1 > 0:
-        states.append((x, y - 1))
+        state_idxs = [self.env.get_state_index(x, y) for x, y in states]
+        possible_next_states = [self.env.fake_get_state(idx)[0] for idx in state_idxs]
 
-      state_idxs = [self.env.get_state_index(x, y) for x, y in states]
-      possible_next_states = [self.env.fake_get_state(idx)[0] for idx in state_idxs]
+        feed_dict = {self.local_network.observation: np.stack([s] + possible_next_states)}
+        fis = self.sess.run(self.local_network.fi, feed_dict=feed_dict)
+        fi_s = fis[0]
 
-      feed_dict = {self.local_network.observation: np.stack([s] + possible_next_states)}
-      fis = self.sess.run(self.local_network.fi, feed_dict=feed_dict)
-      fi_s = fis[0]
-
-      fi_diffs = fi_s - fis[1:]
-      cosine_sims = [self.cosine_similarity(d, self.directions[o]) for d in fi_diffs]
-      a = np.argmax(cosine_sims)
+        fi_diffs = fi_s - fis[1:]
+        cosine_sims = [self.cosine_similarity(d, self.directions[o]) for d in fi_diffs]
+        a = np.argmax(cosine_sims)
+        primitive = False
+      else:
+        a = o - self.nb_options
+        primitive = True
       if a == 0:  # up
         dy = 0.35
       elif a == 1:  # right
@@ -598,7 +602,7 @@ class BaseAgent():
         dx = -0.35
 
       plt.arrow(j + 0.5, self.config.input_size[0] - i + 0.5 - 1, dx, dy,
-                head_width=0.05, head_length=0.05, fc='k', ec='k')
+                head_width=0.05, head_length=0.05, fc='k' if primitive else 'r', ec='k' if primitive else 'r')
 
     plt.xlim([0, self.config.input_size[1]])
     plt.ylim([0, self.config.input_size[0]])
