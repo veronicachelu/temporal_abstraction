@@ -394,7 +394,7 @@ class EmbeddingAgent(EigenOCAgentDyn):
     real_approx_options = []
     for i, d in enumerate(directions):
       if primitive_actions[i]:
-        real_approx_options[i] = options[i]
+        real_approx_options.append(options[i])
       else:
         real_approx_options.append(np.argmax([self.cosine_similarity(d, self.directions[o]) for o in
                                               range(self.nb_options)]) if self.episode_count > 0 else options[i])

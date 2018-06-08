@@ -231,7 +231,7 @@ class EigenOCAgent(BaseAgent):
   def reward_deliberation(self):
     self.original_reward = self.reward
     self.reward = float(self.reward) - self.config.discount * (
-    float(self.o_term) * self.config.delib_margin * (1 - float(self.done)))
+      float(self.o_term) * self.config.delib_margin * (1 - float(self.done)))
 
   def option_evaluation(self, s, s_idx=None):
     feed_dict = {self.local_network.observation: np.stack([s])}
@@ -414,7 +414,6 @@ class EigenOCAgent(BaseAgent):
                      self.local_network.merged_summary_sf],
                     feed_dict=feed_dict)
 
-
   def train_aux(self):
     minibatch = random.sample(self.aux_episode_buffer, self.config.batch_size)
     rollout = np.array(minibatch)
@@ -450,7 +449,9 @@ class EigenOCAgent(BaseAgent):
     discounted_eigen_returns = reward_discount(eigen_rewards_plus, self.config.discount)[:-1]
 
     if self.config.eigen:
-      feed_dict = {self.local_network.observation: np.concatenate((np.stack(observations, 0), np.stack(next_observations, 0)), axis=0)}
+      feed_dict = {
+        self.local_network.observation: np.concatenate((np.stack(observations, 0), np.stack(next_observations, 0)),
+                                                       axis=0)}
       fi = self.sess.run(self.local_network.fi,
                          feed_dict=feed_dict)
       fi_next = fi[len(observations):]
@@ -459,9 +460,10 @@ class EigenOCAgent(BaseAgent):
       real_approx_options = []
       for i, d in enumerate(directions):
         if primitive_actions[i]:
-          real_approx_options[i] = options[i]
+          real_approx_options.append(options[i])
         else:
-          real_approx_options.append(np.argmax([self.cosine_similarity(d, self.directions[o]) for o in range(self.nb_options)]) if self.episode_count > 0 else options[i])
+          real_approx_options.append(np.argmax([self.cosine_similarity(d, self.directions[o]) for o in
+                                                range(self.nb_options)]) if self.episode_count > 0 else options[i])
 
     feed_dict = {self.local_network.target_return: discounted_returns,
                  self.local_network.target_eigen_return: discounted_eigen_returns,
