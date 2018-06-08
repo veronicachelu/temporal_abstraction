@@ -449,7 +449,7 @@ class EigenOCAgent(BaseAgent):
     eigen_rewards_plus = np.asarray(eigen_rewards.tolist() + [bootstrap_value_mix])
     discounted_eigen_returns = reward_discount(eigen_rewards_plus, self.config.discount)[:-1]
 
-    if self.eigen:
+    if self.config.eigen:
       feed_dict = {self.local_network.observation: np.stack(observations + next_observations, axis=0)}
       fi = self.sess.run(self.local_network.fi,
                          feed_dict=feed_dict)
@@ -467,7 +467,7 @@ class EigenOCAgent(BaseAgent):
                  self.local_network.target_eigen_return: discounted_eigen_returns,
                  self.local_network.observation: np.stack(observations, axis=0),
                  self.local_network.actions_placeholder: actions,
-                 self.local_network.options_placeholder: real_approx_options if self.eigen else options,
+                 self.local_network.options_placeholder: real_approx_options if self.config.eigen else options,
                  self.local_network.primitive_actions_placeholder: primitive_actions
                  }
 
