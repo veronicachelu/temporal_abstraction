@@ -211,7 +211,7 @@ class EmbeddingNetwork(BaseNetwork):
                  tf.log(self.responsible_actions + 1e-7) * tf.stop_gradient(
                    eigen_td_error)))
 
-    self.option_loss = self.policy_loss - self.entropy_loss
+    self.option_loss = self.policy_loss - self.entropy_loss + self.critic_loss + self.eigen_critic_loss
 
   def take_gradient(self, loss):
     local_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, self.scope)
