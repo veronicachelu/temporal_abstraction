@@ -86,7 +86,7 @@ class EigenOCAgent(BaseAgent):
   def next_frame_prediction(self):
     if len(self.aux_episode_buffer) > self.config.observation_steps and \
                 self.total_steps % self.config.aux_update_freq == 0:
-      self.ms_aux, self.aux_loss = self.train_aux()
+      self.train_aux()
 
   def option_prediction(self, s, s1):
     self.option_counter += 1
@@ -110,9 +110,11 @@ class EigenOCAgent(BaseAgent):
 
           if self.primitive_action:
             R_mix = value if self.o_term else q_value
+            print("primitive_action {} {}".format(R_mix, self.o_term))
           else:
             q_eigen = q_eigen[0, self.option]
-            R_mix = evalue if self.o_term else q_eigen
+            R_mix = value if self.o_term else q_eigen
+            print("eigen {} {}".format(R_mix, self.o_term))
             # R_mix = value if self.o_term else q_eigen
         else:
           value, q_value = self.sess.run(
@@ -123,6 +125,7 @@ class EigenOCAgent(BaseAgent):
         R = value if self.o_term else q_value
         if not self.config.eigen:
           R_mix = R
+      print("-------------------------------------------------------- {}".format(R))
       self.train_option(R, R_mix)
 
       self.episode_buffer_option = []
@@ -430,13 +433,13 @@ class EigenOCAgent(BaseAgent):
                  self.local_network.target_next_obs: np.stack(next_observations, axis=0),
                  self.local_network.actions_placeholder: actions}
 
-    aux_loss, _, ms = \
+    self.ms = \
       self.sess.run([self.local_network.aux_loss, self.local_network.apply_grads_aux,
                      self.local_network.merged_summary_aux],
                     feed_dict=feed_dict)
-    return ms, aux_loss
 
   def train_option(self, bootstrap_value, bootstrap_value_mix):  #
+    print(bootstrap_value_mix)
     rollout = np.array(
       self.episode_buffer_option)  # s, self.option, a, r, r_i, self.primitive_action, s1
     observations = rollout[:, 0]
@@ -449,6 +452,7 @@ class EigenOCAgent(BaseAgent):
 
     rewards_plus = np.asarray(rewards.tolist() + [bootstrap_value])
     discounted_returns = reward_discount(rewards_plus, self.config.discount)[:-1]
+    print(rewards)
 
     eigen_rewards_plus = np.asarray(eigen_rewards.tolist() + [bootstrap_value_mix])
     discounted_eigen_returns = reward_discount(eigen_rewards_plus, self.config.discount)[:-1]
