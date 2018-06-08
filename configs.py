@@ -267,7 +267,7 @@ def eigenoc():
 
 
   decrease_option_prob = False
-  delib_margin = 0.01
+  delib_margin = 0.0
 
   # final_random_option_prob = 0.1
   initial_random_option_prob = 0.1
@@ -281,7 +281,7 @@ def eigenoc_dyn():
   target_agent = EigenOCAgentDyn
   sf_matrix_size = 10000
   sr_matrix = "dynamic"
-  include_primitive_options = True
+  include_primitive_options = False
   eigen = True
   # eigen_approach = "SVD"
   # goal_locations = [(11, 7), (5, 2), (1, 10), (2, 2), (6, 2)]

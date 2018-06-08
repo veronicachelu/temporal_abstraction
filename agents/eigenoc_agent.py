@@ -448,26 +448,27 @@ class EigenOCAgent(BaseAgent):
     eigen_rewards_plus = np.asarray(eigen_rewards.tolist() + [bootstrap_value_mix])
     discounted_eigen_returns = reward_discount(eigen_rewards_plus, self.config.discount)[:-1]
 
-    if self.config.eigen:
-      feed_dict = {
-        self.local_network.observation: np.concatenate((np.stack(observations, 0), np.stack(next_observations, 0)),
-                                                       axis=0)}
-      fi = self.sess.run(self.local_network.fi,
-                         feed_dict=feed_dict)
-      fi_next = fi[len(observations):]
-      fi = fi[:len(observations)]
-      real_directions = fi_next - fi
-      real_approx_options = []
-      for i, d in enumerate(real_directions):
-        if primitive_actions[i]:
-          real_approx_options.append(options[i])
-        else:
-          real_approx_options.append(np.argmax([self.cosine_similarity(d, self.directions[o]) for o in
-                                                range(self.nb_options)]) if self.episode_count > 0 else options[i])
+    # if self.config.eigen:
+      # feed_dict = {
+      #   self.local_network.observation: np.concatenate((np.stack(observations, 0), np.stack(next_observations, 0)),
+      #                                                  axis=0)}
+      # fi = self.sess.run(self.local_network.fi,
+      #                    feed_dict=feed_dict)
+      # fi_next = fi[len(observations):]
+      # fi = fi[:len(observations)]
+      # real_directions = fi_next - fi
+      # real_approx_options = []
+      # for i, d in enumerate(real_directions):
+      #   if primitive_actions[i]:
+      #     real_approx_options.append(options[i])
+      #   else:
+      #     real_approx_options.append(np.argmax([self.cosine_similarity(d, self.directions[o]) for o in
+      #                                           range(self.nb_options)]) if self.episode_count > 0 else options[i])
 
     feed_dict = {self.local_network.target_return: discounted_returns,
                  self.local_network.observation: np.stack(observations, axis=0),
-                 self.local_network.options_placeholder: real_approx_options if self.config.eigen else options,
+                 # self.local_network.options_placeholder: real_approx_options if self.config.eigen else options,
+                 self.local_network.options_placeholder: options,
                  }
 
     _, self.ms_critic = self.sess.run([self.local_network.apply_grads_critic,
@@ -476,7 +477,8 @@ class EigenOCAgent(BaseAgent):
 
     feed_dict = {
       self.local_network.observation: np.stack(next_observations, axis=0),
-      self.local_network.options_placeholder: real_approx_options if self.config.eigen else options,
+      self.local_network.options_placeholder: options,
+      # self.local_network.options_placeholder: real_approx_options if self.config.eigen else options,
       self.local_network.primitive_actions_placeholder: primitive_actions
     }
 

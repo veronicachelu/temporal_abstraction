@@ -192,9 +192,6 @@ class EigenOCAgentDyn(EigenOCAgent):
       self.value = value[0]
       self.episode_values.append(self.value)
       self.episode_q_values.append(self.q_value)
-    # else:
-    #   self.action = np.random.choice(range(self.action_size))
-    #   self.primitive_action = True
     self.episode_actions.append(self.action)
 
   def store_general_info(self, s, s1, a):
