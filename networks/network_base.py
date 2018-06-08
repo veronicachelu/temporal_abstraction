@@ -247,12 +247,12 @@ class BaseNetwork():
     self.grads_sf, self.apply_grads_sf = self.take_gradient(self.sf_loss)
     self.grads_aux, self.apply_grads_aux = self.take_gradient(self.aux_loss)
     self.grads_critic, self.apply_grads_critic = self.take_gradient(self.critic_loss)
-    if self.config.eigen:
-      self.grads_eigen_critic, self.apply_grad_eigen_critic = self.take_gradient(self.eigen_critic_loss)
-      with tf.control_dependencies([self.apply_grad_eigen_critic]):
-        self.grads_option, self.apply_grads_option = self.take_gradient(self.option_loss)
-    else:
-      self.grads_option, self.apply_grads_option = self.take_gradient(self.option_loss)
+    # if self.config.eigen:
+    #   self.grads_eigen_critic, self.apply_grad_eigen_critic = self.take_gradient(self.eigen_critic_loss)
+    #   with tf.control_dependencies([self.apply_grad_eigen_critic]):
+    #     self.grads_option, self.apply_grads_option = self.take_gradient(self.option_loss)
+    # else:
+    self.grads_option, self.apply_grads_option = self.take_gradient(self.option_loss)
     self.grads_term, self.apply_grads_term = self.take_gradient(self.term_loss)
 
 
@@ -282,7 +282,6 @@ class BaseNetwork():
                            gradient_summaries(zip(self.grads_eigen_critic, local_vars))]
 
     self.merged_summary_option = tf.summary.merge(options_to_merge)
-
 
 
   def get_intra_option_policies(self, options):

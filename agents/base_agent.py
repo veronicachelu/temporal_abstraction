@@ -179,7 +179,7 @@ class BaseAgent():
 
   def write_episode_summary(self, r):
     self.tracker()
-    # self.write_option_map()
+    self.write_option_map()
     # self.write_episode_summary_stats()
     # self.viz_options()
     self.summary = tf.Summary()
@@ -647,7 +647,6 @@ class BaseAgent():
          self.local_network.primitive_action, self.local_network.options],
         feed_dict=feed_dict)
       o, primitive_action = option[0], primitive_action[0]
-      # max_q_val = max_q_val[0]
 
       if primitive_action and self.config.include_primitive_options:
         a = o - self.nb_options

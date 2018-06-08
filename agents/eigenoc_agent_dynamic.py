@@ -137,10 +137,11 @@ class EigenOCAgentDyn(EigenOCAgent):
       ci = np.argmax(
         [self.cosine_similarity(sf, d) for d in self.global_network.directions])
 
-      sf_norm = np.linalg.norm(sf)
+      sf_norm = np.linalg.norm(np.asarray(sf, np.float64))
       sf_normalized = sf / (sf_norm + 1e-8)
-      self.global_network.directions[ci] = self.config.tau * sf_normalized + (1 - self.config.tau) * \
-                                                                             self.global_network.directions[ci]
+      new_center = self.config.tau * sf_normalized + (1 - self.config.tau) * self.global_network.directions[ci]
+      new_center_norm = np.linalg.norm(np.asarray(new_center, np.float64))
+      self.global_network.directions[ci] = new_center / (new_center_norm + 1e-8)
       self.directions = self.global_network.directions
 
   def option_terminate(self, s1):

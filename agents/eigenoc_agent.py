@@ -482,10 +482,9 @@ class EigenOCAgent(BaseAgent):
       self.local_network.primitive_actions_placeholder: primitive_actions
     }
 
-    _, self.ms_term = self.sess.run([
-      self.local_network.apply_grads_term,
-      self.local_network.merged_summary_term,
-    ], feed_dict=feed_dict)
+    _, self.ms_term = self.sess.run([self.local_network.apply_grads_term,
+                                     self.local_network.merged_summary_term,
+                                    ], feed_dict=feed_dict)
 
     feed_dict = {self.local_network.target_return: discounted_returns,
                  self.local_network.target_eigen_return: discounted_eigen_returns,
