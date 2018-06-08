@@ -28,7 +28,7 @@ class EmbeddingAgent(EigenOCAgentDyn):
     self.barrier = barrier
 
   def init_play(self, sess, saver):
-    super(EmbeddingAgent, self).init_play()
+    super(EmbeddingAgent, self).init_play(sess, saver)
     self.ms_critic = self.ms_eigen_critic = None
 
   def play(self, sess, coord, saver):
@@ -73,11 +73,11 @@ class EmbeddingAgent(EigenOCAgentDyn):
             if self.done:
               s1 = s
 
-            self.store_general_info(s, s1, self.action)
+            self.episode_buffer_sf.append([s, s1, self.action, self.reward, self.fi])
+
             self.log_timestep()
 
-            if self.config.behaviour_agent is None and self.config.eigen:
-              self.SF_prediction(s1)
+            self.SF_prediction(s1)
             # self.next_frame_prediction()
 
             self.old_option = self.option
@@ -141,10 +141,10 @@ class EmbeddingAgent(EigenOCAgentDyn):
       self.o_term = True
     else:
       feed_dict = {self.local_network.observation: np.stack([s1]),
-                   self.local_network.option_direction_placeholder: self.global_network.directions[self.option]}
+                   self.local_network.option_direction_placeholder: [self.global_network.directions[self.option]]}
       o_term = self.sess.run(self.local_network.termination, feed_dict=feed_dict)
-      self.prob_terms = o_term[0]
-      self.o_term = o_term[0][0] > np.random.uniform()
+      self.prob_terms = [o_term[0]]
+      self.o_term = o_term[0] > np.random.uniform()
 
     self.termination_counter += self.o_term * (1 - self.done)
     self.episode_oterm.append(self.o_term)
@@ -175,7 +175,7 @@ class EmbeddingAgent(EigenOCAgentDyn):
 
     if not self.primitive_action:
       fi, sf, value, q_value, eigen_q_value, option_policy = results
-      self.eigen_q_value = eigen_q_value[0][0]
+      self.eigen_q_value = eigen_q_value[0]
       self.episode_eigen_q_values.append(self.eigen_q_value)
       pi = option_policy[0]
       self.action = np.random.choice(pi, p=pi)
@@ -193,10 +193,6 @@ class EmbeddingAgent(EigenOCAgentDyn):
     self.episode_actions.append(self.action)
     self.episode_values.append(self.value)
     self.episode_q_values.append(self.q_value)
-
-  def store_general_info(self, s, s1, a, r):
-    if self.config.eigen:
-      self.episode_buffer_sf.append([s, s1, a, r, self.fi])
 
   def save_model(self):
     self.saver.save(self.sess, self.model_path + '/model-{}.{}.cptk'.format(self.episode_count, self.total_steps),
@@ -218,13 +214,15 @@ class EmbeddingAgent(EigenOCAgentDyn):
                          feed_dict=feed_dict)
       eigen_r = self.cosine_similarity((fi[1] - fi[0]), self.directions[self.option])
       r_i = self.config.alpha_r * eigen_r + (1 - self.config.alpha_r) * r
-
+      if np.isnan(r_i):
+        print("NAN")
       self.episode_buffer_option.append(
-        [s, self.option, a, r, r_i, self.primitive_action])
+        [s, self.option, a, r, r_i, self.primitive_action, s1])
     else:
       r_i = r
       self.episode_buffer_option.append(
-        [s, self.option, a, r, r_i, self.primitive_action])
+        [s, self.option, a, r, r_i,
+         self.primitive_action, s1])
 
   def option_prediction(self, s, s1, r):
     self.option_counter += 1
@@ -377,33 +375,14 @@ class EmbeddingAgent(EigenOCAgentDyn):
     rewards = rollout[:, 3]
     eigen_rewards = rollout[:, 4]
     primitive_actions = rollout[:, 5]
+    next_observations = rollout[:, 6]
 
     rewards_plus = np.asarray(rewards.tolist() + [bootstrap_value])
     discounted_returns = reward_discount(rewards_plus, self.config.discount)[:-1]
 
     eigen_rewards_plus = np.asarray(eigen_rewards.tolist() + [bootstrap_value_mix])
-    discounted_eigen_returns = discount(eigen_rewards_plus, self.config.discount)[:-1]
-    #
-    # notprimitve = list(np.logical_not(primitive_actions))
-    # primitive = list(np.array(primitive_actions, dtype=np.bool))
-    # options_primitive = options[primitive]
-    # options_highlevel = options[notprimitve]
-    # actions_highlevel = actions[notprimitve]
-    # discounted_returns_primitive = discounted_returns[primitive]
-    # discounted_returns_highlevel = discounted_returns[notprimitve]
-    # observations_primitive = observations[primitive]
-    # observations_highlevel = observations[notprimitve]
-    # discounted_eigen_returns_highlevel = discounted_eigen_returns[notprimitve]
-    #
-    # if len(observations_primitive) > 0:
-    #   feed_dict = {self.local_network.target_return: discounted_returns_primitive,
-    #                self.local_network.observation: np.stack(observations_primitive, axis=0),
-    #                self.local_network.options_placeholder: options_primitive}
-    #   to_run = [self.local_network.apply_grads_primitive_option]
-    #
-    #   _ = self.sess.run(to_run, feed_dict=feed_dict)
-    #
-    # if len(observations_highlevel) > 0:
+    discounted_eigen_returns = reward_discount(eigen_rewards_plus, self.config.discount)[:-1]
+
     directions = [self.global_network.directions[o] if o < self.nb_options else np.zeros((self.config.sf_layers[-1]))
                   for o in options]
     feed_dict = {self.local_network.target_return: discounted_returns,
@@ -415,29 +394,23 @@ class EmbeddingAgent(EigenOCAgentDyn):
                  self.local_network.primitive_actions_placeholder: primitive_actions
                  }
 
-    try:
-      _, _, _, _, ms_option, ms_critic, ms_eigen_critic, ms_term, option_loss, policy_loss, entropy_loss, critic_loss, \
-      eigen_critic_loss, term_loss = \
-        self.sess.run([self.local_network.apply_grads_option,
-                       self.local_network.apply_grads_critic,
-                       self.local_network.apply_grads_eigen_critic,
-                       self.local_network.apply_grads_term,
-                       self.local_network.merged_summary_option,
-                       self.local_network.merged_summary_critic,
-                       self.local_network.merged_summary_eigen_critic,
-                       self.local_network.merged_summary_term,
-                       self.local_network.option_loss,
-                       self.local_network.policy_loss,
-                       self.local_network.entropy_loss,
-                       self.local_network.critic_loss,
-                       self.local_network.eigen_critic_loss,
-                       self.local_network.term_loss
-                       ], feed_dict=feed_dict)
-    except:
-      print("Error")
+    _, self.ms_option = self.sess.run([self.local_network.apply_grads_option,
+                                       self.local_network.merged_summary_option,
+                                       ], feed_dict=feed_dict)
 
-    return ms_option, ms_term, ms_critic, ms_eigen_critic, option_loss, policy_loss, entropy_loss, critic_loss, eigen_critic_loss, term_loss, \
-           discounted_returns[-1], discounted_eigen_returns[-1]
+    feed_dict = {
+      self.local_network.observation: np.stack(next_observations, axis=0),
+      self.local_network.options_placeholder: options,
+      self.local_network.primitive_actions_placeholder: primitive_actions
+    }
+
+    _, self.ms_term = self.sess.run([
+      self.local_network.apply_grads_term,
+      self.local_network.merged_summary_term,
+    ], feed_dict=feed_dict)
+
+    self.R = discounted_returns[-1]
+    self.eigen_R = discounted_eigen_returns[-1]
 
   def write_step_summary(self, r):
     self.summary = tf.Summary()

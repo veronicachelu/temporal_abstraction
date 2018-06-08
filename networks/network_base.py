@@ -251,8 +251,8 @@ class BaseNetwork():
       self.grads_eigen_critic, self.apply_grad_eigen_critic = self.take_gradient(self.eigen_critic_loss)
       with tf.control_dependencies([self.apply_grad_eigen_critic]):
         self.grads_option, self.apply_grads_option = self.take_gradient(self.option_loss)
-
-    self.grads_option, self.apply_grads_option = self.take_gradient(self.option_loss)
+    else:
+      self.grads_option, self.apply_grads_option = self.take_gradient(self.option_loss)
     self.grads_term, self.apply_grads_term = self.take_gradient(self.term_loss)
 
 
