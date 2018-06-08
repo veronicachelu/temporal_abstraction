@@ -401,20 +401,7 @@ class EmbeddingAgent(EigenOCAgentDyn):
 
     feed_dict = {self.local_network.target_return: discounted_returns,
                  self.local_network.observation: np.stack(observations, axis=0),
-                 self.local_network.actions_placeholder: actions,
-                 self.local_network.options_placeholder: real_approx_options,
-                 self.local_network.option_direction_placeholder: real_directions,
-                 self.local_network.target_eigen_return: discounted_eigen_returns,
-                 self.local_network.primitive_actions_placeholder: primitive_actions
-                 }
-
-    _, self.ms_option = self.sess.run([self.local_network.apply_grads_option,
-                                       self.local_network.merged_summary_option,
-                                       ], feed_dict=feed_dict)
-
-    feed_dict = {self.local_network.target_return: discounted_returns,
-                 self.local_network.observation: np.stack(observations, axis=0),
-                 self.local_network.options_placeholder: options
+                 self.local_network.options_placeholder: real_approx_options
                  }
 
     _, self.ms_critic = self.sess.run([self.local_network.apply_grads_critic,
@@ -424,8 +411,8 @@ class EmbeddingAgent(EigenOCAgentDyn):
 
     feed_dict = {
       self.local_network.observation: np.stack(next_observations, axis=0),
-      self.local_network.options_placeholder: options,
-      self.local_network.option_direction_placeholder: directions,
+      self.local_network.options_placeholder: real_approx_options,
+      self.local_network.option_direction_placeholder: real_directions,
       self.local_network.primitive_actions_placeholder: primitive_actions
     }
 
@@ -433,6 +420,21 @@ class EmbeddingAgent(EigenOCAgentDyn):
       self.local_network.apply_grads_term,
       self.local_network.merged_summary_term,
     ], feed_dict=feed_dict)
+
+
+    feed_dict = {self.local_network.target_return: discounted_returns,
+                 self.local_network.observation: np.stack(observations, axis=0),
+                 self.local_network.actions_placeholder: actions,
+                 self.local_network.options_placeholder: options,
+                 self.local_network.option_direction_placeholder: directions,
+                 self.local_network.target_eigen_return: discounted_eigen_returns,
+                 self.local_network.primitive_actions_placeholder: primitive_actions
+                 }
+
+    _, self.ms_option = self.sess.run([self.local_network.apply_grads_option,
+                                       self.local_network.merged_summary_option,
+                                       ], feed_dict=feed_dict)
+
 
     self.R = discounted_returns[-1]
     self.eigen_R = discounted_eigen_returns[-1]
