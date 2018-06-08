@@ -402,7 +402,7 @@ class EmbeddingAgent(EigenOCAgentDyn):
     feed_dict = {self.local_network.target_return: discounted_returns,
                  self.local_network.observation: np.stack(observations, axis=0),
                  self.local_network.actions_placeholder: actions,
-                 self.local_network.options_placeholder: options,
+                 self.local_network.options_placeholder: real_approx_options,
                  self.local_network.option_direction_placeholder: directions,
                  self.local_network.target_eigen_return: discounted_eigen_returns,
                  self.local_network.primitive_actions_placeholder: primitive_actions
