@@ -390,9 +390,9 @@ class EmbeddingAgent(EigenOCAgentDyn):
                        feed_dict=feed_dict)
     fi_next = fi[len(observations):]
     fi = fi[:len(observations)]
-    directions = fi_next - fi
+    real_directions = fi_next - fi
     real_approx_options = []
-    for i, d in enumerate(directions):
+    for i, d in enumerate(real_directions):
       if primitive_actions[i]:
         real_approx_options.append(options[i])
       else:
@@ -403,7 +403,7 @@ class EmbeddingAgent(EigenOCAgentDyn):
                  self.local_network.observation: np.stack(observations, axis=0),
                  self.local_network.actions_placeholder: actions,
                  self.local_network.options_placeholder: real_approx_options,
-                 self.local_network.option_direction_placeholder: directions,
+                 self.local_network.option_direction_placeholder: real_directions,
                  self.local_network.target_eigen_return: discounted_eigen_returns,
                  self.local_network.primitive_actions_placeholder: primitive_actions
                  }
@@ -411,6 +411,16 @@ class EmbeddingAgent(EigenOCAgentDyn):
     _, self.ms_option = self.sess.run([self.local_network.apply_grads_option,
                                        self.local_network.merged_summary_option,
                                        ], feed_dict=feed_dict)
+
+    feed_dict = {self.local_network.target_return: discounted_returns,
+                 self.local_network.observation: np.stack(observations, axis=0),
+                 self.local_network.options_placeholder: options
+                 }
+
+    _, self.ms_critic = self.sess.run([self.local_network.apply_grads_critic,
+                                       self.local_network.merged_summary_critic,
+                                       ], feed_dict=feed_dict)
+
 
     feed_dict = {
       self.local_network.observation: np.stack(next_observations, axis=0),
