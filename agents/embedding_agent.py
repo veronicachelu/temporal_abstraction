@@ -383,9 +383,9 @@ class EmbeddingAgent(EigenOCAgentDyn):
     eigen_rewards_plus = np.asarray(eigen_rewards.tolist() + [bootstrap_value_mix])
     discounted_eigen_returns = reward_discount(eigen_rewards_plus, self.config.discount)[:-1]
 
-
-
-    feed_dict = {self.local_network.observation: np.stack(observations + next_observations, axis=0)}
+    feed_dict = {
+      self.local_network.observation: np.concatenate((np.stack(observations, 0), np.stack(next_observations, 0)),
+                                                     axis=0)}
     fi = self.sess.run(self.local_network.fi,
                        feed_dict=feed_dict)
     fi_next = fi[len(observations):]
@@ -396,8 +396,8 @@ class EmbeddingAgent(EigenOCAgentDyn):
       if primitive_actions[i]:
         real_approx_options[i] = options[i]
       else:
-        real_approx_options.append(
-          np.argmax([self.cosine_similarity(d, self.directions[o]) for o in range(self.nb_options)]))
+        real_approx_options.append(np.argmax([self.cosine_similarity(d, self.directions[o]) for o in
+                                              range(self.nb_options)]) if self.episode_count > 0 else options[i])
 
     feed_dict = {self.local_network.target_return: discounted_returns,
                  self.local_network.observation: np.stack(observations, axis=0),
