@@ -556,7 +556,7 @@ class BaseAgent():
           )
         )
 
-        if self.directions[o] == np.zeros_like(self.directions[o]):
+        if np.all[self.directions[o] == np.zeros_like(self.directions[o])]:
           circle = plt.Circle(
                 (j + 0.5, self.config.input_size[0] - i + 0.5 - 1), 0.025, color='r')
           plt.gca().add_artist(circle)
