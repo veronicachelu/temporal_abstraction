@@ -99,13 +99,12 @@ class BaseNetwork():
                                                 variables_collections=tf.get_collection("variables"),
                                                 outputs_collections="activations", scope="eigen_q_val")
       self.summaries_option.append(tf.contrib.layers.summarize_activation(self.eigen_q_val))
-    if self.config.include_primitive_options:
-      concatenated_eigen_q = tf.concat([self.q_val[:, self.config.nb_options:], self.eigen_q_val], 1)
-    else:
-      concatenated_eigen_q = self.eigen_q_val
-    self.eigenv = tf.reduce_max(concatenated_eigen_q, axis=1) * \
-                  (1 - self.config.final_random_option_prob) + \
-                  self.config.final_random_option_prob * tf.reduce_mean(concatenated_eigen_q, axis=1)
+    # if self.config.include_primitive_options:
+    #   concatenated_eigen_q = tf.concat([self.q_val[:, self.config.nb_options:], self.eigen_q_val], 1)
+    # else:
+    self.eigenv = tf.identity(tf.reduce_max(self.eigen_q_val, axis=1) * \
+                  (1 - self.random_option_prob) + \
+                  self.random_option_prob * tf.reduce_mean(self.eigen_q_val, axis=1), name="eigen_V")
     self.summaries_option.append(tf.contrib.layers.summarize_activation(self.eigenv))
 
   def build_intraoption_policies_nets(self):
@@ -137,7 +136,7 @@ class BaseNetwork():
           if layer_norm:
             out = self.layer_norm_fn(out, relu=True)
           else:
-            out = tf.nn.relu(out)
+            out = tf.nn.elu(out)
         self.summaries_sf.append(tf.contrib.layers.summarize_activation(out))
       self.sf = out
 
@@ -247,11 +246,6 @@ class BaseNetwork():
     self.grads_sf, self.apply_grads_sf = self.take_gradient(self.sf_loss)
     self.grads_aux, self.apply_grads_aux = self.take_gradient(self.aux_loss)
     self.grads_critic, self.apply_grads_critic = self.take_gradient(self.critic_loss)
-    # if self.config.eigen:
-    #   self.grads_eigen_critic, self.apply_grad_eigen_critic = self.take_gradient(self.eigen_critic_loss)
-    #   with tf.control_dependencies([self.apply_grad_eigen_critic]):
-    #     self.grads_option, self.apply_grads_option = self.take_gradient(self.option_loss)
-    # else:
     self.grads_option, self.apply_grads_option = self.take_gradient(self.option_loss)
     self.grads_term, self.apply_grads_term = self.take_gradient(self.term_loss)
 

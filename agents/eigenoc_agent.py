@@ -113,7 +113,7 @@ class EigenOCAgent(BaseAgent):
             print("primitive_action {} {}".format(R_mix, self.o_term))
           else:
             q_eigen = q_eigen[0, self.option]
-            R_mix = value if self.o_term else q_eigen
+            R_mix = evalue if self.o_term else q_eigen
             print("eigen {} {}".format(R_mix, self.o_term))
             # R_mix = value if self.o_term else q_eigen
         else:
@@ -433,7 +433,7 @@ class EigenOCAgent(BaseAgent):
                  self.local_network.target_next_obs: np.stack(next_observations, axis=0),
                  self.local_network.actions_placeholder: actions}
 
-    self.ms = \
+    _, _, self.ms_aux = \
       self.sess.run([self.local_network.aux_loss, self.local_network.apply_grads_aux,
                      self.local_network.merged_summary_aux],
                     feed_dict=feed_dict)
