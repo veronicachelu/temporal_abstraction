@@ -391,17 +391,20 @@ class EmbeddingAgent(EigenOCAgentDyn):
     fi_next = fi[len(observations):]
     fi = fi[:len(observations)]
     real_directions = fi_next - fi
-    real_approx_options = []
+    real_approx_options, directions = [], []
     for i, d in enumerate(real_directions):
       if primitive_actions[i]:
         real_approx_options.append(options[i])
+        directions.append(np.zeros((self.config.sf_layers[-1])))
       else:
+        directions.append(self.global_network.directions[options[i]])
         real_approx_options.append(np.argmax([self.cosine_similarity(d, self.directions[o]) for o in
                                               range(self.nb_options)]) if self.episode_count > 0 else options[i])
 
     feed_dict = {self.local_network.target_return: discounted_returns,
                  self.local_network.observation: np.stack(observations, axis=0),
-                 self.local_network.options_placeholder: real_approx_options
+                 self.local_network.options_placeholder: real_approx_options,
+                 self.local_network.option_direction_placeholder: real_directions
                  }
 
     _, self.ms_critic = self.sess.run([self.local_network.apply_grads_critic,
