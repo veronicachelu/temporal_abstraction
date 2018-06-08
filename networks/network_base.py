@@ -278,8 +278,7 @@ class BaseNetwork():
         gradient_summaries(zip(self.grads_critic, local_vars))])
 
     if self.config.eigen:
-      options_to_merge += [tf.summary.scalar('avg_eigen_critic_loss', self.eigen_critic_loss),
-                           gradient_summaries(zip(self.grads_eigen_critic, local_vars))]
+      options_to_merge += [tf.summary.scalar('avg_eigen_critic_loss', self.eigen_critic_loss),]
 
     self.merged_summary_option = tf.summary.merge(options_to_merge)
 
