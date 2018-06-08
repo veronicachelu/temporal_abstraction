@@ -73,7 +73,7 @@ def default():
   include_primitive_options = True
 
   steps_summary_interval = 1000
-  episode_summary_interval = 10
+  episode_summary_interval = 1
   steps_checkpoint_interval = 1000
   episode_checkpoint_interval = 10
   episode_eval_interval = 10
@@ -183,7 +183,6 @@ def oc():
   # final_random_option_prob = 0.1
   initial_random_option_prob = 0.1
   # explore_options_episodes = 500
-  episode_summary_interval = 10
   lr = 7e-4
 
   return locals()
@@ -227,7 +226,6 @@ def test_options():
   # final_random_option_prob = 0.1
   initial_random_option_prob = 0.1
   # explore_options_episodes = 500
-  episode_summary_interval = 10
   lr = 7e-4
 
 
@@ -274,7 +272,6 @@ def eigenoc():
   # final_random_option_prob = 0.1
   initial_random_option_prob = 0.1
   # explore_options_episodes = 500
-  episode_summary_interval = 10
   lr = 7e-4
 
   return locals()
