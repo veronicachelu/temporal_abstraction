@@ -112,9 +112,9 @@ class BaseAgent():
 
   def tracker(self):
     term_prob = float(self.termination_counter) / self.episode_len * 100
-    primitive_action_prob = self.primitive_action_counter / self.episode_len * 100
+    primitive_prob = self.primitive_action_counter / self.episode_len * 100
     csv_things = [self.episode_count, self.total_steps, self.episode_len, self.episode_reward,
-                  round(term_prob, 1), primitive_action_prob] + list(self.o_tracker_chosen) + list(
+                  round(term_prob, 1), primitive_prob] + list(self.o_tracker_chosen) + list(
       self.o_tracker_steps)
 
     with open(os.path.join(self.config.stage_logdir, "data.csv"), "a") as myfile:
@@ -588,21 +588,31 @@ class BaseAgent():
         fi_diffs = fi_s - fis[1:]
         cosine_sims = [self.cosine_similarity(d, self.directions[o]) for d in fi_diffs]
         a = np.argmax(cosine_sims)
-        primitive = False
+        if a == 0:  # up
+          dy = 0.35
+        elif a == 1:  # right
+          dx = 0.35
+        elif a == 2:  # down
+          dy = -0.35
+        elif a == 3:  # left
+          dx = -0.35
+        plt.arrow(j + 0.5, self.config.input_size[0] - i + 0.5 - 1, dx, dy,
+                  head_width=0.05, head_length=0.05, fc='k', ec='k')
+
       else:
         a = o - self.nb_options
-        primitive = True
-      if a == 0:  # up
-        dy = 0.35
-      elif a == 1:  # right
-        dx = 0.35
-      elif a == 2:  # down
-        dy = -0.35
-      elif a == 3:  # left
-        dx = -0.35
+        if a == 0:  # up
+          dy = 0.35
+        elif a == 1:  # right
+          dx = 0.35
+        elif a == 2:  # down
+          dy = -0.35
+        elif a == 3:  # left
+          dx = -0.35
+        plt.arrow(j + 0.5, self.config.input_size[0] - i + 0.5 - 1, dx, dy,
+                  head_width=0.05, head_length=0.05, fc='k', ec='k')
 
-      plt.arrow(j + 0.5, self.config.input_size[0] - i + 0.5 - 1, dx, dy,
-                head_width=0.05, head_length=0.05, fc='k' if primitive else 'r', ec='k' if primitive else 'r')
+
 
     plt.xlim([0, self.config.input_size[1]])
     plt.ylim([0, self.config.input_size[0]])
