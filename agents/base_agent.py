@@ -180,7 +180,8 @@ class BaseAgent():
   def write_episode_summary(self, r):
     self.tracker()
     self.write_option_map()
-    # self.write_episode_summary_stats()
+    if self.config.eigen:
+      self.write_episode_summary_stats()
     # self.viz_options()
     self.summary = tf.Summary()
     if len(self.episode_rewards) != 0:
@@ -527,98 +528,80 @@ class BaseAgent():
       plt.close()
 
   def write_episode_summary_stats(self):
-    most_chosen_options = np.argmax(self.stats_options, axis=1)
-
-    plt.clf()
     option_colors = [(0.1, 0.2, 0.5, 0.4), (0.1, 0.2, 0.5, 0.6), (0.1, 0.2, 0.5, 0.8), (0.1, 0.2, 0.5, 1),
                      (0.5, 0.2, 0.1, 0.4), (0.5, 0.2, 0.1, 0.6), (0.5, 0.2, 0.1, 0.8), (0.5, 0.2, 0.1, 1)]
-    for idx in range(self.nb_states):
-      dx = 0
-      dy = 0
-      o = most_chosen_options[idx]
-      s, i, j = self.env.get_state(idx)
-      if not self.env.not_wall(i, j):
+    for o in range(self.nb_options):
+      plt.clf()
+      for idx in range(self.nb_states):
+        dx = 0
+        dy = 0
+
+        s, i, j = self.env.get_state(idx)
+        if not self.env.not_wall(i, j):
+          plt.gca().add_patch(
+            patches.Rectangle(
+              (j, self.config.input_size[0] - i - 1),  # (x,y)
+              1.0,  # width
+              1.0,  # height
+              facecolor="gray"
+            )
+          )
+          continue
         plt.gca().add_patch(
           patches.Rectangle(
             (j, self.config.input_size[0] - i - 1),  # (x,y)
             1.0,  # width
             1.0,  # height
-            facecolor="gray"
+            facecolor=option_colors[o],
           )
         )
-        continue
-      plt.gca().add_patch(
-        patches.Rectangle(
-          (j, self.config.input_size[0] - i - 1),  # (x,y)
-          1.0,  # width
-          1.0,  # height
-          facecolor=option_colors[o],
-        )
-      )
 
-      x, y = self.env.get_state_xy(idx)
-      states = []  # up, right, down, leftƒpo
-      if x - 1 > 0:
-        states.append((x - 1, y))
-      if y + 1 < self.config.input_size[1]:
-        states.append((x, y + 1))
-      if x + 1 < self.config.input_size[0]:
-        states.append((x + 1, y))
-      if y - 1 > 0:
-        states.append((x, y - 1))
+        x, y = self.env.get_state_xy(idx)
+        states = []  # up, right, down, leftƒpo
+        if x - 1 > 0:
+          states.append((x - 1, y))
+        if y + 1 < self.config.input_size[1]:
+          states.append((x, y + 1))
+        if x + 1 < self.config.input_size[0]:
+          states.append((x + 1, y))
+        if y - 1 > 0:
+          states.append((x, y - 1))
 
-      if self.config.eigen:
-        if o >= self.nb_options:
-          a = o - self.nb_options
-        else:
-          state_idxs = [self.env.get_state_index(x, y) for x, y in states]
-          possible_next_states = [self.env.fake_get_state(idx)[0] for idx in state_idxs]
+        state_idxs = [self.env.get_state_index(x, y) for x, y in states]
+        possible_next_states = [self.env.fake_get_state(idx)[0] for idx in state_idxs]
 
-          feed_dict = {self.local_network.observation: np.stack([s] + possible_next_states)}
-          fis = self.sess.run(self.local_network.fi, feed_dict=feed_dict)
-          fi_s = fis[0]
+        feed_dict = {self.local_network.observation: np.stack([s] + possible_next_states)}
+        fis = self.sess.run(self.local_network.fi, feed_dict=feed_dict)
+        fi_s = fis[0]
 
-          fi_diffs = fi_s - fis[1:]
-          cosine_sims = [self.cosine_similarity(d, self.directions[o]) for d in fi_diffs]
-          a = np.argmax(cosine_sims)
-      else:
-        feed_dict = {self.local_network.observation: np.stack([s])}
-        options, o_term = self.sess.run([self.local_network.options, self.local_network.termination],
-                                        feed_dict=feed_dict)
-        pi = options[0, o]
-        action = np.random.choice(pi, p=pi)
-        a = np.argmax(pi == action)
+        fi_diffs = fi_s - fis[1:]
+        cosine_sims = [self.cosine_similarity(d, self.directions[o]) for d in fi_diffs]
+        a = np.argmax(cosine_sims)
+        if a == 0:  # up
+          dy = 0.35
+        elif a == 1:  # right
+          dx = 0.35
+        elif a == 2:  # down
+          dy = -0.35
+        elif a == 3:  # left
+          dx = -0.35
 
-        # s1, r, done, idx1 = self.env.special_step(a, idx)
-        # feed_dict = {self.local_network.observation: np.stack([s1])}
-        # o_term = self.sess.run(self.local_network.termination,
-        #                        feed_dict=feed_dict)
-        # o_term = o_term[0, o] > np.random.uniform()
-      if a == 0:  # up
-        dy = 0.35
-      elif a == 1:  # right
-        dx = 0.35
-      elif a == 2:  # down
-        dy = -0.35
-      elif a == 3:  # left
-        dx = -0.35
+        plt.arrow(j + 0.5, self.config.input_size[0] - i + 0.5 - 1, dx, dy,
+                  head_width=0.05, head_length=0.05, fc='k', ec='k')
 
-      plt.arrow(j + 0.5, self.config.input_size[0] - i + 0.5 - 1, dx, dy,
-                head_width=0.05, head_length=0.05, fc='k', ec='k')
+      plt.xlim([0, self.config.input_size[1]])
+      plt.ylim([0, self.config.input_size[0]])
 
-    plt.xlim([0, self.config.input_size[1]])
-    plt.ylim([0, self.config.input_size[0]])
+      for i in range(self.config.input_size[1]):
+        plt.axvline(i, color='k', linestyle=':')
+      plt.axvline(self.config.input_size[1], color='k', linestyle=':')
 
-    for i in range(self.config.input_size[1]):
-      plt.axvline(i, color='k', linestyle=':')
-    plt.axvline(self.config.input_size[1], color='k', linestyle=':')
+      for j in range(self.config.input_size[0]):
+        plt.axhline(j, color='k', linestyle=':')
+      plt.axhline(self.config.input_size[0], color='k', linestyle=':')
 
-    for j in range(self.config.input_size[0]):
-      plt.axhline(j, color='k', linestyle=':')
-    plt.axhline(self.config.input_size[0], color='k', linestyle=':')
-
-    plt.savefig(os.path.join(self.stats_path, "Option_map_{}.png".format(self.episode_count)))
-    plt.close()
+      plt.savefig(os.path.join(self.stats_path, "O_{}_{}.png".format(self.episode_count, o)))
+      plt.close()
 
   def write_option_map(self):
     plt.clf()
@@ -647,6 +630,98 @@ class BaseAgent():
          self.local_network.primitive_action, self.local_network.options],
         feed_dict=feed_dict)
       o, primitive_action = option[0], primitive_action[0]
+
+      if primitive_action and self.config.include_primitive_options:
+        a = o - self.nb_options
+      else:
+        plt.gca().add_patch(
+          patches.Rectangle(
+            (j, self.config.input_size[0] - i - 1),  # (x,y)
+            1.0,  # width
+            1.0,  # height
+            facecolor=option_colors[o],
+          )
+        )
+        pi = options[0, o]
+        action = np.random.choice(pi, p=pi)
+        a = np.argmax(pi == action)
+
+      if a == 0:  # up
+        dy = 0.35
+      elif a == 1:  # right
+        dx = 0.35
+      elif a == 2:  # down
+        dy = -0.35
+      elif a == 3:  # left
+        dx = -0.35
+
+      # if o_term and not primitive_action:  # termination
+      #   circle = plt.Circle(
+      #     (j + 0.5, self.config.input_size[0] - i + 0.5 - 1), 0.025, color='r' if primitive_action else 'k')
+      #   plt.gca().add_artist(circle)
+      #   plt.text(j, self.config.input_size[0] - i - 1, str(o), color='r' if primitive_action else 'b', fontsize=8)
+      #   continue
+      plt.text(j, self.config.input_size[0] - i + 0.2 - 1, str(o), color='r' if primitive_action else 'b', fontsize=12)
+      # plt.text(j + 0.5, self.config.input_size[0] - i - 1, '{0:.2f}'.format(max_q_val), fontsize=8)
+
+      plt.arrow(j + 0.5, self.config.input_size[0] - i + 0.5 - 1, dx, dy,
+                head_width=0.05, head_length=0.05, fc='r' if primitive_action else 'k',
+                ec='r' if primitive_action else 'k')
+
+    i, j = self.config.goal_locations[self.goal_position]
+    plt.gca().add_patch(
+      patches.Rectangle(
+        (j, self.config.input_size[0] - i - 1),  # (x,y)
+        1.0,  # width
+        1.0,  # height
+        facecolor='red',
+      )
+    )
+
+    plt.xlim([0, self.config.input_size[1]])
+    plt.ylim([0, self.config.input_size[0]])
+
+    for i in range(self.config.input_size[1]):
+      plt.axvline(i, color='k', linestyle=':')
+    plt.axvline(self.config.input_size[1], color='k', linestyle=':')
+
+    for j in range(self.config.input_size[0]):
+      plt.axhline(j, color='k', linestyle=':')
+    plt.axhline(self.config.input_size[0], color='k', linestyle=':')
+
+    plt.savefig(os.path.join(self.stats_path, "Option_map_{}.png".format(self.episode_count)))
+    plt.close()
+
+  def write_option_map(self):
+    plt.clf()
+    option_colors = [(0.1, 0.2, 0.5, 0.4), (0.1, 0.2, 0.5, 0.6), (0.1, 0.2, 0.5, 0.8), (0.1, 0.2, 0.5, 1),
+                     (0.5, 0.2, 0.1, 0.4), (0.5, 0.2, 0.1, 0.6), (0.5, 0.2, 0.1, 0.8), (0.5, 0.2, 0.1, 1)]
+
+    for direction in self.global_network.directions:
+      for idx in range(self.nb_states):
+        dx = 0
+        dy = 0
+        d = False
+        s, i, j = self.env.get_state(idx)
+        if not self.env.not_wall(i, j):
+          plt.gca().add_patch(
+            patches.Rectangle(
+              (j, self.config.input_size[0] - i - 1),  # (x,y)
+              1.0,  # width
+              1.0,  # height
+              facecolor="gray"
+            )
+          )
+          continue
+
+
+
+        feed_dict = {self.local_network.observation: np.stack([s])}
+        max_q_val, q_vals, option, primitive_action, options = self.sess.run(
+          [self.local_network.max_q_val, self.local_network.q_val, self.local_network.max_options,
+           self.local_network.primitive_action, self.local_network.options],
+          feed_dict=feed_dict)
+        o, primitive_action = option[0], primitive_action[0]
 
       if primitive_action and self.config.include_primitive_options:
         a = o - self.nb_options
