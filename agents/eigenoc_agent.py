@@ -125,7 +125,7 @@ class EigenOCAgent(BaseAgent):
         R = value if self.o_term else q_value
         if not self.config.eigen:
           R_mix = R
-      print("-------------------------------------------------------- {}".format(R))
+      # print("-------------------------------------------------------- {}".format(R))
       self.train_option(R, R_mix)
 
       self.episode_buffer_option = []
@@ -314,8 +314,8 @@ class EigenOCAgent(BaseAgent):
                          feed_dict=feed_dict)
       eigen_r = self.cosine_similarity((fi[1] - fi[0]), self.directions[self.option])
       r_i = self.config.alpha_r * eigen_r + (1 - self.config.alpha_r) * r
-      if np.isnan(r_i):
-        print("NAN")
+      print(r_i)
+
       self.episode_buffer_option.append(
         [s, self.option, a, r, r_i, self.primitive_action, s1])
     else:
@@ -439,7 +439,6 @@ class EigenOCAgent(BaseAgent):
                     feed_dict=feed_dict)
 
   def train_option(self, bootstrap_value, bootstrap_value_mix):  #
-    print(bootstrap_value_mix)
     rollout = np.array(
       self.episode_buffer_option)  # s, self.option, a, r, r_i, self.primitive_action, s1
     observations = rollout[:, 0]
@@ -452,7 +451,6 @@ class EigenOCAgent(BaseAgent):
 
     rewards_plus = np.asarray(rewards.tolist() + [bootstrap_value])
     discounted_returns = reward_discount(rewards_plus, self.config.discount)[:-1]
-    print(rewards)
 
     eigen_rewards_plus = np.asarray(eigen_rewards.tolist() + [bootstrap_value_mix])
     discounted_eigen_returns = reward_discount(eigen_rewards_plus, self.config.discount)[:-1]
