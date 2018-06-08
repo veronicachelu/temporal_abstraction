@@ -401,6 +401,7 @@ class EmbeddingAgent(EigenOCAgentDyn):
     feed_dict = {
       self.local_network.observation: np.stack(next_observations, axis=0),
       self.local_network.options_placeholder: options,
+      self.local_network.option_direction_placeholder: directions,
       self.local_network.primitive_actions_placeholder: primitive_actions
     }
 
@@ -422,30 +423,30 @@ class EmbeddingAgent(EigenOCAgentDyn):
       self.summary_writer.add_summary(self.ms_option, self.total_steps)
     if self.ms_term is not None:
       self.summary_writer.add_summary(self.ms_term, self.total_steps)
-    if self.ms_critic is not None:
-      self.summary_writer.add_summary(self.ms_critic, self.total_steps)
-    if self.ms_eigen_critic is not None:
-      self.summary_writer.add_summary(self.ms_eigen_critic, self.total_steps)
 
-    if self.total_steps > self.config.eigen_exploration_steps:
-      self.summary.value.add(tag='Step/Reward', simple_value=r)
-      self.summary.value.add(tag='Step/Action', simple_value=self.action)
-      self.summary.value.add(tag='Step/Option', simple_value=self.option)
-      self.summary.value.add(tag='Step/Q', simple_value=self.q_value)
-      if self.config.eigen and not self.primitive_action and self.eigen_q_value is not None:
-        self.summary.value.add(tag='Step/EigenQ', simple_value=self.eigen_q_value)
-        # self.summary.value.add(tag='Step/EigenV', simple_value=self.evalue)
-      self.summary.value.add(tag='Step/V', simple_value=self.value)
-      self.summary.value.add(tag='Step/Term', simple_value=int(self.o_term))
-      self.summary.value.add(tag='Step/R', simple_value=self.R)
-      if self.config.eigen:
-        self.summary.value.add(tag='Step/EigenR', simple_value=self.eigen_R)
+    # if self.total_steps > self.config.eigen_exploration_steps:
+    self.summary.value.add(tag='Step/Reward', simple_value=r)
+    self.summary.value.add(tag='Step/Action', simple_value=self.action)
+    self.summary.value.add(tag='Step/Option', simple_value=self.option)
+    self.summary.value.add(tag='Step/Q', simple_value=self.q_value)
+    if self.config.eigen and not self.primitive_action and self.eigen_q_value is not None:
+      self.summary.value.add(tag='Step/EigenQ', simple_value=self.eigen_q_value)
+      # self.summary.value.add(tag='Step/EigenV', simple_value=self.evalue)
+    self.summary.value.add(tag='Step/V', simple_value=self.value)
+    self.summary.value.add(tag='Step/Term', simple_value=int(self.o_term))
+    self.summary.value.add(tag='Step/R', simple_value=self.R)
+    if self.config.eigen:
+      self.summary.value.add(tag='Step/EigenR', simple_value=self.eigen_R)
 
     self.summary_writer.add_summary(self.summary, self.total_steps)
     self.summary_writer.flush()
     # tf.logging.warning("Writing step summary....")
 
   def write_episode_summary(self, r):
+    self.tracker()
+    # self.write_option_map()
+    # self.write_episode_summary_stats()
+    # self.viz_options()
     self.summary = tf.Summary()
     if len(self.episode_rewards) != 0:
       last_reward = self.episode_rewards[-1]
@@ -453,6 +454,12 @@ class EmbeddingAgent(EigenOCAgentDyn):
     if len(self.episode_lengths) != 0:
       mean_length = np.mean(self.episode_lengths[-self.config.episode_summary_interval:])
       self.summary.value.add(tag='Perf/Length', simple_value=float(mean_length))
+    if len(self.episode_term_prob) != 0:
+      mean_term_prob = np.mean(self.episode_term_prob[-self.config.episode_summary_interval:])
+      self.summary.value.add(tag='Perf/Term_prob', simple_value=float(mean_term_prob))
+    if len(self.episode_primtive_action_prob) != 0:
+      mean_primitive_prob = np.mean(self.episode_primtive_action_prob[-self.config.episode_summary_interval:])
+      self.summary.value.add(tag='Perf/Primitive_prob', simple_value=float(mean_primitive_prob))
     if len(self.episode_mean_values) != 0:
       last_mean_value = np.mean(self.episode_mean_values[-self.config.episode_summary_interval:])
       self.summary.value.add(tag='Perf/Value', simple_value=float(last_mean_value))

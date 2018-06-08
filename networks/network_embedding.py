@@ -165,10 +165,6 @@ class EmbeddingNetwork(BaseNetwork):
     self.only_non_primitve_options = tf.map_fn(lambda x: tf.cond(tf.less(x, self.nb_options), lambda: x, lambda: 0),
                                                self.options_placeholder)
 
-    if self.config.eigen:
-      eigen_q_val = tf.where(self.primitive_actions_placeholder, self.q_val_o,
-                             self.get_eigen_q(self.only_non_primitve_options))
-
     self.image_summaries.append(
       tf.summary.image('next', tf.concat([self.next_obs * 255 * 128, self.target_next_obs * 255 * 128], 2), max_outputs=30))
 
@@ -192,7 +188,7 @@ class EmbeddingNetwork(BaseNetwork):
     if self.config.eigen:
       with tf.name_scope('eigen_critic_loss'):
         eigen_td_error = tf.where(self.primitive_actions_placeholder, tf.zeros_like(self.target_eigen_return),
-                                  self.target_eigen_return - eigen_q_val)
+                                  self.target_eigen_return - self.eigen_q_val)
         self.eigen_critic_loss = tf.reduce_mean(0.5 * self.config.eigen_critic_coef * tf.square(eigen_td_error))
 
     with tf.name_scope('critic_loss'):
@@ -240,13 +236,10 @@ class EmbeddingNetwork(BaseNetwork):
 
 
     self.merged_summary_sf = tf.summary.merge(
-      self.summaries_sf + [tf.summary.scalar('avg_sf_loss', self.sf_loss)] + [
-        tf.summary.scalar('cliped_gradient_norm_sf', tf.global_norm(self.grads_sf)),
+      self.summaries_sf + [tf.summary.scalar('avg_sf_loss', self.sf_loss),
         gradient_summaries(zip(self.grads_sf, local_vars))])
     self.merged_summary_aux = tf.summary.merge(self.image_summaries + self.summaries_aux +
-                                               [tf.summary.scalar('aux_loss', self.aux_loss)] + [
-                                                 tf.summary.scalar('cliped_gradient_norm_aux',
-                                                                   tf.global_norm(self.grads_aux)),
+                                               [tf.summary.scalar('aux_loss', self.aux_loss),
                                                  gradient_summaries(zip(self.grads_aux, local_vars))])
     options_to_merge = self.summaries_option + [tf.summary.scalar('avg_critic_loss', self.critic_loss),
                                                 tf.summary.scalar('avg_entropy_loss', self.entropy_loss),
