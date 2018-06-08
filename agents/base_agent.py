@@ -155,14 +155,9 @@ class BaseAgent():
 
   def write_step_summary(self, r):
     self.summary = tf.Summary()
-    if self.ms_sf is not None:
-      self.summary_writer.add_summary(self.ms_sf, self.total_steps)
-    if self.ms_aux is not None:
-      self.summary_writer.add_summary(self.ms_aux, self.total_steps)
-    if self.ms_option is not None:
-      self.summary_writer.add_summary(self.ms_option, self.total_steps)
-    if self.ms_term is not None:
-      self.summary_writer.add_summary(self.ms_term, self.total_steps)
+    for sum in [self.ms_sf, self.ms_aux, self.ms_option, self.ms_term, self.ms_critic]:
+      if sum is not None:
+        self.summary_writer.add_summary(sum, self.total_steps)
 
     # if self.total_steps > self.config.eigen_exploration_steps:
     self.summary.value.add(tag='Step/Reward', simple_value=r)
@@ -201,13 +196,13 @@ class BaseAgent():
       mean_primitive_prob = np.mean(self.episode_primtive_action_prob[-self.config.episode_summary_interval:])
       self.summary.value.add(tag='Perf/Primitive_prob', simple_value=float(mean_primitive_prob))
     if len(self.episode_mean_values) != 0:
-      last_mean_value = self.episode_mean_values[-1]
+      last_mean_value = np.mean(self.episode_mean_values[-self.config.episode_summary_interval:])
       self.summary.value.add(tag='Perf/Value', simple_value=float(last_mean_value))
     if len(self.episode_mean_q_values) != 0:
-      last_mean_q_value = self.episode_mean_q_values[-1]
+      last_mean_q_value = np.mean(self.episode_mean_q_values[-self.config.episode_summary_interval:])
       self.summary.value.add(tag='Perf/QValue', simple_value=float(last_mean_q_value))
     if self.config.eigen and len(self.episode_mean_eigen_q_values) != 0:
-      last_mean_eigen_q_value = self.episode_mean_eigen_q_values[-1]
+      last_mean_eigen_q_value = np.mean(self.episode_mean_eigen_q_values[-self.config.episode_summary_interval:])
       self.summary.value.add(tag='Perf/EigenQValue', simple_value=float(last_mean_eigen_q_value))
     if len(self.episode_mean_oterms) != 0:
       last_mean_oterm = self.episode_mean_oterms[-1]

@@ -39,7 +39,7 @@ class EigenOCAgent(BaseAgent):
     # self.evalue = None
     tf.logging.info("Starting worker " + str(self.thread_id))
     self.aux_episode_buffer = deque()
-    self.ms_aux = self.ms_sf = self.ms_option = self.ms_term = None
+    self.ms_aux = self.ms_sf = self.ms_option = self.ms_term = self.ms_critic = None
 
     if self.name == "worker_0":
       self.init_tracker()
@@ -476,6 +476,16 @@ class EigenOCAgent(BaseAgent):
     _, self.ms_option = self.sess.run([self.local_network.apply_grads_option,
                                        self.local_network.merged_summary_option,
                                        ], feed_dict=feed_dict)
+
+    feed_dict = {self.local_network.target_return: discounted_returns,
+                 self.local_network.observation: np.stack(observations, axis=0),
+                 self.local_network.options_placeholder: options
+                 }
+
+    _, self.ms_critic = self.sess.run([self.local_network.apply_grads_critic,
+                                       self.local_network.merged_summary_critic,
+                                       ], feed_dict=feed_dict)
+
 
     feed_dict = {
       self.local_network.observation: np.stack(next_observations, axis=0),
