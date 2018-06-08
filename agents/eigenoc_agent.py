@@ -67,6 +67,7 @@ class EigenOCAgent(BaseAgent):
     self.termination_counter = 0
     self.primitive_action_counter = 0
     self.stats_options = np.zeros((self.nb_states, col_size))
+    self.stats_actions = np.zeros((self.nb_states, self.action_size))
 
     if self.config.decrease_option_prob and self.episode_count < self.config.explore_options_episodes:
       self.sess.run(self.local_network.decrease_prob_of_random_option)
@@ -153,11 +154,15 @@ class EigenOCAgent(BaseAgent):
           self.init_episode()
 
           s = self.env.reset()
-          self.option_evaluation(s, None)
+          s_idx = None
+          self.option_evaluation(s)
           self.o_tracker_steps[self.option] += 1
           while not self.done:
             self.sync_threads()
             self.policy_evaluation(s)
+            if s_idx is not None:
+              self.stats_actions[s_idx][self.action] += 1
+              self.stats_options[s_idx][self.option] += 1
 
             s1, r, self.done, s1_idx = self.env.step(self.action)
 
@@ -170,6 +175,7 @@ class EigenOCAgent(BaseAgent):
 
             if self.done:
               s1 = s
+              s1_idx = s_idx
 
             self.store_general_info(s, s1, self.action)
             self.log_timestep()
@@ -179,11 +185,10 @@ class EigenOCAgent(BaseAgent):
               self.SF_prediction(s1)
             self.next_frame_prediction()
 
-            # if self.total_steps > self.config.eigen_exploration_steps:
             self.option_prediction(s, s1)
 
             if not self.done and (self.o_term or self.primitive_action):
-              self.option_evaluation(s1, s1_idx)
+              self.option_evaluation(s1)
 
             if not self.done:
               self.o_tracker_steps[self.option] += 1
@@ -195,6 +200,7 @@ class EigenOCAgent(BaseAgent):
               self.write_step_summary(r)
 
             s = s1
+            s_idx = s1_idx
             self.episode_len += 1
             self.total_steps += 1
 
@@ -233,7 +239,7 @@ class EigenOCAgent(BaseAgent):
     self.reward = float(self.reward) - self.config.discount * (
       float(self.o_term) * self.config.delib_margin * (1 - float(self.done)))
 
-  def option_evaluation(self, s, s_idx=None):
+  def option_evaluation(self, s):
     feed_dict = {self.local_network.observation: np.stack([s])}
     self.option, self.primitive_action = self.sess.run(
       [self.local_network.current_option, self.local_network.primitive_action], feed_dict=feed_dict)
@@ -241,8 +247,7 @@ class EigenOCAgent(BaseAgent):
     self.o_tracker_chosen[self.option] += 1
     self.episode_options.append(self.option)
     self.primitive_action_counter += self.primitive_action * (1 - self.done)
-    if s_idx is not None:
-      self.stats_options[s_idx][self.option] += 1
+
 
   def option_terminate(self, s1):
     if self.config.include_primitive_options and self.primitive_action:

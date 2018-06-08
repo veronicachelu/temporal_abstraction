@@ -51,11 +51,15 @@ class EigenOCAgentDyn(EigenOCAgent):
           self.init_episode()
 
           s = self.env.reset()
-          self.option_evaluation(s, None)
+          s_idx = None
+          self.option_evaluation(s)
           self.o_tracker_steps[self.option] += 1
           while not self.done:
             self.sync_threads()
             self.policy_evaluation(s)
+            if s_idx is not None:
+              self.stats_actions[s_idx][self.action] += 1
+              self.stats_options[s_idx][self.option] += 1
 
             s1, r, self.done, s1_idx = self.env.step(self.action)
 
@@ -68,10 +72,12 @@ class EigenOCAgentDyn(EigenOCAgent):
 
             if self.done:
               s1 = s
+              s1_idx = s_idx
 
             self.store_general_info(s, s1, self.action)
             self.log_timestep()
 
+            # if self.total_steps > self.config.observation_steps:
             if self.config.behaviour_agent is None and self.config.eigen:
               self.SF_prediction(s1)
             self.next_frame_prediction()
@@ -79,7 +85,7 @@ class EigenOCAgentDyn(EigenOCAgent):
             self.option_prediction(s, s1)
 
             if not self.done and (self.o_term or self.primitive_action):
-              self.option_evaluation(s1, s1_idx)
+              self.option_evaluation(s1)
 
             if not self.done:
               self.o_tracker_steps[self.option] += 1
@@ -91,6 +97,7 @@ class EigenOCAgentDyn(EigenOCAgent):
               self.write_step_summary(r)
 
             s = s1
+            s_idx = s1_idx
             self.episode_len += 1
             self.total_steps += 1
 
@@ -116,7 +123,7 @@ class EigenOCAgentDyn(EigenOCAgent):
             self.save_model()
 
           if self.episode_count % self.config.episode_summary_interval == 0 and self.total_steps != 0 and \
-                  self.episode_count != 0 and self.name == 'worker_0':
+                  self.name == 'worker_0':
             self.write_episode_summary(r)
 
           if self.name == 'worker_0':
