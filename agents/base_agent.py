@@ -556,6 +556,11 @@ class BaseAgent():
           )
         )
 
+        if self.directions[o] == np.zeros_like(self.directions[o]):
+          circle = plt.Circle(
+                (j + 0.5, self.config.input_size[0] - i + 0.5 - 1), 0.025, color='r')
+          plt.gca().add_artist(circle)
+          continue
         x, y = self.env.get_state_xy(idx)
         states = []  # up, right, down, leftƒpo
         if x - 1 > 0:
@@ -588,6 +593,8 @@ class BaseAgent():
 
         plt.arrow(j + 0.5, self.config.input_size[0] - i + 0.5 - 1, dx, dy,
                   head_width=0.05, head_length=0.05, fc='k', ec='k')
+
+
 
       plt.xlim([0, self.config.input_size[1]])
       plt.ylim([0, self.config.input_size[0]])
