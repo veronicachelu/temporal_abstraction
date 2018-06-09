@@ -153,7 +153,7 @@ class BaseAgent():
     tf.logging.info(
       "Saved Model at {}".format(self.model_path + '/model-{}.{}.cptk'.format(self.episode_count, self.total_steps)))
 
-  def write_step_summary(self, r):
+  def write_step_summary(self, r, r_i=None):
     self.summary = tf.Summary()
     for sum in [self.ms_sf, self.ms_aux, self.ms_option, self.ms_term, self.ms_critic]:
       if sum is not None:
@@ -161,8 +161,8 @@ class BaseAgent():
 
     # if self.total_steps > self.config.eigen_exploration_steps:
     self.summary.value.add(tag='Step/Reward', simple_value=r)
-    if self.config.eigen and not self.primitive_action and self.r_i is not None:
-      self.summary.value.add(tag='Step/EigReward', simple_value=self.r_i)
+    if self.config.eigen and not self.primitive_action and r_i is not None:
+      self.summary.value.add(tag='Step/EigReward', simple_value=r_i)
     self.summary.value.add(tag='Step/Action', simple_value=self.action)
     self.summary.value.add(tag='Step/Option', simple_value=self.option)
     self.summary.value.add(tag='Step/Q', simple_value=self.q_value)

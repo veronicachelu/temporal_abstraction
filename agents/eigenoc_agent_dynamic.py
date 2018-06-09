@@ -83,7 +83,7 @@ class EigenOCAgentDyn(EigenOCAgent):
             self.next_frame_prediction()
 
             if self.episode_count > 0:
-              self.option_prediction(s, s1)
+              r_i = self.option_prediction(s, s1)
 
             if not self.done and (self.o_term or self.primitive_action):
               self.option_evaluation(s1)
@@ -95,7 +95,7 @@ class EigenOCAgentDyn(EigenOCAgent):
               self.save_model()
 
             if self.total_steps % self.config.steps_summary_interval == 0 and self.name == 'worker_0':
-              self.write_step_summary(r)
+              self.write_step_summary(r, r_i)
 
             s = s1
             s_idx = s1_idx

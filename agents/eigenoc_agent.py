@@ -90,7 +90,7 @@ class EigenOCAgent(BaseAgent):
 
   def option_prediction(self, s, s1):
     self.option_counter += 1
-    self.store_option_info(s, s1, self.action, self.reward)
+    r_i = self.store_option_info(s, s1, self.action, self.reward)
 
     if self.option_counter == self.config.max_update_freq or self.done or (
           self.o_term and self.option_counter >= self.config.min_update_freq):
@@ -130,6 +130,8 @@ class EigenOCAgent(BaseAgent):
 
       self.episode_buffer_option = []
       self.option_counter = 0
+
+    return r_i
 
   def play(self, sess, coord, saver):
     with sess.as_default(), sess.graph.as_default():
@@ -188,7 +190,7 @@ class EigenOCAgent(BaseAgent):
               self.SF_prediction(s1)
             self.next_frame_prediction()
 
-            self.option_prediction(s, s1)
+            r_i = self.option_prediction(s, s1)
 
             if not self.done and (self.o_term or self.primitive_action):
               self.option_evaluation(s1)
@@ -200,7 +202,7 @@ class EigenOCAgent(BaseAgent):
               self.save_model()
 
             if self.total_steps % self.config.steps_summary_interval == 0 and self.name == 'worker_0':
-              self.write_step_summary(r)
+              self.write_step_summary(r, r_i)
 
             s = s1
             s_idx = s1_idx
@@ -313,18 +315,19 @@ class EigenOCAgent(BaseAgent):
       fi = self.sess.run(self.local_network.fi,
                          feed_dict=feed_dict)
       eigen_r = self.cosine_similarity((fi[1] - fi[0]), self.directions[self.option])
-      self.r_i = self.config.alpha_r * eigen_r + (1 - self.config.alpha_r) * r
+      r_i = self.config.alpha_r * eigen_r + (1 - self.config.alpha_r) * r
       # print(r_i)
-      if self.r_i > 1:
-        print("ERRROR r_i = {}".format(self.r_i))
+      if r_i > 1:
+        print("ERRROR r_i = {}".format(r_i))
 
       self.episode_buffer_option.append(
-        [s, self.option, a, r, self.r_i, self.primitive_action, s1])
+        [s, self.option, a, r, r_i, self.primitive_action, s1])
     else:
-      self.r_i = r
+      r_i = r
       self.episode_buffer_option.append(
-        [s, self.option, a, r, self.r_i,
+        [s, self.option, a, r, r_i,
          self.primitive_action, s1])
+    return r_i
 
   def recompute_eigenvectors_NN(self):
     if self.config.eigen:
