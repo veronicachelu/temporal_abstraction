@@ -251,7 +251,8 @@ class EigenOCAgentDyn(EigenOCAgent):
                                 feed_dict=feed_dict)
       eigenvect = eigenvect[0]
 
-      new_eigenvectors = eigenvect[self.config.first_eigenoption: self.config.nb_options + self.config.first_eigenoption]
+      new_eigenvectors = eigenvect[self.config.first_eigenoption:(self.config.nb_options / 2) + self.config.first_eigenoption]
+      new_eigenvectors = np.concatenate((new_eigenvectors, (-1) * new_eigenvectors))
       # new_eigenvectors = self.associate_closest_vectors(self.global_network.directions, eigenvect)
 
       # eigenvalues = eigenval[self.config.first_eigenoption:self.config.nb_options + self.config.first_eigenoption]

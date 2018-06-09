@@ -281,6 +281,7 @@ def eigenoc_dyn():
   target_agent = EigenOCAgentDyn
   sf_matrix_size = 10000
   sr_matrix = "dynamic"
+  nb_options = 8
   include_primitive_options = False
   eigen = True
   eigen_approach = "SVD"
