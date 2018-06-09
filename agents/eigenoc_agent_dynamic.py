@@ -49,6 +49,7 @@ class EigenOCAgentDyn(EigenOCAgent):
           if self.config.sr_matrix is not None:
             self.load_directions()
           self.init_episode()
+          r_i = 0
 
           s = self.env.reset()
           s_idx = None
