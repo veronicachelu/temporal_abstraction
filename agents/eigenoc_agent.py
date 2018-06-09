@@ -22,14 +22,14 @@ FLAGS = tf.app.flags.FLAGS
 
 
 class EigenOCAgent(BaseAgent):
-  def __init__(self, game, thread_id, global_step, config, lr, network_optimizer, global_network, barrier):
-    super(EigenOCAgent, self).__init__(game, thread_id, global_step, config, lr, network_optimizer, global_network)
+  def __init__(self, game, thread_id, global_episode, global_step, config, lr, network_optimizer, global_network, barrier):
+    super(EigenOCAgent, self).__init__(game, thread_id, global_episode, global_step, config, lr, network_optimizer, global_network)
     self.barrier = barrier
 
   def init_play(self, sess, saver):
     self.sess = sess
     self.saver = saver
-    self.episode_count = sess.run(self.global_step)
+    self.episode_count = sess.run(self.global_episode)
 
     if self.config.move_goal_nb_of_ep and self.config.multi_task:
       self.goal_position = self.env.set_goal(self.episode_count, self.config.move_goal_nb_of_ep)
@@ -209,7 +209,7 @@ class EigenOCAgent(BaseAgent):
             self.episode_len += 1
             self.total_steps += 1
 
-            sess.run(self.increment_total_steps_tensor)
+            sess.run([self.increment_global_step, self.increment_total_steps_tensor])
 
           self.log_episode()
           self.update_episode_stats()
@@ -235,7 +235,7 @@ class EigenOCAgent(BaseAgent):
             self.write_episode_summary(r)
 
           if self.name == 'worker_0':
-            sess.run(self.increment_global_step)
+            sess.run(self.increment_global_episode)
 
           self.episode_count += 1
 
@@ -576,7 +576,7 @@ class EigenOCAgent(BaseAgent):
     with sess.as_default(), sess.graph.as_default():
       self.sess = sess
       self.saver = saver
-      self.episode_count = sess.run(self.global_step)
+      self.episode_count = sess.run(self.global_episode)
       self.total_steps = sess.run(self.total_steps_tensor)
 
       tf.logging.info("Starting eval agent")

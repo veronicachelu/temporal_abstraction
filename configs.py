@@ -279,7 +279,7 @@ def eigenoc():
 def eigenoc_dyn():
   locals().update(eigenoc())
   target_agent = EigenOCAgentDyn
-  sf_matrix_size = 10000
+  sf_matrix_size = 1000
   sr_matrix = "dynamic"
   nb_options = 8
   include_primitive_options = False

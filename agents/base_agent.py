@@ -17,12 +17,13 @@ FLAGS = tf.app.flags.FLAGS
 
 
 class BaseAgent():
-  def __init__(self, game, thread_id, global_step, config, lr, network_optimizer, global_network):
+  def __init__(self, game, thread_id, global_episode, global_step, config, lr, network_optimizer, global_network):
     self.name = "worker_" + str(thread_id)
     self.config = config
     self.thread_id = thread_id
     self.optimizer = config.network_optimizer
     self.global_step = global_step
+    self.global_episode = global_episode
     self.model_path = os.path.join(config.stage_logdir, "models")
     self.summary_path = os.path.join(config.stage_logdir, "summaries")
     self.test_path = os.path.join(config.stage_logdir, "test")
@@ -34,6 +35,7 @@ class BaseAgent():
       self.load_directions()
 
     self.increment_global_step = self.global_step.assign_add(1)
+    self.increment_global_episode = self.global_episode.assign_add(1)
     self.episode_rewards = []
     self.episode_lengths = []
     self.episode_term_prob = []
@@ -152,7 +154,7 @@ class BaseAgent():
 
   def save_model(self):
     self.saver.save(self.sess, self.model_path + '/model-{}.{}.cptk'.format(self.episode_count, self.total_steps),
-                    global_step=self.global_step)
+                    global_step=self.global_episode)
     tf.logging.info(
       "Saved Model at {}".format(self.model_path + '/model-{}.{}.cptk'.format(self.episode_count, self.total_steps)))
 
@@ -257,7 +259,7 @@ class BaseAgent():
     with sess.as_default(), sess.graph.as_default():
       self.sess = sess
       self.saver = saver
-      self.episode_count = sess.run(self.global_step)
+      self.episode_count = sess.run(self.global_episode)
       self.total_steps = sess.run(self.total_steps_tensor)
 
       tf.logging.info("Starting eval agent")
@@ -747,7 +749,7 @@ class BaseAgent():
   def write_worker_map(self):
     plt.clf()
 
-    option_colors = [(0.1, 0.2, 0.5, 0.2), (0.1, 0.2, 0.5, 0.3), (0.1, 0.2, 0.5, 0.4), (0.1, 0.2, 0.5, 0.5),
+    action_colors = [(0.1, 0.2, 0.5, 0.2), (0.1, 0.2, 0.5, 0.3), (0.1, 0.2, 0.5, 0.4), (0.1, 0.2, 0.5, 0.5),
                      (0.1, 0.2, 0.5, 0.6), (0.1, 0.2, 0.5, 0.7), (0.1, 0.2, 0.5, 0.8), (0.1, 0.2, 0.5, 1),
                      (0.5, 0.2, 0.1, 0.4), (0.5, 0.2, 0.1, 0.6), (0.5, 0.2, 0.1, 0.8), (0.5, 0.2, 0.1, 1)]
 

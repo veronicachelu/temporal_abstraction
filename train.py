@@ -27,6 +27,7 @@ def train(config, logdir):
         config.stage_logdir = logdir
         config.network_optimizer = getattr(tf.train, config.network_optimizer)
         global_step = tf.Variable(0, dtype=tf.int32, name='global_step', trainable=False)
+        global_episode = tf.Variable(0, dtype=tf.int32, name='global_episode', trainable=False)
         envs = [_create_environment(config) for _ in range(config.num_agents)]
         action_size = envs[0].action_space.n
         lr = tf.train.polynomial_decay(config.lr, global_step, 1e7,
@@ -62,7 +63,7 @@ def train(config, logdir):
               config.behaviour_agent(envs[config.num_agents - 1], "behaviour", global_step, config, global_network, b))
         else:
           with tf.device("/cpu:0"):
-            agents = [config.target_agent(envs[i], i, global_step, config, lr, network_optimizer, global_network, b) for i in
+            agents = [config.target_agent(envs[i], i, global_step, global_episode, config, lr, network_optimizer, global_network, b) for i in
                       range(config.num_agents)]
 
     saver = loader = utility.define_saver(exclude=(r'.*_temporary/.*',))

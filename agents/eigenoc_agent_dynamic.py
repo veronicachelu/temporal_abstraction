@@ -22,8 +22,8 @@ FLAGS = tf.app.flags.FLAGS
 
 
 class EigenOCAgentDyn(EigenOCAgent):
-  def __init__(self, game, thread_id, global_step, config, lr, network_optimizer, global_network, barrier):
-    super(EigenOCAgentDyn, self).__init__(game, thread_id, global_step, config, lr, network_optimizer, global_network,
+  def __init__(self, game, thread_id, global_episode, global_step, config, lr, network_optimizer, global_network, barrier):
+    super(EigenOCAgentDyn, self).__init__(game, thread_id, global_episode, global_step, config, lr, network_optimizer, global_network,
                                           barrier)
     self.barrier = barrier
 
@@ -42,10 +42,6 @@ class EigenOCAgentDyn(EigenOCAgent):
 
           self.sync_threads(force=True)
 
-          if self.name == "worker_0" and self.episode_count > 0 and self.config.eigen and self.config.behaviour_agent is None:
-            if self.config.eigen_approach == "SVD":
-              self.recompute_eigenvectors_dynamic_SVD()
-
           if self.config.sr_matrix is not None:
             self.load_directions()
           self.init_episode()
@@ -56,6 +52,11 @@ class EigenOCAgentDyn(EigenOCAgent):
           self.option_evaluation(s)
           self.o_tracker_steps[self.option] += 1
           while not self.done:
+            gl_step = self.sess.run(self.global_step)
+            if gl_step > self.config.sf_matrix_size and self.config.eigen:
+              if self.config.eigen_approach == "SVD":
+                self.recompute_eigenvectors_dynamic_SVD()
+
             self.sync_threads()
             self.policy_evaluation(s)
             if s_idx is not None:
@@ -104,7 +105,7 @@ class EigenOCAgentDyn(EigenOCAgent):
             self.episode_len += 1
             self.total_steps += 1
 
-            sess.run(self.increment_total_steps_tensor)
+            sess.run([self.increment_global_step, self.increment_total_steps_tensor])
 
           self.log_episode()
           self.update_episode_stats()
@@ -130,7 +131,7 @@ class EigenOCAgentDyn(EigenOCAgent):
             self.write_episode_summary(r)
 
           if self.name == 'worker_0':
-            sess.run(self.increment_global_step)
+            sess.run(self.increment_global_episode)
 
           self.episode_count += 1
 
@@ -235,7 +236,7 @@ class EigenOCAgentDyn(EigenOCAgent):
 
   def save_model(self):
     self.saver.save(self.sess, self.model_path + '/model-{}.{}.cptk'.format(self.episode_count, self.total_steps),
-                    global_step=self.global_step)
+                    global_step=self.global_episode)
     tf.logging.info(
       "Saved Model at {}".format(self.model_path + '/model-{}.{}.cptk'.format(self.episode_count, self.total_steps)))
 
@@ -250,30 +251,29 @@ class EigenOCAgentDyn(EigenOCAgent):
       eigenvect = self.sess.run(self.local_network.eigenvectors,
                                 feed_dict=feed_dict)
       eigenvect = eigenvect[0]
-
+      old_directions = self.global_network.directions
       if self.global_network.directions_init:
-        new_eigenvectors = self.associate_closest_vectors(self.global_network.directions, eigenvect)
+        self.global_network.directions = self.associate_closest_vectors(old_directions, eigenvect)
       else:
         new_eigenvectors = eigenvect[
                            self.config.first_eigenoption:(self.config.nb_options // 2) + self.config.first_eigenoption]
-        new_eigenvectors = np.concatenate((new_eigenvectors, (-1) * new_eigenvectors))
+        self.global_network.directions = np.concatenate((new_eigenvectors, (-1) * new_eigenvectors))
         self.global_network.directions_init = True
 
       # eigenvalues = eigenval[self.config.first_eigenoption:self.config.nb_options + self.config.first_eigenoption]
       # new_eigenvectors = eigenvect[self.config.first_eigenoption:self.config.nb_options + self.config.first_eigenoption]
       min_similarity = np.min(
-        [self.cosine_similarity(a, b) for a, b in zip(self.global_network.directions, new_eigenvectors)])
+        [self.cosine_similarity(a, b) for a, b in zip(old_directions, self.global_network.directions)])
       max_similarity = np.max(
-        [self.cosine_similarity(a, b) for a, b in zip(self.global_network.directions, new_eigenvectors)])
+        [self.cosine_similarity(a, b) for a, b in zip(old_directions, self.global_network.directions)])
       mean_similarity = np.mean(
-        [self.cosine_similarity(a, b) for a, b in zip(self.global_network.directions, new_eigenvectors)])
+        [self.cosine_similarity(a, b) for a, b in zip(old_directions, self.global_network.directions)])
       self.summary = tf.Summary()
       self.summary.value.add(tag='Eigenvectors/Min similarity', simple_value=float(min_similarity))
       self.summary.value.add(tag='Eigenvectors/Max similarity', simple_value=float(max_similarity))
       self.summary.value.add(tag='Eigenvectors/Mean similarity', simple_value=float(mean_similarity))
       self.summary_writer.add_summary(self.summary, self.episode_count)
       self.summary_writer.flush()
-      self.global_network.directions = new_eigenvectors
       self.directions = self.global_network.directions
 
   def associate_closest_vectors(self, old, new):
