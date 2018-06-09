@@ -283,7 +283,7 @@ def eigenoc_dyn():
   sr_matrix = "dynamic"
   include_primitive_options = False
   eigen = True
-  eigen_approach = "NN"
+  eigen_approach = "SVD"
   # goal_locations = [(11, 7), (5, 2), (1, 10), (2, 2), (6, 2)]
   # move_goal_nb_of_ep = 1000
   # env = functools.partial(
