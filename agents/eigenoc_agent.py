@@ -313,18 +313,17 @@ class EigenOCAgent(BaseAgent):
       fi = self.sess.run(self.local_network.fi,
                          feed_dict=feed_dict)
       eigen_r = self.cosine_similarity((fi[1] - fi[0]), self.directions[self.option])
-      r_i = self.config.alpha_r * eigen_r + (1 - self.config.alpha_r) * r
-      self.r_i = r_i
+      self.r_i = self.config.alpha_r * eigen_r + (1 - self.config.alpha_r) * r
       # print(r_i)
-      if r_i > 1:
-        print("ERRROR r_i = {}".format(r_i))
+      if self.r_i > 1:
+        print("ERRROR r_i = {}".format(self.r_i))
 
       self.episode_buffer_option.append(
-        [s, self.option, a, r, r_i, self.primitive_action, s1])
+        [s, self.option, a, r, self.r_i, self.primitive_action, s1])
     else:
-      r_i = r
+      self.r_i = r
       self.episode_buffer_option.append(
-        [s, self.option, a, r, r_i,
+        [s, self.option, a, r, self.r_i,
          self.primitive_action, s1])
 
   def recompute_eigenvectors_NN(self):
