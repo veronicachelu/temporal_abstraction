@@ -252,7 +252,7 @@ def eigenoc():
   max_length = 1000
   max_length_eval = 1000
   first_eigenoption = 1
-  include_primitive_options = True
+  include_primitive_options = False
   sf_matrix_size = 169
   sr_matrix = "static"
   # goal_locations = [(11, 7), (5, 2)] #, (1, 10), (2, 2), (6, 2)]
