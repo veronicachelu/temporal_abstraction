@@ -251,9 +251,13 @@ class EigenOCAgentDyn(EigenOCAgent):
                                 feed_dict=feed_dict)
       eigenvect = eigenvect[0]
 
-      new_eigenvectors = eigenvect[self.config.first_eigenoption:(self.config.nb_options / 2) + self.config.first_eigenoption]
-      new_eigenvectors = np.concatenate((new_eigenvectors, (-1) * new_eigenvectors))
-      # new_eigenvectors = self.associate_closest_vectors(self.global_network.directions, eigenvect)
+      if self.global_network.directions_init:
+        new_eigenvectors = self.associate_closest_vectors(self.global_network.directions, eigenvect)
+      else:
+        new_eigenvectors = eigenvect[
+                           self.config.first_eigenoption:(self.config.nb_options / 2) + self.config.first_eigenoption]
+        new_eigenvectors = np.concatenate((new_eigenvectors, (-1) * new_eigenvectors))
+        self.global_network.directions_init = True
 
       # eigenvalues = eigenval[self.config.first_eigenoption:self.config.nb_options + self.config.first_eigenoption]
       # new_eigenvectors = eigenvect[self.config.first_eigenoption:self.config.nb_options + self.config.first_eigenoption]
@@ -275,23 +279,27 @@ class EigenOCAgentDyn(EigenOCAgent):
   def associate_closest_vectors(self, old, new):
     to_return = copy.deepcopy(old)
     skip_list = []
-    featured = new[self.config.first_eigenoption: self.config.nb_options + self.config.first_eigenoption]
+    # featured = new[self.config.first_eigenoption: self.config.nb_options + self.config.first_eigenoption]
+    featured = new[self.config.first_eigenoption: (self.config.nb_options / 2) + self.config.first_eigenoption]
+    featured = np.concatenate((featured, (-1) * featured))
 
-    for v in featured:
-      sign = np.argmax(
-        [np.sum([np.sign(np.dot(v, x)) * (np.dot(v, x) ** 2) for x in self.global_network.sf_matrix_buffer]),
-         np.sum([np.sign(np.dot((-1) * v, x)) * (np.dot(v, x) ** 2) for x in self.global_network.sf_matrix_buffer])])
-      if sign == 1:
-        v = (-1) * v
-      distances = [
-        -np.inf if b_idx in skip_list else (np.inf if np.all(b == np.zeros(b.shape)) else self.cosine_similarity(v, b))
-        for b_idx, b in enumerate(self.global_network.directions)]
+
+    for d in featured:
+      # sign = np.argmax(
+      #   [np.sum([np.sign(np.dot(v, x)) * (np.dot(v, x) ** 2) for x in self.global_network.sf_matrix_buffer]),
+      #    np.sum([np.sign(np.dot((-1) * v, x)) * (np.dot(v, x) ** 2) for x in self.global_network.sf_matrix_buffer])])
+      # if sign == 1:
+      #   v = (-1) * v
+      distances = []
+      for old_didx, old_d in enumerate(old):
+        if old_didx in skip_list:
+          distances.append(-np.inf)
+        else:
+          distances.append(self.cosine_similarity(d, old_d))
+
       closest_distance_idx = np.argmax(distances)
-
-      old_v_idx = closest_distance_idx
-      skip_list.append(old_v_idx)
-
-      to_return[old_v_idx] = v
+      skip_list.append(closest_distance_idx)
+      to_return[closest_distance_idx] = d
 
     return to_return
 

@@ -38,8 +38,10 @@ class BaseNetwork():
 
       if os.path.exists(self.directions_path):
         self.directions = np.load(self.directions_path)
+        self.directions_init = True
       else:
         self.directions = np.zeros((config.nb_options, config.sf_layers[-1]))
+        self.directions_init = False
 
       if self.config.sr_matrix == "dynamic":
         self.sf_matrix_path = os.path.join(config.logdir, "sf_matrix.npy")
