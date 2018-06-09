@@ -112,8 +112,8 @@ class OnlineCluster(object):
     self.lock = Lock()
 
   def cluster(self, e):
-    with self.lock:
-
+    self.lock.acquire()
+    try:
       if len(self.clusters) > 0:
         # compare new points to each existing cluster
         c = [(i, kernel_dist(x.center, e)) for i, x in enumerate(self.clusters)]
@@ -141,6 +141,8 @@ class OnlineCluster(object):
       self.updatedist(newc)
 
       self.n += 1
+    finally:
+      self.lock.release()
 
   def removedist(self, c):
     """invalidate intercluster distance cache for c"""
