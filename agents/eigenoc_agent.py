@@ -114,7 +114,7 @@ class EigenOCAgent(BaseAgent):
           else:
             q_eigen = q_eigen[0, self.option]
             R_mix = evalue if self.o_term else q_eigen
-            print("eigen {} {}".format(R_mix, self.o_term))
+            # print("eigen {} {}".format(R_mix, self.o_term))
             # R_mix = value if self.o_term else q_eigen
         else:
           value, q_value = self.sess.run(
@@ -315,9 +315,9 @@ class EigenOCAgent(BaseAgent):
       eigen_r = self.cosine_similarity((fi[1] - fi[0]), self.directions[self.option])
       r_i = self.config.alpha_r * eigen_r + (1 - self.config.alpha_r) * r
       self.r_i = r_i
-      print(r_i)
+      # print(r_i)
       if r_i > 1:
-        print("ERRROR")
+        print("ERRROR r_i = {}".format(r_i))
 
       self.episode_buffer_option.append(
         [s, self.option, a, r, r_i, self.primitive_action, s1])
@@ -451,7 +451,7 @@ class EigenOCAgent(BaseAgent):
     eigen_rewards = rollout[:, 4]
     primitive_actions = rollout[:, 5]
     next_observations = rollout[:, 6]
-    print(eigen_rewards)
+    # print(eigen_rewards)
 
     rewards_plus = np.asarray(rewards.tolist() + [bootstrap_value])
     discounted_returns = reward_discount(rewards_plus, self.config.discount)[:-1]
