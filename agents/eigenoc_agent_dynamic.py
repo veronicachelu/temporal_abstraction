@@ -255,7 +255,7 @@ class EigenOCAgentDyn(EigenOCAgent):
         new_eigenvectors = self.associate_closest_vectors(self.global_network.directions, eigenvect)
       else:
         new_eigenvectors = eigenvect[
-                           self.config.first_eigenoption:(self.config.nb_options / 2) + self.config.first_eigenoption]
+                           self.config.first_eigenoption:(self.config.nb_options // 2) + self.config.first_eigenoption]
         new_eigenvectors = np.concatenate((new_eigenvectors, (-1) * new_eigenvectors))
         self.global_network.directions_init = True
 
@@ -280,7 +280,7 @@ class EigenOCAgentDyn(EigenOCAgent):
     to_return = copy.deepcopy(old)
     skip_list = []
     # featured = new[self.config.first_eigenoption: self.config.nb_options + self.config.first_eigenoption]
-    featured = new[self.config.first_eigenoption: (self.config.nb_options / 2) + self.config.first_eigenoption]
+    featured = new[self.config.first_eigenoption: (self.config.nb_options // 2) + self.config.first_eigenoption]
     featured = np.concatenate((featured, (-1) * featured))
 
 
