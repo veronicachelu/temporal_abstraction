@@ -286,7 +286,7 @@ def eigenoc_dyn():
   eigen_approach = "SVD"
   final_random_option_prob = 0.1
   initial_random_option_prob = 1
-  explore_options_episodes = 1000
+  explore_options_episodes = 1
   decrease_option_prob = True
   # goal_locations = [(11, 7), (5, 2), (1, 10), (2, 2), (6, 2)]
   # move_goal_nb_of_ep = 1000
