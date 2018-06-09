@@ -262,19 +262,20 @@ class EigenOCAgentDyn(EigenOCAgent):
 
       # eigenvalues = eigenval[self.config.first_eigenoption:self.config.nb_options + self.config.first_eigenoption]
       # new_eigenvectors = eigenvect[self.config.first_eigenoption:self.config.nb_options + self.config.first_eigenoption]
-      min_similarity = np.min(
-        [self.cosine_similarity(a, b) for a, b in zip(old_directions, self.global_network.directions)])
-      max_similarity = np.max(
-        [self.cosine_similarity(a, b) for a, b in zip(old_directions, self.global_network.directions)])
-      mean_similarity = np.mean(
-        [self.cosine_similarity(a, b) for a, b in zip(old_directions, self.global_network.directions)])
-      self.summary = tf.Summary()
-      self.summary.value.add(tag='Eigenvectors/Min similarity', simple_value=float(min_similarity))
-      self.summary.value.add(tag='Eigenvectors/Max similarity', simple_value=float(max_similarity))
-      self.summary.value.add(tag='Eigenvectors/Mean similarity', simple_value=float(mean_similarity))
-      self.summary_writer.add_summary(self.summary, self.episode_count)
-      self.summary_writer.flush()
-      self.directions = self.global_network.directions
+      if self.name == "worker_0":
+        min_similarity = np.min(
+          [self.cosine_similarity(a, b) for a, b in zip(old_directions, self.global_network.directions)])
+        max_similarity = np.max(
+          [self.cosine_similarity(a, b) for a, b in zip(old_directions, self.global_network.directions)])
+        mean_similarity = np.mean(
+          [self.cosine_similarity(a, b) for a, b in zip(old_directions, self.global_network.directions)])
+        self.summary = tf.Summary()
+        self.summary.value.add(tag='Eigenvectors/Min similarity', simple_value=float(min_similarity))
+        self.summary.value.add(tag='Eigenvectors/Max similarity', simple_value=float(max_similarity))
+        self.summary.value.add(tag='Eigenvectors/Mean similarity', simple_value=float(mean_similarity))
+        self.summary_writer.add_summary(self.summary, self.episode_count)
+        self.summary_writer.flush()
+        self.directions = self.global_network.directions
 
   def associate_closest_vectors(self, old, new):
     to_return = copy.deepcopy(old)
