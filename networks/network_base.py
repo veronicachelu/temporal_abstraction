@@ -179,12 +179,12 @@ class BaseNetwork():
 
     with tf.name_scope('sf_loss'):
       sf_td_error = self.target_sf - self.sf
-    self.sf_loss = tf.reduce_mean(self.config.sf_coef * tf.square(sf_td_error))
+    self.sf_loss = tf.reduce_mean(self.config.sf_coef * huber_loss(sf_td_error))
 
     with tf.name_scope('aux_loss'):
       aux_error = self.next_obs - self.target_next_obs
       # l2_loss = tf.losses.get_regularization_loss(self.scope)
-    self.aux_loss = tf.reduce_mean(self.config.aux_coef * tf.square(aux_error)) #+ l2_loss
+    self.aux_loss = tf.reduce_mean(self.config.aux_coef * huber_loss(aux_error)) #+ l2_loss
 
     if self.config.eigen:
       with tf.name_scope('eigen_critic_loss'):
