@@ -83,7 +83,7 @@ class EigenOCAgentDyn(EigenOCAgent):
             self.next_frame_prediction()
 
             # if self.episode_count > 0:
-            if self.episode_count > 10 and (not self.config.eigen or (self.config.eigen and
+            if self.episode_count > 0 and (not self.config.eigen or (self.config.eigen and
                                                              len(self.directions) == self.nb_options)):
               r_i = self.option_prediction(s, s1)
 
@@ -251,7 +251,8 @@ class EigenOCAgentDyn(EigenOCAgent):
                                 feed_dict=feed_dict)
       eigenvect = eigenvect[0]
 
-      new_eigenvectors = self.associate_closest_vectors(self.global_network.directions, eigenvect)
+      new_eigenvectors = eigenvect[self.config.first_eigenoption: self.config.nb_options + self.config.first_eigenoption]
+      # new_eigenvectors = self.associate_closest_vectors(self.global_network.directions, eigenvect)
 
       # eigenvalues = eigenval[self.config.first_eigenoption:self.config.nb_options + self.config.first_eigenoption]
       # new_eigenvectors = eigenvect[self.config.first_eigenoption:self.config.nb_options + self.config.first_eigenoption]
