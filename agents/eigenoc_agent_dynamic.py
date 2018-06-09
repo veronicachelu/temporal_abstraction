@@ -259,9 +259,11 @@ class EigenOCAgentDyn(EigenOCAgent):
                            self.config.first_eigenoption:(self.config.nb_options // 2) + self.config.first_eigenoption]
         self.global_network.directions = np.concatenate((new_eigenvectors, (-1) * new_eigenvectors))
         self.global_network.directions_init = True
+      self.directions = self.global_network.directions
 
       # eigenvalues = eigenval[self.config.first_eigenoption:self.config.nb_options + self.config.first_eigenoption]
       # new_eigenvectors = eigenvect[self.config.first_eigenoption:self.config.nb_options + self.config.first_eigenoption]
+
       if self.name == "worker_0":
         min_similarity = np.min(
           [self.cosine_similarity(a, b) for a, b in zip(old_directions, self.global_network.directions)])
@@ -275,7 +277,7 @@ class EigenOCAgentDyn(EigenOCAgent):
         self.summary.value.add(tag='Eigenvectors/Mean similarity', simple_value=float(mean_similarity))
         self.summary_writer.add_summary(self.summary, self.episode_count)
         self.summary_writer.flush()
-        self.directions = self.global_network.directions
+
 
   def associate_closest_vectors(self, old, new):
     to_return = copy.deepcopy(old)
