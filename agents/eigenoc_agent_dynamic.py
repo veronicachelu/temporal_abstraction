@@ -53,7 +53,7 @@ class EigenOCAgentDyn(EigenOCAgent):
           self.o_tracker_steps[self.option] += 1
           while not self.done:
             gl_step = self.sess.run(self.global_step)
-            if gl_step > self.config.sf_matrix_size and self.config.eigen:
+            if gl_step % self.config.sf_matrix_size == 0 and gl_step > 0 and self.config.eigen:
               if self.config.eigen_approach == "SVD":
                 self.recompute_eigenvectors_dynamic_SVD()
 
