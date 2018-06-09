@@ -525,6 +525,82 @@ class BaseAgent():
       plt.savefig(os.path.join(folder_path, 'SR_matrix_o_{}.png'.format(option)))
       plt.close()
 
+  def write_eigendirection_maps(self):
+    option_colors = [(0.1, 0.2, 0.5, 0.4), (0.1, 0.2, 0.5, 0.6), (0.1, 0.2, 0.5, 0.8), (0.1, 0.2, 0.5, 1),
+                     (0.5, 0.2, 0.1, 0.4), (0.5, 0.2, 0.1, 0.6), (0.5, 0.2, 0.1, 0.8), (0.5, 0.2, 0.1, 1)]
+    for o in range(self.nb_options):
+      plt.clf()
+      for idx in range(self.nb_states):
+        dx = 0
+        dy = 0
+        s, i, j = self.env.get_state(idx)
+        if not self.env.not_wall(i, j):
+          plt.gca().add_patch(
+            patches.Rectangle(
+              (j, self.config.input_size[0] - i - 1),  # (x,y)
+              1.0,  # width
+              1.0,  # height
+              facecolor="gray"
+            )
+          )
+          continue
+
+        plt.gca().add_patch(
+          patches.Rectangle(
+            (j, self.config.input_size[0] - i - 1),  # (x,y)
+            1.0,  # width
+            1.0,  # height
+            facecolor=option_colors[o],
+          )
+        )
+
+        x, y = self.env.get_state_xy(idx)
+        states = []  # up, right, down, leftƒpo
+        if x - 1 > 0:
+          states.append((x - 1, y))
+        if y + 1 < self.config.input_size[1]:
+          states.append((x, y + 1))
+        if x + 1 < self.config.input_size[0]:
+          states.append((x + 1, y))
+        if y - 1 > 0:
+          states.append((x, y - 1))
+
+        state_idxs = [self.env.get_state_index(x, y) for x, y in states]
+        possible_next_states = [self.env.fake_get_state(idx)[0] for idx in state_idxs]
+
+        feed_dict = {self.local_network.observation: np.stack([s] + possible_next_states)}
+        fis = self.sess.run(self.local_network.fi, feed_dict=feed_dict)
+        fi_s = fis[0]
+
+        fi_diffs = fi_s - fis[1:]
+        cosine_sims = [self.cosine_similarity(d, self.directions[o]) for d in fi_diffs]
+        a = np.argmax(cosine_sims)
+        if a == 0:  # up
+          dy = 0.35
+        elif a == 1:  # right
+          dx = 0.35
+        elif a == 2:  # down
+          dy = -0.35
+        elif a == 3:  # left
+          dx = -0.35
+        plt.arrow(j + 0.5, self.config.input_size[0] - i + 0.5 - 1, dx, dy,
+                  head_width=0.05, head_length=0.05, fc='k', ec='k')
+        plt.text(j, self.config.input_size[0] - i + 0.2 - 1, str(o), color='r')
+
+      plt.xlim([0, self.config.input_size[1]])
+      plt.ylim([0, self.config.input_size[0]])
+
+      for i in range(self.config.input_size[1]):
+        plt.axvline(i, color='k', linestyle=':')
+      plt.axvline(self.config.input_size[1], color='k', linestyle=':')
+
+      for j in range(self.config.input_size[0]):
+        plt.axhline(j, color='k', linestyle=':')
+      plt.axhline(self.config.input_size[0], color='k', linestyle=':')
+
+      plt.savefig(os.path.join(self.stats_path, "Eigendirection_{}_{}.png".format(self.episode_count, o)))
+      plt.close()
+
   def write_manager_map(self):
     option_colors = [(0.1, 0.2, 0.5, 0.4), (0.1, 0.2, 0.5, 0.6), (0.1, 0.2, 0.5, 0.8), (0.1, 0.2, 0.5, 1),
                      (0.5, 0.2, 0.1, 0.4), (0.5, 0.2, 0.1, 0.6), (0.5, 0.2, 0.1, 0.8), (0.5, 0.2, 0.1, 1)]
@@ -609,6 +685,7 @@ class BaseAgent():
           dx = -0.35
         plt.arrow(j + 0.5, self.config.input_size[0] - i + 0.5 - 1, dx, dy,
                   head_width=0.05, head_length=0.05, fc='k', ec='k')
+        plt.text(j, self.config.input_size[0] - i + 0.2 - 1, str(o), color='r')
 
 
 
