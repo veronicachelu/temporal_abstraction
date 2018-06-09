@@ -92,19 +92,20 @@ class BaseNetwork():
 
   def build_eigen_option_q_val_net(self):
     with tf.variable_scope("eigen_option_q_val"):
-      out = tf.stop_gradient(self.fi_relu)
-      # out = self.fi_relu
+      # out = tf.stop_gradient(self.fi_relu)
+      out = self.fi_relu
       self.eigen_q_val = layers.fully_connected(out, num_outputs=self.nb_options,
                                                 activation_fn=None,
                                                 variables_collections=tf.get_collection("variables"),
                                                 outputs_collections="activations", scope="eigen_q_val")
       self.summaries_option.append(tf.contrib.layers.summarize_activation(self.eigen_q_val))
-    # if self.config.include_primitive_options:
-    #   concatenated_eigen_q = tf.concat([self.q_val[:, self.config.nb_options:], self.eigen_q_val], 1)
-    # else:
-    self.eigenv = tf.identity(tf.reduce_max(self.eigen_q_val, axis=1) * \
+    if self.config.include_primitive_options:
+      concatenated_eigen_q = tf.concat([self.q_val[:, self.config.nb_options:], self.eigen_q_val], 1)
+    else:
+      concatenated_eigen_q = self.eigen_q_val
+    self.eigenv = tf.identity(tf.reduce_max(concatenated_eigen_q, axis=1) * \
                   (1 - self.random_option_prob) + \
-                  self.random_option_prob * tf.reduce_mean(self.eigen_q_val, axis=1), name="eigen_V")
+                  self.random_option_prob * tf.reduce_mean(concatenated_eigen_q, axis=1), name="eigen_V")
     self.summaries_option.append(tf.contrib.layers.summarize_activation(self.eigenv))
 
   def build_intraoption_policies_nets(self):
@@ -136,7 +137,7 @@ class BaseNetwork():
           if layer_norm:
             out = self.layer_norm_fn(out, relu=True)
           else:
-            out = tf.nn.relu(out)
+            out = tf.nn.elu(out)
         self.summaries_sf.append(tf.contrib.layers.summarize_activation(out))
       self.sf = out
 

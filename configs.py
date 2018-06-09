@@ -267,7 +267,7 @@ def eigenoc():
 
 
   decrease_option_prob = False
-  delib_margin = 0.005
+  delib_margin = 0.0
 
   # final_random_option_prob = 0.1
   initial_random_option_prob = 0.1
