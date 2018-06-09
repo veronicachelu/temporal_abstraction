@@ -227,15 +227,11 @@ class BaseAgent():
     self.summary_writer.flush()
     self.write_step_summary(r)
 
-  def cosine_similarity(self, next_sf, evect):
-    state_dif_norm = np.linalg.norm(np.linalg.norm(np.asarray(next_sf, np.float64)))
-    state_dif_normalized = next_sf / (state_dif_norm + 1e-8)
-
-    evect_norm = np.linalg.norm(np.linalg.norm(np.asarray(next_sf, np.float64)))
-    evect_normalized = evect / (evect_norm + 1e-8)
-    # evect_norm = np.linalg.norm(evect)
-    # evect_normalized = evect / (evect_norm + 1e-8)
-    res = np.dot(state_dif_normalized, evect_normalized)
+  def cosine_similarity(self, a, b):
+    dot_product = np.dot(a, b)
+    norm_a = np.linalg.norm(np.asarray(a, np.float64))
+    norm_b = np.linalg.norm(np.asarray(b, np.float64))
+    res = dot_product / ((norm_a + + 1e-8) * (norm_b + + 1e-8))
     if np.isnan(res):
       print("NAN")
     return res
