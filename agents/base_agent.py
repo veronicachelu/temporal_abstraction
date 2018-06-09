@@ -184,6 +184,7 @@ class BaseAgent():
     self.write_worker_map()
     if self.config.eigen:
       self.write_manager_map()
+      self.write_eigendirection_maps()
     # self.viz_options()
     self.summary = tf.Summary()
     if len(self.episode_rewards) != 0:
@@ -672,6 +673,7 @@ class BaseAgent():
           dx = -0.35
         plt.arrow(j + 0.5, self.config.input_size[0] - i + 0.5 - 1, dx, dy,
                   head_width=0.05, head_length=0.05, fc='k', ec='k')
+        plt.text(j, self.config.input_size[0] - i + 0.2 - 1, str(o), color='r')
 
       else:
         a = o - self.nb_options
@@ -684,7 +686,7 @@ class BaseAgent():
         elif a == 3:  # left
           dx = -0.35
         plt.arrow(j + 0.5, self.config.input_size[0] - i + 0.5 - 1, dx, dy,
-                  head_width=0.05, head_length=0.05, fc='k', ec='k')
+                  head_width=0.05, head_length=0.05, fc='r', ec='r')
         plt.text(j, self.config.input_size[0] - i + 0.2 - 1, str(o), color='r')
 
 
