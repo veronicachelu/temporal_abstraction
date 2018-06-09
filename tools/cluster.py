@@ -44,11 +44,12 @@ kernel = kernel_normalise(kernel_gauss)
 
 
 def kernel_dist(a, b):
-  dot_product = np.sum(a*b)
-  norm_a = np.linalg.norm(np.asarray(a, np.float64))
-  norm_b = np.linalg.norm(np.asarray(b, np.float64))
+  a = np.asarray(a, np.float64)
+  b = np.asarray(b, np.float64)
+  dot_product = np.dot(a, b)
+  norm_a = np.linalg.norm(a)
+  norm_b = np.linalg.norm(b)
   res = dot_product / ((norm_a + 1e-8) * (norm_b + 1e-8))
-  print(res)
   if np.isnan(res):
     print("NAN")
   return 1 - res
@@ -126,7 +127,10 @@ class OnlineCluster(object):
         m = heapq.heappop(self.dist)
         m.x.merge(m.y)
 
-        self.clusters.remove(m.y)
+        if m.y in self.clusters:
+          self.clusters.remove(m.y)
+        else:
+          print("WHY NOT IN LIST")
         self.removedist(m.y)
 
         self.updatedist(m.x)
