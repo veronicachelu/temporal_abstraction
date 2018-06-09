@@ -77,12 +77,13 @@ class EigenOCAgentDyn(EigenOCAgent):
             self.store_general_info(s, s1, self.action)
             self.log_timestep()
 
-            # if self.total_steps > self.config.observation_steps:
+
             if self.config.behaviour_agent is None and self.config.eigen:
               self.SF_prediction(s1)
             self.next_frame_prediction()
 
-            self.option_prediction(s, s1)
+            if self.episode_count > 0:
+              self.option_prediction(s, s1)
 
             if not self.done and (self.o_term or self.primitive_action):
               self.option_evaluation(s1)

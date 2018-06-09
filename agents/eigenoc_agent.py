@@ -106,13 +106,13 @@ class EigenOCAgent(BaseAgent):
             feed_dict=feed_dict)
           q_value = q_value[0, self.option]
           value = value[0]
-          evalue = evalue[0]
 
           if self.primitive_action:
             R_mix = value if self.o_term else q_value
             # print("primitive_action {} {}".format(R_mix, self.o_term))
           else:
             q_eigen = q_eigen[0, self.option]
+            evalue = evalue[0]
             R_mix = evalue if self.o_term else q_eigen
             # print("eigen {} {}".format(R_mix, self.o_term))
             # R_mix = value if self.o_term else q_eigen
