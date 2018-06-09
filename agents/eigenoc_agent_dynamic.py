@@ -83,7 +83,7 @@ class EigenOCAgentDyn(EigenOCAgent):
             self.next_frame_prediction()
 
             # if self.episode_count > 0:
-            if self.episode_count > 0 and (not self.config.eigen or (self.config.eigen and
+            if self.episode_count > 10 and (not self.config.eigen or (self.config.eigen and
                                                              len(self.directions) == self.nb_options)):
               r_i = self.option_prediction(s, s1)
 
@@ -144,7 +144,7 @@ class EigenOCAgentDyn(EigenOCAgent):
       self.global_network.sf_matrix_buffer[0] = sf.copy()
       self.global_network.sf_matrix_buffer = np.roll(self.global_network.sf_matrix_buffer, 1, 0)
     else:
-      old_directions = copy.deepcopy([c.center for c in self.global_network.eigencluster.clusters])
+      old_directions = copy.deepcopy(self.directions)
       self.global_network.eigencluster.cluster(sf)
       self.load_directions()
       # ci = np.argmax(
