@@ -283,7 +283,7 @@ def eigenoc_dyn():
   sr_matrix = "dynamic"
   include_primitive_options = False
   eigen = True
-  eigen_approach = "SVD"
+  eigen_approach = "NN"
   final_random_option_prob = 0.1
   initial_random_option_prob = 1
   explore_options_episodes = 1

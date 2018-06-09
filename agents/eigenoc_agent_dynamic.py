@@ -82,7 +82,8 @@ class EigenOCAgentDyn(EigenOCAgent):
               self.SF_prediction(s1)
             self.next_frame_prediction()
 
-            if self.episode_count > 0:
+            # if self.episode_count > 0:
+            if self.config.eigen and self.config.eigen_approach == "NN" and len(self.directions) == self.nb_options:
               r_i = self.option_prediction(s, s1)
 
             if not self.done and (self.o_term or self.primitive_action):
@@ -142,15 +143,33 @@ class EigenOCAgentDyn(EigenOCAgent):
       self.global_network.sf_matrix_buffer[0] = sf.copy()
       self.global_network.sf_matrix_buffer = np.roll(self.global_network.sf_matrix_buffer, 1, 0)
     else:
-      ci = np.argmax(
-        [self.cosine_similarity(sf, d) for d in self.global_network.directions])
+      old_directions = copy.deepcopy([c.center for c in self.global_network.eigencluster.clusters])
+      self.global_network.eigencluster.cluster(sf)
+      self.load_directions()
+      # ci = np.argmax(
+      #   [self.cosine_similarity(sf, d) for d in self.global_network.directions])
+      #
+      # sf_norm = np.linalg.norm(np.asarray(sf, np.float64))
+      # sf_normalized = sf / (sf_norm + 1e-8)
+      # new_center = self.config.tau * sf_normalized + (1 - self.config.tau) * self.global_network.directions[ci]
+      # new_center_norm = np.linalg.norm(np.asarray(new_center, np.float64))
+      # self.global_network.directions[ci] = new_center / (new_center_norm + 1e-8)
+      # self.directions = self.global_network.directions
 
-      sf_norm = np.linalg.norm(np.asarray(sf, np.float64))
-      sf_normalized = sf / (sf_norm + 1e-8)
-      new_center = self.config.tau * sf_normalized + (1 - self.config.tau) * self.global_network.directions[ci]
-      new_center_norm = np.linalg.norm(np.asarray(new_center, np.float64))
-      self.global_network.directions[ci] = new_center / (new_center_norm + 1e-8)
-      self.directions = self.global_network.directions
+      if len(old_directions) == self.nb_options and len(
+          self.directions) == self.nb_options and self.name == "worker_0" and self.total_steps % self.config.steps_summary_interval == 0:
+        min_similarity = np.min(
+          [self.cosine_similarity(a, b) for a, b in zip(old_directions, self.directions)])
+        max_similarity = np.max(
+          [self.cosine_similarity(a, b) for a, b in zip(old_directions, self.directions)])
+        mean_similarity = np.mean(
+          [self.cosine_similarity(a, b) for a, b in zip(old_directions, self.directions)])
+        self.summary = tf.Summary()
+        self.summary.value.add(tag='Eigenvectors/Min similarity', simple_value=float(min_similarity))
+        self.summary.value.add(tag='Eigenvectors/Max similarity', simple_value=float(max_similarity))
+        self.summary.value.add(tag='Eigenvectors/Mean similarity', simple_value=float(mean_similarity))
+        self.summary_writer.add_summary(self.summary, self.episode_count)
+        self.summary_writer.flush()
 
   def option_terminate(self, s1):
     if self.config.include_primitive_options and self.primitive_action:

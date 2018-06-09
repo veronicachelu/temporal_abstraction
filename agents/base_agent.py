@@ -31,7 +31,7 @@ class BaseAgent():
     tf.gfile.MakeDirs(self.summary_path)
     self.global_network = global_network
     if config.sr_matrix is not None:
-      self.directions = self.global_network.directions
+      self.load_directions()
 
     self.increment_global_step = self.global_step.assign_add(1)
     self.episode_rewards = []
@@ -69,7 +69,10 @@ class BaseAgent():
     tf.gfile.MakeDirs(self.stats_path)
 
   def load_directions(self):
-    self.directions = self.global_network.directions
+    if self.config.eigen_approach == "NN":
+      self.directions = [c.center for c in self.global_network.eigencluster.clusters]
+    else:
+      self.directions = self.global_network.directions
 
   def sync_threads(self, force=False):
     if force:

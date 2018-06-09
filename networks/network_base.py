@@ -3,7 +3,7 @@ import tensorflow.contrib.layers as layers
 from config_utility import gradient_summaries, huber_loss
 import numpy as np
 import os
-
+from tools.cluster import OnlineCluster
 
 
 class BaseNetwork():
@@ -32,6 +32,10 @@ class BaseNetwork():
 
     if scope == 'global' and self.config.sr_matrix is not None:
       self.directions_path = os.path.join(config.logdir, "eigen_directions.npy")
+
+      if self.config.eigen_approach == "NN":
+        self.eigencluster = OnlineCluster(config.nb_options, config.sf_layers[-1])
+
       if os.path.exists(self.directions_path):
         self.directions = np.load(self.directions_path)
       else:
