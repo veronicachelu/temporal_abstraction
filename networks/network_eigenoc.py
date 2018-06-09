@@ -53,7 +53,7 @@ class EignOCNetwork(BaseNetwork):
     with tf.variable_scope("aux_action_fc"):
       self.actions_placeholder = tf.placeholder(shape=[None], dtype=tf.float32, name="Actions")
       actions = layers.fully_connected(self.actions_placeholder[..., None], num_outputs=self.fc_layers[-1],
-                                       activation_fn=tf.nn.elu,
+                                       activation_fn=tf.nn.relu,
                                        variables_collections=tf.get_collection("variables"),
                                        outputs_collections="activations", scope="fc")
 

@@ -137,7 +137,7 @@ class BaseNetwork():
           if layer_norm:
             out = self.layer_norm_fn(out, relu=True)
           else:
-            out = tf.nn.elu(out)
+            out = tf.nn.relu(out)
         self.summaries_sf.append(tf.contrib.layers.summarize_activation(out))
       self.sf = out
 

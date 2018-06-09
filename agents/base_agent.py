@@ -559,12 +559,20 @@ class BaseAgent():
         states = []  # up, right, down, leftƒpo
         if x - 1 > 0:
           states.append((x - 1, y))
+        else:
+          states.append((x, y))
         if y + 1 < self.config.input_size[1]:
           states.append((x, y + 1))
+        else:
+          states.append((x, y))
         if x + 1 < self.config.input_size[0]:
           states.append((x + 1, y))
+        else:
+          states.append((x, y))
         if y - 1 > 0:
           states.append((x, y - 1))
+        else:
+          states.append((x, y))
 
         state_idxs = [self.env.get_state_index(x, y) for x, y in states]
         possible_next_states = [self.env.fake_get_state(idx)[0] for idx in state_idxs]
@@ -576,6 +584,12 @@ class BaseAgent():
         fi_diffs = fi_s - fis[1:]
         cosine_sims = [self.cosine_similarity(d, self.directions[o]) for d in fi_diffs]
         a = np.argmax(cosine_sims)
+        max_cosine = cosine_sims[a]
+        if max_cosine == 0:
+          circle = plt.Circle(
+            (j + 0.5, self.config.input_size[0] - i + 0.5 - 1), 0.025, color='k')
+          plt.gca().add_artist(circle)
+          continue
         if a == 0:  # up
           dy = 0.35
         elif a == 1:  # right
@@ -646,12 +660,20 @@ class BaseAgent():
         states = []  # up, right, down, leftƒpo
         if x - 1 > 0:
           states.append((x - 1, y))
+        else:
+          states.append((x, y))
         if y + 1 < self.config.input_size[1]:
           states.append((x, y + 1))
+        else:
+          states.append((x, y))
         if x + 1 < self.config.input_size[0]:
           states.append((x + 1, y))
+        else:
+          states.append((x, y))
         if y - 1 > 0:
           states.append((x, y - 1))
+        else:
+          states.append((x, y))
 
         state_idxs = [self.env.get_state_index(x, y) for x, y in states]
         possible_next_states = [self.env.fake_get_state(idx)[0] for idx in state_idxs]
@@ -663,6 +685,12 @@ class BaseAgent():
         fi_diffs = fi_s - fis[1:]
         cosine_sims = [self.cosine_similarity(d, self.directions[o]) for d in fi_diffs]
         a = np.argmax(cosine_sims)
+        max_cosine = cosine_sims[a]
+        if max_cosine == 0:
+          circle = plt.Circle(
+            (j + 0.5, self.config.input_size[0] - i + 0.5 - 1), 0.025, color='k')
+          plt.gca().add_artist(circle)
+          continue
         if a == 0:  # up
           dy = 0.35
         elif a == 1:  # right
