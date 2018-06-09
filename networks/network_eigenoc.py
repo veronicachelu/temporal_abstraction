@@ -22,13 +22,13 @@ class EignOCNetwork(BaseNetwork):
                                      variables_collections=tf.get_collection("variables"),
                                      outputs_collections="activations", scope="fi_{}".format(i))
         if i < len(self.fc_layers) - 1:
-          out = tf.nn.elu(out)
+          out = tf.nn.relu(out)
           # out = layers.layer_norm(out, scale=True, center=True)
           # out = layers.layer_norm(out, scale=False, center=False)
           # out = tf.contrib.layers.layer_norm(out, scale=True, center=True)
 
       self.fi = out
-      out = tf.nn.elu(out)
+      out = tf.nn.relu(out)
       # out = tf.contrib.layers.layer_norm(out, scale=False, center=False)
 
       # out = layers.layer_norm(out, scale=False, center=False)

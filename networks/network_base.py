@@ -92,8 +92,8 @@ class BaseNetwork():
 
   def build_eigen_option_q_val_net(self):
     with tf.variable_scope("eigen_option_q_val"):
-      # out = tf.stop_gradient(self.fi_relu)
-      out = self.fi_relu
+      out = tf.stop_gradient(self.fi_relu)
+      # out = self.fi_relu
       self.eigen_q_val = layers.fully_connected(out, num_outputs=self.nb_options,
                                                 activation_fn=None,
                                                 variables_collections=tf.get_collection("variables"),
@@ -136,7 +136,7 @@ class BaseNetwork():
           if layer_norm:
             out = self.layer_norm_fn(out, relu=True)
           else:
-            out = tf.nn.elu(out)
+            out = tf.nn.relu(out)
         self.summaries_sf.append(tf.contrib.layers.summarize_activation(out))
       self.sf = out
 

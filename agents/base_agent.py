@@ -161,6 +161,8 @@ class BaseAgent():
 
     # if self.total_steps > self.config.eigen_exploration_steps:
     self.summary.value.add(tag='Step/Reward', simple_value=r)
+    if self.config.eigen and (self.config.include_primitive_options and not self.primitive_action):
+      self.summary.value.add(tag='Step/EigReward', simple_value=self.r_i)
     self.summary.value.add(tag='Step/Action', simple_value=self.action)
     self.summary.value.add(tag='Step/Option', simple_value=self.option)
     self.summary.value.add(tag='Step/Q', simple_value=self.q_value)
