@@ -82,8 +82,8 @@ class EigenOCAgentDyn(EigenOCAgent):
               self.SF_prediction(s1)
             self.next_frame_prediction()
 
-            # if self.episode_count > 0:
-            #   r_i = self.option_prediction(s, s1)
+            if self.episode_count > 0:
+              r_i = self.option_prediction(s, s1)
 
             if not self.done and (self.o_term or self.primitive_action):
               self.option_evaluation(s1)
