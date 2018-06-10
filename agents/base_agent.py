@@ -162,16 +162,16 @@ class BaseAgent():
     tf.logging.info(
       "Saved Model at {}".format(self.model_path + '/model-{}.{}.cptk'.format(self.episode_count, self.total_steps)))
 
-  def write_step_summary(self, r, r_i=None):
-    self.write_eigendirection_maps()
+  def write_step_summary(self, r, r_mix=None):
+    # self.write_eigendirection_maps()
     self.summary = tf.Summary()
     for sum in [self.ms_sf, self.ms_aux, self.ms_option, self.ms_term, self.ms_critic]:
       if sum is not None:
         self.summary_writer.add_summary(sum, self.total_steps)
 
     self.summary.value.add(tag='Step/Reward', simple_value=r)
-    if self.config.eigen and not self.primitive_action and r_i is not None:
-      self.summary.value.add(tag='Step/EigReward', simple_value=r_i)
+    if self.config.eigen and not self.primitive_action and r_mix is not None:
+      self.summary.value.add(tag='Step/EigReward', simple_value=r_mix)
     self.summary.value.add(tag='Step/Action', simple_value=self.action)
     self.summary.value.add(tag='Step/Option', simple_value=self.option)
     self.summary.value.add(tag='Step/Q', simple_value=self.q_value)
@@ -190,10 +190,10 @@ class BaseAgent():
 
   def write_episode_summary(self, r):
     # self.tracker()
-    self.write_worker_map()
-    if self.config.eigen:
-      self.write_manager_map()
-      self.write_eigendirection_maps()
+    # self.write_worker_map()
+    # if self.config.eigen:
+    #   self.write_manager_map()
+    #   self.write_eigendirection_maps()
     # self.viz_options()
     self.summary = tf.Summary()
     if len(self.episode_rewards) != 0:

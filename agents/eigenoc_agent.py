@@ -91,7 +91,17 @@ class EigenOCAgent(BaseAgent):
 
   def option_prediction(self, s, s1):
     self.option_counter += 1
-    r_i = self.store_option_info(s, s1, self.action, self.reward)
+    if self.config.eigen and not self.primitive_action:
+      feed_dict = {self.local_network.observation: np.stack([s, s1])}
+      fi = self.sess.run(self.local_network.fi,
+                         feed_dict=feed_dict)
+      r_i = self.cosine_similarity((fi[1] - fi[0]), self.directions[self.option])
+      r_mix = self.config.alpha_r * r_i + (1 - self.config.alpha_r) * self.reward
+    else:
+      r_mix = self.reward
+
+    self.episode_buffer_option.append(
+      [s, self.option, self.action, self.reward, r_mix, self.primitive_action, s1])
 
     if self.option_counter == self.config.max_update_freq or self.done or (
           self.o_term and self.option_counter >= self.config.min_update_freq):
@@ -101,7 +111,7 @@ class EigenOCAgent(BaseAgent):
       else:
         feed_dict = {self.local_network.observation: np.stack([s1])}
         if self.config.eigen:
-          value, evalue, q_value, q_eigen = self.sess.run(
+          value, eigen_value, q_value, eigen_q_value = self.sess.run(
             [self.local_network.v, self.local_network.eigenv, self.local_network.q_val,
              self.local_network.eigen_q_val],
             feed_dict=feed_dict)
@@ -110,13 +120,10 @@ class EigenOCAgent(BaseAgent):
 
           if self.primitive_action:
             R_mix = value if self.o_term else q_value
-            # print("primitive_action {} {}".format(R_mix, self.o_term))
           else:
-            q_eigen = q_eigen[0, self.option]
-            evalue = evalue[0]
-            R_mix = evalue if self.o_term else q_eigen
-            # print("eigen {} {}".format(R_mix, self.o_term))
-            # R_mix = value if self.o_term else q_eigen
+            eigen_q_value = eigen_q_value[0, self.option]
+            eigen_value = eigen_value[0]
+            R_mix = eigen_value if self.o_term else eigen_q_value
         else:
           value, q_value = self.sess.run(
             [self.local_network.v, self.local_network.q_val],
@@ -124,15 +131,16 @@ class EigenOCAgent(BaseAgent):
           q_value = q_value[0, self.option]
           value = value[0]
         R = value if self.o_term else q_value
+
         if not self.config.eigen:
           R_mix = R
-      # print("-------------------------------------------------------- {}".format(R))
+
       self.train_option(R, R_mix)
 
       self.episode_buffer_option = []
       self.option_counter = 0
 
-    return r_i
+    return r_mix
 
   def play(self, sess, coord, saver):
     with sess.as_default(), sess.graph.as_default():
@@ -194,8 +202,8 @@ class EigenOCAgent(BaseAgent):
               self.SF_prediction(s1)
             self.next_frame_prediction()
 
-            # if not self.config.eigen or (self.episode_count > 0 and self.config.eigen):
-            #   r_i = self.option_prediction(s, s1)
+            if not self.config.eigen or (self.episode_count > 0 and self.config.eigen):
+              r_mix = self.option_prediction(s, s1)
 
             if not self.done and (self.o_term or self.primitive_action):
               self.option_evaluation(s1)
@@ -207,7 +215,7 @@ class EigenOCAgent(BaseAgent):
               self.save_model()
 
             if self.total_steps % self.config.steps_summary_interval == 0 and self.name == 'worker_0':
-              self.write_step_summary(r, r_i)
+              self.write_step_summary(r, r_mix)
 
             s = s1
             s_idx = s1_idx
@@ -317,26 +325,6 @@ class EigenOCAgent(BaseAgent):
       self.aux_episode_buffer.popleft()
     self.aux_episode_buffer.append([s, s1, a])
 
-  def store_option_info(self, s, s1, a, r):
-    if self.config.eigen and not self.primitive_action:
-      feed_dict = {self.local_network.observation: np.stack([s, s1])}
-      fi = self.sess.run(self.local_network.fi,
-                         feed_dict=feed_dict)
-      eigen_r = self.cosine_similarity((fi[1] - fi[0]), self.directions[self.option])
-      r_i = self.config.alpha_r * eigen_r + (1 - self.config.alpha_r) * r
-      # print(r_i)
-      # if r_i > 1:
-      #   print("ERRROR r_i = {}".format(r_i))
-
-      self.episode_buffer_option.append(
-        [s, self.option, a, r, r_i, self.primitive_action, s1])
-    else:
-      r_i = r
-      self.episode_buffer_option.append(
-        [s, self.option, a, r, r_i,
-         self.primitive_action, s1])
-    return r_i
-
   def recompute_eigenvectors_NN(self):
     if self.config.eigen:
       new_eigenvectors = copy.deepcopy(self.global_network.directions)
@@ -429,7 +417,7 @@ class EigenOCAgent(BaseAgent):
       self.summary_writer.add_summary(self.summary, self.episode_count)
       self.summary_writer.flush()
 
-      self.plot_policy_and_value_function_approx(self.directions)
+      # self.plot_policy_and_value_function_approx(self.directions)
 
   def train_sf(self, bootstrap_sf):
     rollout = np.array(self.episode_buffer_sf)
