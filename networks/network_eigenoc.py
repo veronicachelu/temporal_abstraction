@@ -22,13 +22,13 @@ class EignOCNetwork(BaseNetwork):
                                      variables_collections=tf.get_collection("variables"),
                                      outputs_collections="activations", scope="fi_{}".format(i))
         if i < len(self.fc_layers) - 1:
-          out = tf.nn.elu(out)
+          out = tf.nn.relu(out)
           # out = layers.layer_norm(out, scale=True, center=True)
           # out = layers.layer_norm(out, scale=False, center=False)
           # out = tf.contrib.layers.layer_norm(out, scale=True, center=True)
 
       self.fi = out
-      out = tf.nn.elu(out)
+      out = self.layer_norm_fn(self.fi, relu=True)
       # out = tf.contrib.layers.layer_norm(out, scale=False, center=False)
 
       # out = layers.layer_norm(out, scale=False, center=False)
@@ -53,12 +53,12 @@ class EignOCNetwork(BaseNetwork):
     with tf.variable_scope("aux_action_fc"):
       self.actions_placeholder = tf.placeholder(shape=[None], dtype=tf.float32, name="Actions")
       actions = layers.fully_connected(self.actions_placeholder[..., None], num_outputs=self.fc_layers[-1],
-                                       activation_fn=tf.nn.relu,
+                                       activation_fn=None,
                                        variables_collections=tf.get_collection("variables"),
                                        outputs_collections="activations", scope="fc")
 
     with tf.variable_scope("aux_next_frame"):
-      out = tf.add(self.fi_relu, actions)
+      out = tf.add(self.fi, actions)
       for i, nb_filt in enumerate(self.aux_fc_layers):
         out = layers.fully_connected(out, num_outputs=nb_filt,
                                      activation_fn=None,

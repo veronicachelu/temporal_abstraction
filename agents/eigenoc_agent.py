@@ -148,7 +148,8 @@ class EigenOCAgent(BaseAgent):
 
           self.sync_threads()
 
-          if self.name == "worker_0" and self.episode_count > 10 and self.config.eigen and self.config.behaviour_agent is None:
+          if self.name == "worker_0" and self.episode_count >= 0 and\
+              self.config.eigen and self.config.behaviour_agent is None:
             if self.config.eigen_approach == "SVD":
               self.recompute_eigenvectors_svd()
             else:
@@ -161,23 +162,23 @@ class EigenOCAgent(BaseAgent):
 
           s = self.env.reset()
           s_idx = None
-          self.option_evaluation(s)
-          self.o_tracker_steps[self.option] += 1
+          # self.option_evaluation(s)
+          # self.o_tracker_steps[self.option] += 1
           while not self.done:
             self.sync_threads()
             self.policy_evaluation(s)
-            if s_idx is not None:
-              self.stats_actions[s_idx][self.action] += 1
-              self.stats_options[s_idx][self.option] += 1
+            # if s_idx is not None:
+            #   self.stats_actions[s_idx][self.action] += 1
+            #   self.stats_options[s_idx][self.option] += 1
 
             s1, r, self.done, s1_idx = self.env.step(self.action)
 
             self.episode_reward += r
             self.reward = np.clip(r, -1, 1)
 
-            self.option_terminate(s1)
+            # self.option_terminate(s1)
 
-            self.reward_deliberation()
+            # self.reward_deliberation()
 
             if self.done:
               s1 = s
@@ -191,14 +192,14 @@ class EigenOCAgent(BaseAgent):
               self.SF_prediction(s1)
             self.next_frame_prediction()
 
-            if not self.config.eigen or (self.episode_count > 10 and self.config.eigen):
-              r_i = self.option_prediction(s, s1)
+            # if not self.config.eigen or (self.episode_count > 0 and self.config.eigen):
+            #   r_i = self.option_prediction(s, s1)
 
-            if not self.done and (self.o_term or self.primitive_action):
-              self.option_evaluation(s1)
+            # if not self.done and (self.o_term or self.primitive_action):
+            #   self.option_evaluation(s1)
 
-            if not self.done:
-              self.o_tracker_steps[self.option] += 1
+            # if not self.done:
+            #   self.o_tracker_steps[self.option] += 1
 
             if self.total_steps % self.config.steps_checkpoint_interval == 0 and self.name == 'worker_0':
               self.save_model()
@@ -268,40 +269,43 @@ class EigenOCAgent(BaseAgent):
     self.episode_oterm.append(self.o_term)
 
   def policy_evaluation(self, s):
-    feed_dict = {self.local_network.observation: np.stack([s])}
-
-    if self.config.eigen:
-      tensor_list = [self.local_network.options, self.local_network.v, self.local_network.q_val,
-                     self.local_network.eigen_q_val, self.local_network.eigenv]
-      options, value, q_value, eigen_q_value, evalue = self.sess.run(tensor_list, feed_dict=feed_dict)
-      if not self.primitive_action:
-        self.eigen_q_value = eigen_q_value[0, self.option]
-        self.episode_eigen_q_values.append(self.eigen_q_value)
-        pi = options[0, self.option]
-        self.action = np.random.choice(pi, p=pi)
-        self.action = np.argmax(pi == self.action)
-        self.evalue = evalue[0]
-      else:
-        self.action = self.option - self.nb_options
-      self.q_value = q_value[0, self.option]
-      self.q_values = q_value[0]
-      self.value = value[0]
-    else:
-      tensor_list = [self.local_network.options, self.local_network.v, self.local_network.q_val]
-      options, value, q_value = self.sess.run(tensor_list, feed_dict=feed_dict)
-
-      if self.config.include_primitive_options and self.primitive_action:
-        self.action = self.option - self.nb_options
-      else:
-        pi = options[0, self.option]
-        self.action = np.random.choice(pi, p=pi)
-        self.action = np.argmax(pi == self.action)
-
-      self.q_value = q_value[0, self.option]
-      self.q_values = q_value[0]
-      self.value = value[0]
-      self.episode_values.append(self.value)
-      self.episode_q_values.append(self.q_value)
+    self.action = np.random.choice(range(self.action_size))
+    self.primitive_action = True
+    self.option = self.action
+    # feed_dict = {self.local_network.observation: np.stack([s])}
+    #
+    # if self.config.eigen:
+    #   tensor_list = [self.local_network.options, self.local_network.v, self.local_network.q_val,
+    #                  self.local_network.eigen_q_val, self.local_network.eigenv]
+    #   options, value, q_value, eigen_q_value, evalue = self.sess.run(tensor_list, feed_dict=feed_dict)
+    #   if not self.primitive_action:
+    #     self.eigen_q_value = eigen_q_value[0, self.option]
+    #     self.episode_eigen_q_values.append(self.eigen_q_value)
+    #     pi = options[0, self.option]
+    #     self.action = np.random.choice(pi, p=pi)
+    #     self.action = np.argmax(pi == self.action)
+    #     self.evalue = evalue[0]
+    #   else:
+    #     self.action = self.option - self.nb_options
+    #   self.q_value = q_value[0, self.option]
+    #   self.q_values = q_value[0]
+    #   self.value = value[0]
+    # else:
+    #   tensor_list = [self.local_network.options, self.local_network.v, self.local_network.q_val]
+    #   options, value, q_value = self.sess.run(tensor_list, feed_dict=feed_dict)
+    #
+    #   if self.config.include_primitive_options and self.primitive_action:
+    #     self.action = self.option - self.nb_options
+    #   else:
+    #     pi = options[0, self.option]
+    #     self.action = np.random.choice(pi, p=pi)
+    #     self.action = np.argmax(pi == self.action)
+    #
+    #   self.q_value = q_value[0, self.option]
+    #   self.q_values = q_value[0]
+    #   self.value = value[0]
+    #   self.episode_values.append(self.value)
+    #   self.episode_q_values.append(self.q_value)
     self.episode_actions.append(self.action)
 
   def store_general_info(self, s, s1, a):
@@ -375,17 +379,29 @@ class EigenOCAgent(BaseAgent):
   def recompute_eigenvectors_svd(self):
     if self.config.eigen:
       # new_eigenvectors = copy.deepcopy(self.global_network.directions)
-      # matrix_sf = []
       old_directions = self.global_network.directions
-      states = []
+      matrix_sf = np.zeros((self.nb_states, self.config.sf_layers[-1]))
       for idx in range(self.nb_states):
-        s, ii, jj = self.env.fake_get_state(idx)
+        s, ii, jj = self.env.get_state(idx)
         if self.env.not_wall(ii, jj):
-          states.append(s)
+          feed_dict = {self.local_network.observation: [s]}
+          sf = self.sess.run(self.local_network.sf, feed_dict=feed_dict)[0]
+          matrix_sf[idx] = sf
+      import seaborn as sns
+      sns.plt.clf()
+      ax = sns.heatmap(matrix_sf, cmap="Blues")
+      sns.plt.savefig(os.path.join(self.summary_path, 'SR_matrix.png'))
+      sns.plt.close()
 
-      feed_dict = {self.local_network.observation: states}
-      sfs = self.sess.run(self.local_network.sf, feed_dict=feed_dict)
-      _, eigenval, eigenvect = np.linalg.svd(sfs, full_matrices=False)
+      _, eigenval, eigenvect = np.linalg.svd(matrix_sf)
+      # for idx in range(self.nb_states):
+      #   s, ii, jj = self.env.fake_get_state(idx)
+      #   if self.env.not_wall(ii, jj):
+      #     states.append(s)
+      #
+      # feed_dict = {self.local_network.observation: states}
+      # sfs = self.sess.run(self.local_network.sf, feed_dict=feed_dict)
+      # _, eigenval, eigenvect = np.linalg.svd(sfs, full_matrices=False)
       # feed_dict = {self.local_network.matrix_sf: [sfs]}
       # eigenvect = self.sess.run(self.local_network.eigenvectors,
       #                           feed_dict=feed_dict)
@@ -463,27 +479,27 @@ class EigenOCAgent(BaseAgent):
     eigen_rewards_plus = np.asarray(eigen_rewards.tolist() + [bootstrap_value_mix])
     discounted_eigen_returns = reward_discount(eigen_rewards_plus, self.config.discount)[:-1]
 
-    if self.config.eigen:
-      feed_dict = {
-        self.local_network.observation: np.concatenate((np.stack(observations, 0), np.stack(next_observations, 0)),
-                                                       axis=0)}
-      fi = self.sess.run(self.local_network.fi,
-                         feed_dict=feed_dict)
-      fi_next = fi[len(observations):]
-      fi = fi[:len(observations)]
-      real_directions = fi_next - fi
-      real_approx_options = []
-      for i, d in enumerate(real_directions):
-        if primitive_actions[i]:
-          real_approx_options.append(options[i])
-        else:
-          real_approx_options.append(np.argmax([self.cosine_similarity(d, self.directions[o]) for o in
-                                                range(self.nb_options)]) if self.episode_count > 0 else options[i])
+    # if self.config.eigen:
+      # feed_dict = {
+      #   self.local_network.observation: np.concatenate((np.stack(observations, 0), np.stack(next_observations, 0)),
+      #                                                  axis=0)}
+      # fi = self.sess.run(self.local_network.fi,
+      #                    feed_dict=feed_dict)
+      # fi_next = fi[len(observations):]
+      # fi = fi[:len(observations)]
+      # real_directions = fi_next - fi
+      # real_approx_options = []
+      # for i, d in enumerate(real_directions):
+      #   if primitive_actions[i]:
+      #     real_approx_options.append(options[i])
+      #   else:
+      #     real_approx_options.append(np.argmax([self.cosine_similarity(d, self.directions[o]) for o in
+      #                                           range(self.nb_options)]) if self.episode_count > 0 else options[i])
 
     feed_dict = {self.local_network.target_return: discounted_returns,
                  self.local_network.observation: np.stack(observations, axis=0),
-                 self.local_network.options_placeholder: real_approx_options if self.config.eigen else options,
-                 # self.local_network.options_placeholder: options,
+                 # self.local_network.options_placeholder: real_approx_options if self.config.eigen else options,
+                 self.local_network.options_placeholder: options,
                  }
 
     _, self.ms_critic = self.sess.run([self.local_network.apply_grads_critic,
@@ -492,8 +508,8 @@ class EigenOCAgent(BaseAgent):
 
     feed_dict = {
       self.local_network.observation: np.stack(next_observations, axis=0),
-      # self.local_network.options_placeholder: options,
-      self.local_network.options_placeholder: real_approx_options if self.config.eigen else options,
+      self.local_network.options_placeholder: options,
+      # self.local_network.options_placeholder: real_approx_options if self.config.eigen else options,
       self.local_network.primitive_actions_placeholder: primitive_actions
     }
 

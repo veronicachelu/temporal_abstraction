@@ -251,7 +251,7 @@ def eigenoc():
   eigen_exploration_steps = 16*4
   max_length = 1000
   max_length_eval = 1000
-  first_eigenoption = 1
+  first_eigenoption = 0
   include_primitive_options = False
   sf_matrix_size = 169
   sr_matrix = "static"
@@ -265,6 +265,8 @@ def eigenoc():
   tau = 0.1
   eigen_approach = "SVD"
   nb_options = 8
+  lr = 1e-3
+  discount = 0.985
 
   decrease_option_prob = False
   delib_margin = 0.0
@@ -272,7 +274,7 @@ def eigenoc():
   # final_random_option_prob = 0.1
   initial_random_option_prob = 0.1
   # explore_options_episodes = 500
-  lr = 7e-4
+  # lr = 7e-4
 
   return locals()
 
@@ -360,7 +362,7 @@ def eigenoc_montezuma():
   episode_eval_interval = 100
   max_length_eval = 1000
   nb_test_ep = 1
-  first_eigenoption = 1
+  first_eigenoption = 0
   include_primitive_options = True
   sf_matrix_size = 50000
   sr_matrix = "dynamic"

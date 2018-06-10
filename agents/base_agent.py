@@ -167,27 +167,27 @@ class BaseAgent():
         self.summary_writer.add_summary(sum, self.total_steps)
 
     # if self.total_steps > self.config.eigen_exploration_steps:
-    self.summary.value.add(tag='Step/Reward', simple_value=r)
-    if self.config.eigen and not self.primitive_action and r_i is not None:
-      self.summary.value.add(tag='Step/EigReward', simple_value=r_i)
-    self.summary.value.add(tag='Step/Action', simple_value=self.action)
-    self.summary.value.add(tag='Step/Option', simple_value=self.option)
-    self.summary.value.add(tag='Step/Q', simple_value=self.q_value)
-    if self.config.eigen and not self.primitive_action and self.eigen_q_value is not None:
-      self.summary.value.add(tag='Step/EigenQ', simple_value=self.eigen_q_value)
-      # self.summary.value.add(tag='Step/EigenV', simple_value=self.evalue)
-    self.summary.value.add(tag='Step/V', simple_value=self.value)
-    self.summary.value.add(tag='Step/Term', simple_value=int(self.o_term))
-    self.summary.value.add(tag='Step/R', simple_value=self.R)
-    if self.config.eigen:
-      self.summary.value.add(tag='Step/EigenR', simple_value=self.eigen_R)
+    # self.summary.value.add(tag='Step/Reward', simple_value=r)
+    # if self.config.eigen and not self.primitive_action and r_i is not None:
+    #   self.summary.value.add(tag='Step/EigReward', simple_value=r_i)
+    # self.summary.value.add(tag='Step/Action', simple_value=self.action)
+    # self.summary.value.add(tag='Step/Option', simple_value=self.option)
+    # self.summary.value.add(tag='Step/Q', simple_value=self.q_value)
+    # if self.config.eigen and not self.primitive_action and self.eigen_q_value is not None:
+    #   self.summary.value.add(tag='Step/EigenQ', simple_value=self.eigen_q_value)
+    #   # self.summary.value.add(tag='Step/EigenV', simple_value=self.evalue)
+    # self.summary.value.add(tag='Step/V', simple_value=self.value)
+    # self.summary.value.add(tag='Step/Term', simple_value=int(self.o_term))
+    # self.summary.value.add(tag='Step/R', simple_value=self.R)
+    # if self.config.eigen:
+    #   self.summary.value.add(tag='Step/EigenR', simple_value=self.eigen_R)
 
     self.summary_writer.add_summary(self.summary, self.total_steps)
     self.summary_writer.flush()
     # tf.logging.warning("Writing step summary....")
 
   def write_episode_summary(self, r):
-    self.tracker()
+    # self.tracker()
     self.write_worker_map()
     if self.config.eigen:
       self.write_manager_map()
@@ -569,41 +569,28 @@ class BaseAgent():
         #   )
         # )
 
-        x, y = self.env.get_state_xy(idx)
-        states = []  # up, right, down, leftƒpo
-        if x - 1 > 0:
-          states.append((x - 1, y))
-        else:
-          states.append((x, y))
-        if y + 1 < self.config.input_size[1]:
-          states.append((x, y + 1))
-        else:
-          states.append((x, y))
-        if x + 1 < self.config.input_size[0]:
-          states.append((x + 1, y))
-        else:
-          states.append((x, y))
-        if y - 1 > 0:
-          states.append((x, y - 1))
-        else:
-          states.append((x, y))
-
-        state_idxs = [self.env.get_state_index(x, y) for x, y in states]
-        possible_next_states = [self.env.fake_get_state(idx)[0] for idx in state_idxs]
+        possible_next_states = []  # up, right, down, leftƒpo
+        terminations = []
+        for a in range(self.action_size):
+          s1, r, d, _ = self.env.fake_step(a)
+          possible_next_states.append(s1)
+          terminations.append(d)
 
         feed_dict = {self.local_network.observation: np.stack([s] + possible_next_states)}
         fis = self.sess.run(self.local_network.fi, feed_dict=feed_dict)
         fi_s = fis[0]
 
-        fi_diffs = fi_s - fis[1:]
+        fi_diffs = fis[1:] - fi_s
         cosine_sims = [self.cosine_similarity(d, self.directions[o]) for d in fi_diffs]
         a = np.argmax(cosine_sims)
         max_cosine = cosine_sims[a]
-        if max_cosine == 0:
+
+        if max_cosine == 0 or terminations[a]:
           circle = plt.Circle(
             (j + 0.5, self.config.input_size[0] - i + 0.5 - 1), 0.025, color='k')
           plt.gca().add_artist(circle)
           continue
+
         if a == 0:  # up
           dy = 0.35
         elif a == 1:  # right
@@ -612,6 +599,7 @@ class BaseAgent():
           dy = -0.35
         elif a == 3:  # left
           dx = -0.35
+
         plt.arrow(j + 0.5, self.config.input_size[0] - i + 0.5 - 1, dx, dy,
                   head_width=0.05, head_length=0.05, fc='k', ec='k')
         # plt.text(j, self.config.input_size[0] - i + 0.2 - 1, str(o), color='r')
