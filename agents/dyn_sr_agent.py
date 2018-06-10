@@ -27,7 +27,7 @@ FLAGS = tf.app.flags.FLAGS
 
 
 class DynSRAgent(Visualizer):
-  def __init__(self, game, thread_id, global_step, config, global_netowork):
+  def __init__(self, game, thread_id, global_step, global_episode, config, lr, net_opt, global_netowork, barrier):
     self.name = "worker_" + str(thread_id)
     self.thread_id = thread_id
     self.optimizer = config.network_optimizer
@@ -56,7 +56,7 @@ class DynSRAgent(Visualizer):
     self.summary_writer = tf.summary.FileWriter(self.summary_path + "/worker_" + str(self.thread_id))
     self.summary = tf.Summary()
 
-    self.local_network = config.network(self.name, config, self.action_size)
+    self.local_network = config.network(self.name, config, self.action_size, lr, net_opt)
 
     self.update_local_vars_aux = update_target_graph_aux('global', self.name)
     self.update_local_vars_sf = update_target_graph_sf('global', self.name)

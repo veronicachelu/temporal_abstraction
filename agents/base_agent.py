@@ -161,6 +161,7 @@ class BaseAgent():
       "Saved Model at {}".format(self.model_path + '/model-{}.{}.cptk'.format(self.episode_count, self.total_steps)))
 
   def write_step_summary(self, r, r_i=None):
+    self.write_eigendirection_maps()
     self.summary = tf.Summary()
     for sum in [self.ms_sf, self.ms_aux, self.ms_option, self.ms_term, self.ms_critic]:
       if sum is not None:

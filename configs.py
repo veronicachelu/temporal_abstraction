@@ -128,7 +128,7 @@ def dynamic_SR():
   network = DynSRNetwork
 
   input_size = (13, 13)
-  history_size = 3
+  history_size = 1
   fc_layers = 128,
   sf_layers = 128,
   aux_fc_layers = 507,
@@ -270,11 +270,13 @@ def eigenoc():
 
   decrease_option_prob = False
   delib_margin = 0.0
+  max_length = 1e20
 
   # final_random_option_prob = 0.1
   initial_random_option_prob = 0.1
   # explore_options_episodes = 500
   # lr = 7e-4
+
 
   return locals()
 

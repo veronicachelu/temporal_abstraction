@@ -148,15 +148,7 @@ class EigenOCAgent(BaseAgent):
 
           self.sync_threads()
 
-          if self.name == "worker_0" and self.episode_count >= 0 and\
-              self.config.eigen and self.config.behaviour_agent is None:
-            if self.config.eigen_approach == "SVD":
-              self.recompute_eigenvectors_svd()
-            else:
-              self.recompute_eigenvectors_NN()
 
-          if self.config.sr_matrix is not None:
-            self.load_directions()
           self.init_episode()
           r_i = 0
 
@@ -165,6 +157,16 @@ class EigenOCAgent(BaseAgent):
           # self.option_evaluation(s)
           # self.o_tracker_steps[self.option] += 1
           while not self.done:
+            if self.name == "worker_0" and self.total_steps % 1000 == 0 and \
+                self.config.eigen and self.config.behaviour_agent is None:
+              if self.config.eigen_approach == "SVD":
+                self.recompute_eigenvectors_svd()
+              else:
+                self.recompute_eigenvectors_NN()
+
+            if self.config.sr_matrix is not None and self.total_steps % 1000 == 0:
+              self.load_directions()
+
             self.sync_threads()
             self.policy_evaluation(s)
             # if s_idx is not None:

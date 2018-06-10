@@ -6,7 +6,7 @@ import os
 
 
 class DynSRNetwork():
-  def __init__(self, scope, config, action_size):
+  def __init__(self, scope, config, action_size, lr, net_optim):
     self._scope = scope
     # self.option = 0
     self.nb_states = config.input_size[0] * config.input_size[1]
@@ -28,7 +28,7 @@ class DynSRNetwork():
                                         dtype=tf.float32, name="Inputs")
 
       self.image_summaries = []
-      self.image_summaries.append(tf.summary.image('input', self.observation, max_outputs=30))
+      # self.image_summaries.append(tf.summary.image('input', self.observation, max_outputs=30))
 
       self.summaries_sf = []
       self.summaries_aux = []
@@ -83,7 +83,9 @@ class DynSRNetwork():
           self.summaries_aux.append(tf.contrib.layers.summarize_activation(out))
         self.next_obs = tf.reshape(out, (-1, config.input_size[0], config.input_size[1], config.history_size))
 
-        self.image_summaries.append(tf.summary.image('next_obs', self.next_obs, max_outputs=30))
+        self.image_summaries.append(
+          tf.summary.image('next', tf.concat([self.next_obs, self.target_next_obs], 2),
+                           max_outputs=30))
 
       if scope != 'global':
         self.target_sf = tf.placeholder(shape=[None, self.sf_layers[-1]], dtype=tf.float32, name="target_SF")
