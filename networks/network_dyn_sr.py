@@ -91,7 +91,7 @@ class DynSRNetwork():
           shape=[None, config.input_size[0], config.input_size[1], config.history_size], dtype=tf.float32,
           name="target_next_obs")
         self.image_summaries.append(
-          tf.summary.image('next', tf.concat([self.next_obs, self.target_next_obs], 2),
+          tf.summary.image('next', tf.concat([self.next_obs * 255 * 128, self.target_next_obs * 255 * 128], 2),
                            max_outputs=30))
 
         self.matrix_sf = tf.placeholder(shape=[self.nb_states, self.sf_layers[-1]],
