@@ -560,14 +560,14 @@ class BaseAgent():
           )
           continue
 
-        plt.gca().add_patch(
-          patches.Rectangle(
-            (j, self.config.input_size[0] - i - 1),  # (x,y)
-            1.0,  # width
-            1.0,  # height
-            facecolor=option_colors[o],
-          )
-        )
+        # plt.gca().add_patch(
+        #   patches.Rectangle(
+        #     (j, self.config.input_size[0] - i - 1),  # (x,y)
+        #     1.0,  # width
+        #     1.0,  # height
+        #     facecolor=option_colors[o],
+        #   )
+        # )
 
         x, y = self.env.get_state_xy(idx)
         states = []  # up, right, down, leftƒpo
@@ -614,7 +614,7 @@ class BaseAgent():
           dx = -0.35
         plt.arrow(j + 0.5, self.config.input_size[0] - i + 0.5 - 1, dx, dy,
                   head_width=0.05, head_length=0.05, fc='k', ec='k')
-        plt.text(j, self.config.input_size[0] - i + 0.2 - 1, str(o), color='r')
+        # plt.text(j, self.config.input_size[0] - i + 0.2 - 1, str(o), color='r')
 
       plt.xlim([0, self.config.input_size[1]])
       plt.ylim([0, self.config.input_size[0]])

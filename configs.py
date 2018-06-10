@@ -234,7 +234,7 @@ def test_options():
 def eigenoc():
   locals().update(default())
   target_agent = EigenOCAgent
-  nb_options = 4
+  # nb_options = 4
   history_size = 1
   eigen = True
   network = EignOCNetwork
@@ -256,8 +256,8 @@ def eigenoc():
   sf_matrix_size = 169
   sr_matrix = "static"
   # goal_locations = [(11, 7), (5, 2)] #, (1, 10), (2, 2), (6, 2)]
-  # goal_locations = [(1, 11), (3, 2)]
-  goal_locations = [(11, 7), (5, 2), (1, 10), (2, 2), (6, 2)]
+  goal_locations = [(1, 11),]
+  # goal_locations = [(11, 7), (5, 2), (1, 10), (2, 2), (6, 2)]
   episodes = len(goal_locations)
   move_goal_nb_of_ep = 1000
   env = functools.partial(
