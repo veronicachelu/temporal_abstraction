@@ -78,7 +78,7 @@ class GridWorld:
     mdp_screen[self.agentX, self.agentY] = 3
     mdp_screen[self.goalX, self.goalY] = 2
     self.pix_state = np.expand_dims(mdp_screen, 2)
-    # self.pix_state /= 255.
+    self.pix_state /= 255.
     # mdp_screen[self.MDP == -1] = 255
     # self.pix_state = np.expand_dims(mdp_screen, 2)
     # self.pix_state = np.tile(self.pix_state, [1, 1, 3])
