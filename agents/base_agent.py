@@ -189,11 +189,11 @@ class BaseAgent():
     # tf.logging.warning("Writing step summary....")
 
   def write_episode_summary(self, r):
-    self.tracker()
-    self.write_worker_map()
-    if self.config.eigen:
-      self.write_manager_map()
-      self.write_eigendirection_maps()
+    # self.tracker()
+    # self.write_worker_map()
+    # if self.config.eigen:
+    #   self.write_manager_map()
+    #   self.write_eigendirection_maps()
     # self.viz_options()
     self.summary = tf.Summary()
     if len(self.episode_rewards) != 0:
