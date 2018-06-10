@@ -131,7 +131,7 @@ def dynamic_SR():
   history_size = 1
   fc_layers = 128,
   sf_layers = 128,
-  aux_fc_layers = 507,
+  aux_fc_layers = 169,
   lr = 1e-3
   discount = 0.985
 
