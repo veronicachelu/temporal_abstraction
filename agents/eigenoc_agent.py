@@ -168,7 +168,7 @@ class EigenOCAgent(BaseAgent):
             self.load_directions()
 
           self.init_episode()
-          r_i = 0
+          r_mix = 0
 
           s = self.env.reset()
           s_idx = None
