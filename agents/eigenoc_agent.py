@@ -148,7 +148,7 @@ class EigenOCAgent(BaseAgent):
 
           self.sync_threads()
 
-          if self.name == "worker_0" and self.episode_count > 0 and self.config.eigen and self.config.behaviour_agent is None:
+          if self.name == "worker_0" and self.episode_count > 10 and self.config.eigen and self.config.behaviour_agent is None:
             if self.config.eigen_approach == "SVD":
               self.recompute_eigenvectors_svd()
             else:
@@ -190,7 +190,8 @@ class EigenOCAgent(BaseAgent):
               self.SF_prediction(s1)
             self.next_frame_prediction()
 
-            r_i = self.option_prediction(s, s1)
+            if not self.config.eigen or (self.episode_count > 10 and self.config.eigen):
+              r_i = self.option_prediction(s, s1)
 
             if not self.done and (self.o_term or self.primitive_action):
               self.option_evaluation(s1)
@@ -316,7 +317,7 @@ class EigenOCAgent(BaseAgent):
                          feed_dict=feed_dict)
       eigen_r = self.cosine_similarity((fi[1] - fi[0]), self.directions[self.option])
       r_i = self.config.alpha_r * eigen_r + (1 - self.config.alpha_r) * r
-      print(r_i)
+      # print(r_i)
       # if r_i > 1:
       #   print("ERRROR r_i = {}".format(r_i))
 
@@ -374,6 +375,7 @@ class EigenOCAgent(BaseAgent):
     if self.config.eigen:
       # new_eigenvectors = copy.deepcopy(self.global_network.directions)
       # matrix_sf = []
+      old_directions = self.global_network.directions
       states = []
       for idx in range(self.nb_states):
         s, ii, jj = self.env.fake_get_state(idx)
@@ -382,30 +384,29 @@ class EigenOCAgent(BaseAgent):
 
       feed_dict = {self.local_network.observation: states}
       sfs = self.sess.run(self.local_network.sf, feed_dict=feed_dict)
-      # _, eigenval, eigenvect = np.linalg.svd(sfs, full_matrices=False)
-      feed_dict = {self.local_network.matrix_sf: [sfs]}
-      eigenvect = self.sess.run(self.local_network.eigenvectors,
-                                feed_dict=feed_dict)
-      eigenvect = eigenvect[0]
+      _, eigenval, eigenvect = np.linalg.svd(sfs, full_matrices=False)
+      # feed_dict = {self.local_network.matrix_sf: [sfs]}
+      # eigenvect = self.sess.run(self.local_network.eigenvectors,
+      #                           feed_dict=feed_dict)
+      # eigenvect = eigenvect[0]
 
-      new_eigenvectors = copy.deepcopy(
-        eigenvect[self.config.first_eigenoption:self.config.nb_options + self.config.first_eigenoption])
+      new_eigenvectors = eigenvect[
+                         self.config.first_eigenoption: (self.config.nb_options // 2) + self.config.first_eigenoption]
+      self.global_network.directions = np.concatenate((new_eigenvectors, (-1) * new_eigenvectors))
+      self.directions = self.global_network.directions
 
       min_similarity = np.min(
-        [self.cosine_similarity(a, b) for a, b in zip(self.global_network.directions, new_eigenvectors)])
+        [self.cosine_similarity(a, b) for a, b in zip(old_directions, self.directions)])
       max_similarity = np.max(
-        [self.cosine_similarity(a, b) for a, b in zip(self.global_network.directions, new_eigenvectors)])
+        [self.cosine_similarity(a, b) for a, b in zip(old_directions, self.directions)])
       mean_similarity = np.mean(
-        [self.cosine_similarity(a, b) for a, b in zip(self.global_network.directions, new_eigenvectors)])
+        [self.cosine_similarity(a, b) for a, b in zip(old_directions, self.directions)])
       self.summary = tf.Summary()
       self.summary.value.add(tag='Eigenvectors/Min similarity', simple_value=float(min_similarity))
       self.summary.value.add(tag='Eigenvectors/Max similarity', simple_value=float(max_similarity))
       self.summary.value.add(tag='Eigenvectors/Mean similarity', simple_value=float(mean_similarity))
       self.summary_writer.add_summary(self.summary, self.episode_count)
       self.summary_writer.flush()
-      # tf.logging.warning("Min cosine similarity between old eigenvectors and recomputed onesis {}".format(min_similarity))
-      self.global_network.directions = new_eigenvectors
-      self.directions = self.global_network.directions
 
   def train_sf(self, bootstrap_sf):
     rollout = np.array(self.episode_buffer_sf)
