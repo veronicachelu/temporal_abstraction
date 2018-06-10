@@ -13,6 +13,8 @@ sns.set()
 import random
 import matplotlib.pyplot as plt
 from matplotlib import cm
+import seaborn as sns
+sns.set()
 from auxilary.policy_iteration import PolicyIteration
 
 FLAGS = tf.app.flags.FLAGS
@@ -167,21 +169,20 @@ class BaseAgent():
       if sum is not None:
         self.summary_writer.add_summary(sum, self.total_steps)
 
-    # if self.total_steps > self.config.eigen_exploration_steps:
-    # self.summary.value.add(tag='Step/Reward', simple_value=r)
-    # if self.config.eigen and not self.primitive_action and r_i is not None:
-    #   self.summary.value.add(tag='Step/EigReward', simple_value=r_i)
-    # self.summary.value.add(tag='Step/Action', simple_value=self.action)
-    # self.summary.value.add(tag='Step/Option', simple_value=self.option)
-    # self.summary.value.add(tag='Step/Q', simple_value=self.q_value)
-    # if self.config.eigen and not self.primitive_action and self.eigen_q_value is not None:
-    #   self.summary.value.add(tag='Step/EigenQ', simple_value=self.eigen_q_value)
-    #   # self.summary.value.add(tag='Step/EigenV', simple_value=self.evalue)
-    # self.summary.value.add(tag='Step/V', simple_value=self.value)
-    # self.summary.value.add(tag='Step/Term', simple_value=int(self.o_term))
-    # self.summary.value.add(tag='Step/R', simple_value=self.R)
-    # if self.config.eigen:
-    #   self.summary.value.add(tag='Step/EigenR', simple_value=self.eigen_R)
+    self.summary.value.add(tag='Step/Reward', simple_value=r)
+    if self.config.eigen and not self.primitive_action and r_i is not None:
+      self.summary.value.add(tag='Step/EigReward', simple_value=r_i)
+    self.summary.value.add(tag='Step/Action', simple_value=self.action)
+    self.summary.value.add(tag='Step/Option', simple_value=self.option)
+    self.summary.value.add(tag='Step/Q', simple_value=self.q_value)
+    if self.config.eigen and not self.primitive_action and self.eigen_q_value is not None:
+      self.summary.value.add(tag='Step/EigenQ', simple_value=self.eigen_q_value)
+      # self.summary.value.add(tag='Step/EigenV', simple_value=self.evalue)
+    self.summary.value.add(tag='Step/V', simple_value=self.value)
+    self.summary.value.add(tag='Step/Term', simple_value=int(self.o_term))
+    self.summary.value.add(tag='Step/R', simple_value=self.R)
+    if self.config.eigen:
+      self.summary.value.add(tag='Step/EigenR', simple_value=self.eigen_R)
 
     self.summary_writer.add_summary(self.summary, self.total_steps)
     self.summary_writer.flush()
@@ -819,3 +820,106 @@ class BaseAgent():
 
     plt.savefig(os.path.join(self.stats_path, "Worker_map_{}.png".format(self.episode_count)))
     plt.close()
+
+  def plot_policy_and_value_function_approx(self, eigenvectors):
+    folder = os.path.join(self.stats_path, "policies_{}".format(self.episode_count))
+    tf.gfile.MakeDirs(folder)
+    # feed_dict = {self.orig_net.matrix_sf: self.matrix_sf}
+    # s, v = sess.run([self.orig_net.s, self.orig_net.v], feed_dict=feed_dict)
+    # u, s, v = np.linalg.svd(self.the_sr_matrix)
+    # eigenvalues = s
+    # eigenvectors = v
+
+    epsilon = 0.0001
+    options = []
+    with self.sess.as_default(), self.sess.graph.as_default():
+      self.env.define_network(self.local_network)
+      self.env.define_session(self.sess)
+      for i in range(len(eigenvectors)):
+        polIter = PolicyIteration(0.9, self.env, augmentActionSet=True)
+        self.env.define_reward_function(eigenvectors[i])
+        V, pi = polIter.solvePolicyIteration()
+
+        for j in range(len(V)):
+          if V[j] < epsilon:
+            pi[j] = len(self.env.get_action_set())
+
+        self.plot_value_function(V[0:self.nb_states], str(i) + "_", folder)
+        self.plot_policy(pi[0:self.nb_states], str(i) + '_', folder)
+
+        options.append(pi[0:self.nb_states])
+          # optionsActionSet = self.env.get_action_set()
+          # np.append(optionsActionSet, ['terminate'])
+          # actionSetPerOption.append(optionsActionSet)
+
+  def plot_value_function(self, value_function, prefix, folder=None):
+    if folder is None:
+      folder = self.summary_path
+    '''3d plot of a value function.'''
+    fig, ax = plt.subplots(subplot_kw=dict(projection='3d'))
+    X, Y = np.meshgrid(np.arange(self.config.input_size[1]), np.arange(self.config.input_size[0]))
+    Z = value_function.reshape(self.config.input_size[0], self.config.input_size[1])
+
+    for i in range(len(X)):
+      for j in range(int(len(X[i]) / 2)):
+        tmp = X[i][j]
+        X[i][j] = X[i][len(X[i]) - j - 1]
+        X[i][len(X[i]) - j - 1] = tmp
+
+    my_col = cm.jet(np.random.rand(Z.shape[0], Z.shape[1]))
+
+    ax.plot_surface(X, Y, Z, rstride=1, cstride=1,
+                    cmap=plt.get_cmap('jet'))
+    plt.gca().view_init(elev=30, azim=30)
+    plt.savefig(os.path.join(folder, "SuccessorFeatures" + prefix + 'value_function.png'))
+    plt.close()
+
+  def plot_policy(self, policy, prefix, folder=None):
+    if folder is None:
+      folder = self.summary_path
+    plt.clf()
+    for idx in range(len(policy)):
+      i, j = self.env.get_state_xy(idx)
+
+      dx = 0
+      dy = 0
+      if policy[idx] == 0:  # up
+        dy = 0.35
+      elif policy[idx] == 1:  # right
+        dx = 0.35
+      elif policy[idx] == 2:  # down
+        dy = -0.35
+      elif policy[idx] == 3:  # left
+        dx = -0.35
+      elif self.env.not_wall(i, j) and policy[idx] == 4:  # termination
+        circle = plt.Circle(
+          (j + 0.5, self.config.input_size[0] - i + 0.5 - 1), 0.025, color='k')
+        plt.gca().add_artist(circle)
+
+      if self.env.not_wall(i, j):
+        plt.arrow(j + 0.5, self.config.input_size[0] - i + 0.5 - 1, dx, dy,
+                  head_width=0.05, head_length=0.05, fc='k', ec='k')
+      else:
+        plt.gca().add_patch(
+          patches.Rectangle(
+            (j, self.config.input_size[0] - i - 1),  # (x,y)
+            1.0,  # width
+            1.0,  # height
+            facecolor="gray"
+          )
+        )
+
+    plt.xlim([0, self.config.input_size[1]])
+    plt.ylim([0, self.config.input_size[0]])
+
+    for i in range(self.config.input_size[1]):
+      plt.axvline(i, color='k', linestyle=':')
+    plt.axvline(self.config.input_size[1], color='k', linestyle=':')
+
+    for j in range(self.config.input_size[0]):
+      plt.axhline(j, color='k', linestyle=':')
+    plt.axhline(self.config.input_size[0], color='k', linestyle=':')
+
+    plt.savefig(os.path.join(folder, "SuccessorFeatures_" + prefix + 'policy.png'))
+    plt.close()
+

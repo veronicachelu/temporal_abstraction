@@ -16,8 +16,9 @@ class EignOCNetwork(BaseNetwork):
   def build_feature_net(self, out):
     with tf.variable_scope("fi"):
       for i, nb_filt in enumerate(self.fc_layers):
-        out = layers.fully_connected(out, num_outputs=nb_filt, weights_regularizer=tf.contrib.layers.l2_regularizer(scale=0.1),
-                                     activation_fn=None, weights_initializer=layers.xavier_initializer(uniform=False),
+        out = layers.fully_connected(out, num_outputs=nb_filt,
+                                     activation_fn=None,
+                                     # weights_initializer=layers.xavier_initializer(uniform=False),
                                      # biases_initializer=None,
                                      variables_collections=tf.get_collection("variables"),
                                      outputs_collections="activations", scope="fi_{}".format(i))
@@ -28,7 +29,7 @@ class EignOCNetwork(BaseNetwork):
           # out = tf.contrib.layers.layer_norm(out, scale=True, center=True)
 
       self.fi = out
-      out = self.layer_norm_fn(self.fi, relu=True)
+      out = tf.nn.relu(out)
       # out = tf.contrib.layers.layer_norm(out, scale=False, center=False)
 
       # out = layers.layer_norm(out, scale=False, center=False)
@@ -50,12 +51,12 @@ class EignOCNetwork(BaseNetwork):
     return x
 
   def build_next_frame_prediction_net(self):
-    with tf.variable_scope("aux_action_fc"):
+    with tf.variable_scope("action_fc"):
       self.actions_placeholder = tf.placeholder(shape=[None], dtype=tf.float32, name="Actions")
       actions = layers.fully_connected(self.actions_placeholder[..., None], num_outputs=self.fc_layers[-1],
                                        activation_fn=None,
                                        variables_collections=tf.get_collection("variables"),
-                                       outputs_collections="activations", scope="fc")
+                                       outputs_collections="activations", scope="action_fc")
 
     with tf.variable_scope("aux_next_frame"):
       out = tf.add(self.fi, actions)
@@ -63,7 +64,7 @@ class EignOCNetwork(BaseNetwork):
         out = layers.fully_connected(out, num_outputs=nb_filt,
                                      activation_fn=None,
                                      variables_collections=tf.get_collection("variables"),
-                                     outputs_collections="activations", scope="fc_{}".format(i))
+                                     outputs_collections="activations", scope="aux_fc_{}".format(i))
         if i < len(self.aux_fc_layers) - 1:
           out = tf.nn.relu(out)
         self.summaries_aux.append(tf.contrib.layers.summarize_activation(out))
@@ -75,7 +76,7 @@ class EignOCNetwork(BaseNetwork):
       self.observation = tf.placeholder(
         shape=[None, self.config.input_size[0], self.config.input_size[1], self.config.history_size],
         dtype=tf.float32, name="Inputs")
-      out = self.observation / np.float32(255)
+      out = self.observation
       out = layers.flatten(out, scope="flatten")
 
       self.decrease_prob_of_random_option = tf.assign_sub(self.random_option_prob, tf.constant(

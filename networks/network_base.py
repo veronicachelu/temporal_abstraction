@@ -172,7 +172,7 @@ class BaseNetwork():
                       self.get_o_term(self.only_non_primitve_options))
 
     self.image_summaries.append(
-      tf.summary.image('next', tf.concat([self.next_obs * 255 * 128, self.target_next_obs * 255 * 128], 2), max_outputs=30))
+      tf.summary.image('next', tf.concat([self.next_obs, self.target_next_obs], 2), max_outputs=30))
 
     if self.config.sr_matrix == "dynamic":
       self.sf_matrix_size = self.config.sf_matrix_size

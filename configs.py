@@ -140,9 +140,9 @@ def dynamic_SR():
   observation_steps = 1000
   steps = 1e6   # 1M
   training_steps = 5e5
-  summary_interval = 10
-  checkpoint_interval = 10
-  max_length = 1e20
+  summary_interval = 1000
+  checkpoint_interval = 10000
+  max_length = 1000
 
   return locals()
 
@@ -267,10 +267,11 @@ def eigenoc():
   nb_options = 8
   lr = 1e-3
   discount = 0.985
+  discount_option = 0.9
 
   decrease_option_prob = False
   delib_margin = 0.0
-  max_length = 1e20
+  max_length = 1000
 
   # final_random_option_prob = 0.1
   initial_random_option_prob = 0.1

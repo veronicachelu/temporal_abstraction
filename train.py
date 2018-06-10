@@ -43,7 +43,7 @@ def train(config, logdir):
         b = Barrier(config.num_agents)
       if FLAGS.task == "matrix":
         with tf.device("/cpu:0"):
-          agent = config.target_agent(envs[0], 0, global_step, config, None)
+          agent = config.target_agent(envs[0], 0, global_step, global_episode, config, None, None, None, None)
       elif FLAGS.task == "option":
         with tf.device("/cpu:0"):
           agent = config.target_agent(envs[0], 0, global_step, config, None)
@@ -142,7 +142,7 @@ if __name__ == '__main__':
     'logdir', './logdir',
     'Base directory to store logs.')
   tf.app.flags.DEFINE_string(
-    'config', "dynamic_SR",
+    'config', "eigenoc",
     'Configuration to execute.')
   tf.app.flags.DEFINE_boolean(
     'train', True,
@@ -156,6 +156,6 @@ if __name__ == '__main__':
     'Task nature')
   tf.app.flags.DEFINE_string(
     'load_from', None,
-    # 'load_from', "./logdir/13-integrated",
+    # 'load_from', "./logdir/6-dynamic_SR",
     'Load directory to load models from.')
   tf.app.run()

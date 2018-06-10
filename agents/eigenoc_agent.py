@@ -17,6 +17,7 @@ import matplotlib.pyplot as plt
 import copy
 from threading import Barrier, Thread
 from tools.timer import Timer
+from auxilary.policy_iteration import PolicyIteration
 
 FLAGS = tf.app.flags.FLAGS
 
@@ -148,39 +149,38 @@ class EigenOCAgent(BaseAgent):
 
           self.sync_threads()
 
+          if self.name == "worker_0" and self.episode_count > 0 and \
+              self.config.eigen and self.config.behaviour_agent is None:
+            if self.config.eigen_approach == "SVD":
+              self.recompute_eigenvectors_svd()
+            else:
+              self.recompute_eigenvectors_NN()
+
+          if self.config.sr_matrix is not None:
+            self.load_directions()
 
           self.init_episode()
           r_i = 0
 
           s = self.env.reset()
           s_idx = None
-          # self.option_evaluation(s)
-          # self.o_tracker_steps[self.option] += 1
+          self.option_evaluation(s)
+          self.o_tracker_steps[self.option] += 1
           while not self.done:
-            if self.name == "worker_0" and self.total_steps % 1000 == 0 and \
-                self.config.eigen and self.config.behaviour_agent is None:
-              if self.config.eigen_approach == "SVD":
-                self.recompute_eigenvectors_svd()
-              else:
-                self.recompute_eigenvectors_NN()
-
-            if self.config.sr_matrix is not None and self.total_steps % 1000 == 0:
-              self.load_directions()
-
             self.sync_threads()
             self.policy_evaluation(s)
-            # if s_idx is not None:
-            #   self.stats_actions[s_idx][self.action] += 1
-            #   self.stats_options[s_idx][self.option] += 1
+            if s_idx is not None:
+              self.stats_actions[s_idx][self.action] += 1
+              self.stats_options[s_idx][self.option] += 1
 
             s1, r, self.done, s1_idx = self.env.step(self.action)
 
             self.episode_reward += r
             self.reward = np.clip(r, -1, 1)
 
-            # self.option_terminate(s1)
+            self.option_terminate(s1)
 
-            # self.reward_deliberation()
+            self.reward_deliberation()
 
             if self.done:
               s1 = s
@@ -197,11 +197,11 @@ class EigenOCAgent(BaseAgent):
             # if not self.config.eigen or (self.episode_count > 0 and self.config.eigen):
             #   r_i = self.option_prediction(s, s1)
 
-            # if not self.done and (self.o_term or self.primitive_action):
-            #   self.option_evaluation(s1)
+            if not self.done and (self.o_term or self.primitive_action):
+              self.option_evaluation(s1)
 
-            # if not self.done:
-            #   self.o_tracker_steps[self.option] += 1
+            if not self.done:
+              self.o_tracker_steps[self.option] += 1
 
             if self.total_steps % self.config.steps_checkpoint_interval == 0 and self.name == 'worker_0':
               self.save_model()
@@ -271,43 +271,43 @@ class EigenOCAgent(BaseAgent):
     self.episode_oterm.append(self.o_term)
 
   def policy_evaluation(self, s):
-    self.action = np.random.choice(range(self.action_size))
-    self.primitive_action = True
-    self.option = self.action
-    # feed_dict = {self.local_network.observation: np.stack([s])}
-    #
-    # if self.config.eigen:
-    #   tensor_list = [self.local_network.options, self.local_network.v, self.local_network.q_val,
-    #                  self.local_network.eigen_q_val, self.local_network.eigenv]
-    #   options, value, q_value, eigen_q_value, evalue = self.sess.run(tensor_list, feed_dict=feed_dict)
-    #   if not self.primitive_action:
-    #     self.eigen_q_value = eigen_q_value[0, self.option]
-    #     self.episode_eigen_q_values.append(self.eigen_q_value)
-    #     pi = options[0, self.option]
-    #     self.action = np.random.choice(pi, p=pi)
-    #     self.action = np.argmax(pi == self.action)
-    #     self.evalue = evalue[0]
-    #   else:
-    #     self.action = self.option - self.nb_options
-    #   self.q_value = q_value[0, self.option]
-    #   self.q_values = q_value[0]
-    #   self.value = value[0]
-    # else:
-    #   tensor_list = [self.local_network.options, self.local_network.v, self.local_network.q_val]
-    #   options, value, q_value = self.sess.run(tensor_list, feed_dict=feed_dict)
-    #
-    #   if self.config.include_primitive_options and self.primitive_action:
-    #     self.action = self.option - self.nb_options
-    #   else:
-    #     pi = options[0, self.option]
-    #     self.action = np.random.choice(pi, p=pi)
-    #     self.action = np.argmax(pi == self.action)
-    #
-    #   self.q_value = q_value[0, self.option]
-    #   self.q_values = q_value[0]
-    #   self.value = value[0]
-    #   self.episode_values.append(self.value)
-    #   self.episode_q_values.append(self.q_value)
+    # self.action = np.random.choice(range(self.action_size))
+    # self.primitive_action = True
+    # self.option = self.action
+    feed_dict = {self.local_network.observation: np.stack([s])}
+
+    if self.config.eigen:
+      tensor_list = [self.local_network.options, self.local_network.v, self.local_network.q_val,
+                     self.local_network.eigen_q_val, self.local_network.eigenv]
+      options, value, q_value, eigen_q_value, evalue = self.sess.run(tensor_list, feed_dict=feed_dict)
+      if not self.primitive_action:
+        self.eigen_q_value = eigen_q_value[0, self.option]
+        self.episode_eigen_q_values.append(self.eigen_q_value)
+        pi = options[0, self.option]
+        self.action = np.random.choice(pi, p=pi)
+        self.action = np.argmax(pi == self.action)
+        self.evalue = evalue[0]
+      else:
+        self.action = self.option - self.nb_options
+      self.q_value = q_value[0, self.option]
+      self.q_values = q_value[0]
+      self.value = value[0]
+    else:
+      tensor_list = [self.local_network.options, self.local_network.v, self.local_network.q_val]
+      options, value, q_value = self.sess.run(tensor_list, feed_dict=feed_dict)
+
+      if self.config.include_primitive_options and self.primitive_action:
+        self.action = self.option - self.nb_options
+      else:
+        pi = options[0, self.option]
+        self.action = np.random.choice(pi, p=pi)
+        self.action = np.argmax(pi == self.action)
+
+      self.q_value = q_value[0, self.option]
+      self.q_values = q_value[0]
+      self.value = value[0]
+      self.episode_values.append(self.value)
+      self.episode_q_values.append(self.q_value)
     self.episode_actions.append(self.action)
 
   def store_general_info(self, s, s1, a):
@@ -380,8 +380,8 @@ class EigenOCAgent(BaseAgent):
 
   def recompute_eigenvectors_svd(self):
     if self.config.eigen:
-      # new_eigenvectors = copy.deepcopy(self.global_network.directions)
-      old_directions = self.global_network.directions
+      old_directions = copy.deepcopy(self.global_network.directions)
+
       matrix_sf = np.zeros((self.nb_states, self.config.sf_layers[-1]))
       for idx in range(self.nb_states):
         s, ii, jj = self.env.get_state(idx)
@@ -392,8 +392,10 @@ class EigenOCAgent(BaseAgent):
       import seaborn as sns
       sns.plt.clf()
       ax = sns.heatmap(matrix_sf, cmap="Blues")
+      ax.set(xlabel='SR_vect_size=128', ylabel='Grid states/positions')
       sns.plt.savefig(os.path.join(self.summary_path, 'SR_matrix.png'))
       sns.plt.close()
+      np.savetxt(os.path.join(self.summary_path, 'Matrix_SF_numeric.txt'), matrix_sf, fmt='%-7.2f')
 
       _, eigenval, eigenvect = np.linalg.svd(matrix_sf)
       # for idx in range(self.nb_states):
@@ -426,6 +428,8 @@ class EigenOCAgent(BaseAgent):
       self.summary.value.add(tag='Eigenvectors/Mean similarity', simple_value=float(mean_similarity))
       self.summary_writer.add_summary(self.summary, self.episode_count)
       self.summary_writer.flush()
+
+      self.plot_policy_and_value_function_approx(self.directions)
 
   def train_sf(self, bootstrap_sf):
     rollout = np.array(self.episode_buffer_sf)
