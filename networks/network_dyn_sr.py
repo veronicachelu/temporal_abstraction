@@ -36,12 +36,12 @@ class DynSRNetwork():
       out = self.observation
       out = layers.flatten(out, scope="flatten")
 
-      with tf.variable_scope("fc"):
+      with tf.variable_scope("fi"):
         for i, nb_filt in enumerate(self.fc_layers):
           out = layers.fully_connected(out, num_outputs=nb_filt,
                                        activation_fn=None,
                                        variables_collections=tf.get_collection("variables"),
-                                       outputs_collections="activations", scope="fc_{}".format(i))
+                                       outputs_collections="activations", scope="fc_fi_{}".format(i))
 
           if i < len(self.fc_layers) - 1:
             # out = layer_norm_fn(out, relu=True)
@@ -83,15 +83,13 @@ class DynSRNetwork():
           self.summaries_aux.append(tf.contrib.layers.summarize_activation(out))
         self.next_obs = tf.reshape(out, (-1, config.input_size[0], config.input_size[1], config.history_size))
 
-
-
       if scope != 'global':
         self.target_sf = tf.placeholder(shape=[None, self.sf_layers[-1]], dtype=tf.float32, name="target_SF")
         self.target_next_obs = tf.placeholder(
           shape=[None, config.input_size[0], config.input_size[1], config.history_size], dtype=tf.float32,
           name="target_next_obs")
         self.image_summaries.append(
-          tf.summary.image('next', tf.concat([self.next_obs * 255 * 128, self.target_next_obs * 255 * 128], 2),
+          tf.summary.image('next', tf.concat([self.next_obs, self.target_next_obs], 2),
                            max_outputs=30))
 
         self.matrix_sf = tf.placeholder(shape=[self.nb_states, self.sf_layers[-1]],
