@@ -49,10 +49,10 @@ class DynSRNetwork():
           self.summaries_sf.append(tf.contrib.layers.summarize_activation(out))
           self.summaries_aux.append(tf.contrib.layers.summarize_activation(out))
         self.fi = out
+        self.fi_relu = self.layer_norm_fn(self.fi, relu=True)
 
       with tf.variable_scope("succ_feat"):
-        out = self.layer_norm_fn(self.fi, relu=True)
-        out = tf.stop_gradient(out)
+        out = tf.stop_gradient(self.fi_relu)
         for i, nb_filt in enumerate(self.sf_layers):
           out = layers.fully_connected(out, num_outputs=nb_filt,
                                        activation_fn=None,
@@ -66,12 +66,12 @@ class DynSRNetwork():
       with tf.variable_scope("action_fc"):
         self.actions_placeholder = tf.placeholder(shape=[None], dtype=tf.float32, name="Actions")
         actions = layers.fully_connected(self.actions_placeholder[..., None], num_outputs=self.fc_layers[-1],
-                                         activation_fn=None,
+                                         activation_fn=tf.nn.relu6,
                                          variables_collections=tf.get_collection("variables"),
                                          outputs_collections="activations", scope="action_fc{}".format(i))
 
       with tf.variable_scope("aux_fc"):
-        out = tf.add(self.fi, actions)
+        out = tf.add(self.fi_relu, actions)
         # out = tf.nn.relu(out)
         for i, nb_filt in enumerate(self.aux_fc_layers):
           out = layers.fully_connected(out, num_outputs=nb_filt,
