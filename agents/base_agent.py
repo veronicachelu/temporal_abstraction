@@ -12,6 +12,8 @@ import seaborn as sns
 sns.set()
 import random
 import matplotlib.pyplot as plt
+from matplotlib import cm
+from auxilary.policy_iteration import PolicyIteration
 
 FLAGS = tf.app.flags.FLAGS
 
@@ -714,7 +716,7 @@ class BaseAgent():
           dx = -0.35
         plt.arrow(j + 0.5, self.config.input_size[0] - i + 0.5 - 1, dx, dy,
                   head_width=0.05, head_length=0.05, fc='k', ec='k')
-        plt.text(j, self.config.input_size[0] - i + 0.2 - 1, str(o), color='r')
+        plt.text(j, self.config.input_size[0] - i + 0.2 - 1, str(a), color='r')
 
       else:
         a = o - self.nb_options
@@ -728,7 +730,7 @@ class BaseAgent():
           dx = -0.35
         plt.arrow(j + 0.5, self.config.input_size[0] - i + 0.5 - 1, dx, dy,
                   head_width=0.05, head_length=0.05, fc='r', ec='r')
-        plt.text(j, self.config.input_size[0] - i + 0.2 - 1, str(o), color='r')
+        plt.text(j, self.config.input_size[0] - i + 0.2 - 1, str(a), color='r')
 
 
 
@@ -828,4 +830,3 @@ class BaseAgent():
 
     plt.savefig(os.path.join(self.stats_path, "Worker_map_{}.png".format(self.episode_count)))
     plt.close()
-

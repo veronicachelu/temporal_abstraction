@@ -84,8 +84,8 @@ class EigenOCAgentDyn(EigenOCAgent):
             self.next_frame_prediction()
 
             # if self.episode_count > 0:
-            if self.episode_count > 0 and (not self.config.eigen or (self.config.eigen and
-                                                             len(self.directions) == self.nb_options)):
+            if not self.config.eigen or (self.episode_count > 10 and self.config.eigen and
+                                                             len(self.directions) == self.nb_options):
               r_i = self.option_prediction(s, s1)
 
             if not self.done and (self.o_term or self.primitive_action):
@@ -255,8 +255,7 @@ class EigenOCAgentDyn(EigenOCAgent):
       if self.global_network.directions_init:
         self.global_network.directions = self.associate_closest_vectors(old_directions, eigenvect)
       else:
-        new_eigenvectors = eigenvect[
-                           self.config.first_eigenoption:(self.config.nb_options // 2) + self.config.first_eigenoption]
+        new_eigenvectors = eigenvect[self.config.first_eigenoption: (self.config.nb_options // 2) + self.config.first_eigenoption]
         self.global_network.directions = np.concatenate((new_eigenvectors, (-1) * new_eigenvectors))
         self.global_network.directions_init = True
       self.directions = self.global_network.directions

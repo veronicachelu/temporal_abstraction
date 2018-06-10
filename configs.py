@@ -279,7 +279,7 @@ def eigenoc():
 def eigenoc_dyn():
   locals().update(eigenoc())
   target_agent = EigenOCAgentDyn
-  sf_matrix_size = 1000
+  sf_matrix_size = 10000
   sr_matrix = "dynamic"
   nb_options = 8
   include_primitive_options = False
@@ -287,7 +287,7 @@ def eigenoc_dyn():
   eigen_approach = "SVD"
   final_random_option_prob = 0.1
   initial_random_option_prob = 1
-  explore_options_episodes = 1
+  explore_options_episodes = 10
   decrease_option_prob = True
   # goal_locations = [(11, 7), (5, 2), (1, 10), (2, 2), (6, 2)]
   # move_goal_nb_of_ep = 1000
