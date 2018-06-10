@@ -83,16 +83,16 @@ class DynSRNetwork():
           self.summaries_aux.append(tf.contrib.layers.summarize_activation(out))
         self.next_obs = tf.reshape(out, (-1, config.input_size[0], config.input_size[1], config.history_size))
 
-        self.image_summaries.append(
-          tf.summary.image('next', tf.concat([self.next_obs, self.target_next_obs], 2),
-                           max_outputs=30))
+
 
       if scope != 'global':
         self.target_sf = tf.placeholder(shape=[None, self.sf_layers[-1]], dtype=tf.float32, name="target_SF")
         self.target_next_obs = tf.placeholder(
           shape=[None, config.input_size[0], config.input_size[1], config.history_size], dtype=tf.float32,
           name="target_next_obs")
-        self.image_summaries.append(tf.summary.image('target_next_obs', self.target_next_obs, max_outputs=30))
+        self.image_summaries.append(
+          tf.summary.image('next', tf.concat([self.next_obs, self.target_next_obs], 2),
+                           max_outputs=30))
 
         self.matrix_sf = tf.placeholder(shape=[self.nb_states, self.sf_layers[-1]],
                                         dtype=tf.float32, name="matrix_sf")
