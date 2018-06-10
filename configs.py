@@ -264,7 +264,7 @@ def eigenoc():
     GridWorld, goal_locations, "./mdps/4rooms.mdp")
   tau = 0.1
   eigen_approach = "SVD"
-
+  nb_options = 8
 
   decrease_option_prob = False
   delib_margin = 0.0
