@@ -40,7 +40,7 @@ class EigenOCAgentDyn(EigenOCAgent):
             coord.request_stop()
             return 0
 
-          self.sync_threads()
+          self.sync_threads(force=True)
 
           if self.name == "worker_0" and self.episode_count > 0 and \
               self.config.eigen and self.config.behaviour_agent is None:
@@ -252,13 +252,13 @@ class EigenOCAgentDyn(EigenOCAgent):
 
   def recompute_eigenvectors_dynamic_SVD(self):
     if self.config.eigen:
-      import seaborn as sns
-      sns.plt.clf()
-      ax = sns.heatmap(self.global_network.sf_matrix_buffer, cmap="Blues")
-      ax.set(xlabel='SR_vect_size=128', ylabel='Grid states/positions')
-      sns.plt.savefig(os.path.join(self.summary_path, 'SR_matrix.png'))
-      sns.plt.close()
-      np.savetxt(os.path.join(self.summary_path, 'Matrix_SF_numeric.txt'), self.global_network.sf_matrix_buffer, fmt='%-7.2f')
+      # import seaborn as sns
+      # sns.plt.clf()
+      # ax = sns.heatmap(self.global_network.sf_matrix_buffer, cmap="Blues")
+      # ax.set(xlabel='SR_vect_size=128', ylabel='Grid states/positions')
+      # sns.plt.savefig(os.path.join(self.summary_path, 'SR_matrix.png'))
+      # sns.plt.close()
+      # np.savetxt(os.path.join(self.summary_path, 'Matrix_SF_numeric.txt'), self.global_network.sf_matrix_buffer, fmt='%-7.2f')
 
       old_directions = self.global_network.directions
       feed_dict = {self.local_network.matrix_sf: [self.global_network.sf_matrix_buffer]}
