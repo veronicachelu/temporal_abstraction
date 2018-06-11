@@ -107,11 +107,15 @@ class BaseNetwork():
                                                 outputs_collections="activations", scope="eigen_q_val")
       self.summaries_option.append(tf.contrib.layers.summarize_activation(self.eigen_q_val))
     if self.config.include_primitive_options:
-      concatenated_eigen_q = tf.concat([self.q_val[:, self.config.nb_options:], self.eigen_q_val], 1)
+      concatenated_eigen_q = tf.concat([self.eigen_q_val, tf.zeros_like(self.q_val[:, self.config.nb_options:])], 1)
     else:
       concatenated_eigen_q = self.eigen_q_val
-    self.eigenv = tf.identity(tf.reduce_max(concatenated_eigen_q, axis=1) * \
-                  (1 - self.random_option_prob) + \
+
+    batch_indices = tf.range(tf.shape(self.eigen_q_val)[0])
+    indices = tf.stack([batch_indices, self.max_options], axis=1)
+    max_eigen_q = tf.gather_nd(self.concatenated_eigen_q, indices)
+
+    self.eigenv = tf.identity(max_eigen_q * (1 - self.random_option_prob) + \
                   self.random_option_prob * tf.reduce_mean(concatenated_eigen_q, axis=1), name="eigen_V")
     self.summaries_option.append(tf.contrib.layers.summarize_activation(self.eigenv))
 

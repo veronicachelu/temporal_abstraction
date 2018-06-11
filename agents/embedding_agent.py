@@ -44,22 +44,28 @@ class EmbeddingAgent(EigenOCAgentDyn):
             coord.request_stop()
             return 0
 
-          self.sync_threads(force=True)
+          self.sync_threads()
 
-          if self.name == "worker_0" and self.episode_count > 0 and self.config.eigen and self.config.behaviour_agent is None:
+          if self.name == "worker_0" and self.episode_count > 0 and self.config.behaviour_agent is None:
             if self.config.eigen_approach == "SVD":
               self.recompute_eigenvectors_dynamic_SVD()
 
           if self.config.sr_matrix is not None:
             self.load_directions()
+
           self.init_episode()
+          r_mix = 0
 
           s = self.env.reset()
-          self.option_evaluation(s, None)
+          s_idx = None
+          self.option_evaluation(s)
           self.o_tracker_steps[self.option] += 1
           while not self.done:
             self.sync_threads()
             self.policy_evaluation(s)
+            if s_idx is not None:
+              self.stats_actions[s_idx][self.action] += 1
+              self.stats_options[s_idx][self.option] += 1
 
             s1, r, self.done, s1_idx = self.env.step(self.action)
 
@@ -72,6 +78,7 @@ class EmbeddingAgent(EigenOCAgentDyn):
 
             if self.done:
               s1 = s
+              s1_idx = s_idx
 
             self.episode_buffer_sf.append([s, s1, self.action, self.reward, self.fi])
 
@@ -84,24 +91,26 @@ class EmbeddingAgent(EigenOCAgentDyn):
             self.old_primitive_action = self.primitive_action
 
             if not self.done and (self.o_term or self.primitive_action):
-              self.option_evaluation(s1, s1_idx)
+              self.option_evaluation(s1)
 
             if not self.done:
               self.o_tracker_steps[self.option] += 1
 
-            self.option_prediction(s, s1, r)
+            if self.episode_count > 0:
+              r_mix = self.option_prediction(s, s1)
 
             if self.total_steps % self.config.steps_checkpoint_interval == 0 and self.name == 'worker_0':
               self.save_model()
 
             if self.total_steps % self.config.steps_summary_interval == 0 and self.name == 'worker_0':
-              self.write_step_summary(r)
+              self.write_step_summary(r, r_mix)
 
             s = s1
+            s_idx = s1_idx
             self.episode_len += 1
             self.total_steps += 1
 
-            sess.run(self.increment_total_steps_tensor)
+            sess.run([self.increment_global_step, self.increment_total_steps_tensor])
 
           self.log_episode()
           self.update_episode_stats()
@@ -127,7 +136,7 @@ class EmbeddingAgent(EigenOCAgentDyn):
             self.write_episode_summary(r)
 
           if self.name == 'worker_0':
-            sess.run(self.increment_global_step)
+            sess.run(self.increment_global_episode)
 
           self.episode_count += 1
 
@@ -168,7 +177,7 @@ class EmbeddingAgent(EigenOCAgentDyn):
 
     tensor_list = [self.local_network.fi, self.local_network.sf, self.local_network.v, self.local_network.q_val]
     if not self.primitive_action:
-      feed_dict[self.local_network.option_direction_placeholder] = [self.global_network.directions[self.option]]
+      feed_dict[self.local_network.option_direction_placeholder] = [self.directions[self.option]]
       tensor_list += [self.local_network.eigen_q_val, self.local_network.option]
 
     results = self.sess.run(tensor_list, feed_dict=feed_dict)
@@ -196,7 +205,7 @@ class EmbeddingAgent(EigenOCAgentDyn):
 
   def save_model(self):
     self.saver.save(self.sess, self.model_path + '/model-{}.{}.cptk'.format(self.episode_count, self.total_steps),
-                    global_step=self.global_step)
+                    global_step=self.global_episode)
     tf.logging.info(
       "Saved Model at {}".format(self.model_path + '/model-{}.{}.cptk'.format(self.episode_count, self.total_steps)))
 
@@ -205,28 +214,38 @@ class EmbeddingAgent(EigenOCAgentDyn):
     if self.config.eigen:
       self.save_eigen_directions()
 
-  def store_option_info(self, s, s1, a, r):
-    if self.config.eigen and not self.primitive_action:
-      feed_dict = {self.local_network.observation: np.stack([s, s1])
-                   }
+  # def store_option_info(self, s, s1, a, r):
+  #   if self.config.eigen and not self.primitive_action:
+  #     feed_dict = {self.local_network.observation: np.stack([s, s1])
+  #                  }
+  #
+  #     fi = self.sess.run(self.local_network.fi,
+  #                        feed_dict=feed_dict)
+  #     eigen_r = self.cosine_similarity((fi[1] - fi[0]), self.directions[self.option])
+  #     r_i = self.config.alpha_r * eigen_r + (1 - self.config.alpha_r) * r
+  #     if np.isnan(r_i):
+  #       print("NAN")
+  #     self.episode_buffer_option.append(
+  #       [s, self.option, a, r, r_i, self.primitive_action, s1])
+  #   else:
+  #     r_i = r
+  #     self.episode_buffer_option.append(
+  #       [s, self.option, a, r, r_i,
+  #        self.primitive_action, s1])
 
+  def option_prediction(self, s, s1):
+    self.option_counter += 1
+    if not self.primitive_action:
+      feed_dict = {self.local_network.observation: np.stack([s, s1])}
       fi = self.sess.run(self.local_network.fi,
                          feed_dict=feed_dict)
-      eigen_r = self.cosine_similarity((fi[1] - fi[0]), self.directions[self.option])
-      r_i = self.config.alpha_r * eigen_r + (1 - self.config.alpha_r) * r
-      if np.isnan(r_i):
-        print("NAN")
-      self.episode_buffer_option.append(
-        [s, self.option, a, r, r_i, self.primitive_action, s1])
+      r_i = self.cosine_similarity((fi[1] - fi[0]), self.directions[self.old_option])
+      r_mix = self.config.alpha_r * r_i + (1 - self.config.alpha_r) * self.reward
     else:
-      r_i = r
-      self.episode_buffer_option.append(
-        [s, self.option, a, r, r_i,
-         self.primitive_action, s1])
+      r_mix = self.reward
 
-  def option_prediction(self, s, s1, r):
-    self.option_counter += 1
-    self.store_option_info(s, s1, self.action, r)
+    self.episode_buffer_option.append(
+      [s, self.option, self.action, self.reward, r_mix, self.primitive_action, s1])
 
     if self.option_counter == self.config.max_update_freq or self.done or (
           self.o_term and self.option_counter >= self.config.min_update_freq):
@@ -237,37 +256,40 @@ class EmbeddingAgent(EigenOCAgentDyn):
         feed_dict = {self.local_network.observation: np.stack([s1])}
         to_run = [self.local_network.v, self.local_network.q_val]
         if not self.primitive_action:
-          feed_dict[self.local_network.option_direction_placeholder] = [self.global_network.directions[self.option]]
+          feed_dict[self.local_network.option_direction_placeholder] = [self.directions[self.old_option]]
           to_run.append(self.local_network.eigen_q_val)
 
         results = self.sess.run(to_run, feed_dict=feed_dict)
 
         if self.primitive_action:
           value, q_value = results
-          q_value = q_value[0, self.option]
+          q_value = q_value[0, self.old_option]
           value = value[0]
           R_mix = value if self.o_term else q_value
         else:
           value, q_value, q_eigen = results
-          q_value = q_value[0, self.option]
+          q_value = q_value[0, self.old_option]
           value = value[0]
           q_eigen = q_eigen[0]
           if self.o_term:
             feed_dict = {self.local_network.observation: np.repeat([s1], self.nb_options, 0),
                          self.local_network.option_direction_placeholder: self.directions,
                          }
-            eigen_qs = self.sess.run(self.local_network.eigen_q_val, feed_dict=feed_dict)
-            evalue = np.mean(eigen_qs)
+            eigen_qs, random_option_prob = self.sess.run([self.local_network.eigen_q_val, self.local_network.random_option_prob], feed_dict=feed_dict)
+            random_option_prob = random_option_prob[0]
+            if self.config.include_primitive_options:
+              concat_eigen_qs = np.concatenate(eigen_qs, tf.zeros((self.action_size,)))
+            else:
+              concat_eigen_qs = eigen_qs
+
+            evalue = concat_eigen_qs[self.option] * (1 - random_option_prob) + random_option_prob * np.mean(eigen_qs)
             R_mix = evalue
           else:
             R_mix = q_eigen
 
         R = value if self.o_term else q_value
 
-      results = self.train_option(R, R_mix)
-      if results is not None:
-        self.ms_option, self.ms_term, self.ms_critic, self.ms_eigen_critic, \
-        option_loss, policy_loss, entropy_loss, critic_loss, eigen_critic_loss, term_loss, self.R, self.eigen_R = results
+      self.train_option(R, R_mix)
 
       self.episode_buffer_option = []
       self.option_counter = 0
@@ -314,50 +336,70 @@ class EmbeddingAgent(EigenOCAgentDyn):
 
   def recompute_eigenvectors_dynamic_SVD(self):
     if self.config.eigen:
+      import seaborn as sns
+      sns.plt.clf()
+      ax = sns.heatmap(self.global_network.sf_matrix_buffer, cmap="Blues")
+      ax.set(xlabel='SR_vect_size=128', ylabel='Grid states/positions')
+      sns.plt.savefig(os.path.join(self.summary_path, 'SR_matrix.png'))
+      sns.plt.close()
+      np.savetxt(os.path.join(self.summary_path, 'Matrix_SF_numeric.txt'), self.global_network.sf_matrix_buffer, fmt='%-7.2f')
+
+      old_directions = self.global_network.directions
       feed_dict = {self.local_network.matrix_sf: [self.global_network.sf_matrix_buffer]}
       eigenvect = self.sess.run(self.local_network.eigenvectors,
                                 feed_dict=feed_dict)
       eigenvect = eigenvect[0]
 
-      new_eigenvectors = self.associate_closest_vectors(self.global_network.directions, eigenvect)
+      if self.global_network.directions_init:
+        self.global_network.directions = self.associate_closest_vectors(old_directions, eigenvect)
+      else:
+        new_eigenvectors = eigenvect[self.config.first_eigenoption: (self.config.nb_options // 2) + self.config.first_eigenoption]
+        self.global_network.directions = np.concatenate((new_eigenvectors, (-1) * new_eigenvectors))
+        self.global_network.directions_init = True
+      self.directions = self.global_network.directions
 
       # eigenvalues = eigenval[self.config.first_eigenoption:self.config.nb_options + self.config.first_eigenoption]
       # new_eigenvectors = eigenvect[self.config.first_eigenoption:self.config.nb_options + self.config.first_eigenoption]
+
       min_similarity = np.min(
-        [self.cosine_similarity(a, b) for a, b in zip(self.global_network.directions, new_eigenvectors)])
+        [self.cosine_similarity(a, b) for a, b in zip(old_directions, self.directions)])
       max_similarity = np.max(
-        [self.cosine_similarity(a, b) for a, b in zip(self.global_network.directions, new_eigenvectors)])
+        [self.cosine_similarity(a, b) for a, b in zip(old_directions, self.directions)])
       mean_similarity = np.mean(
-        [self.cosine_similarity(a, b) for a, b in zip(self.global_network.directions, new_eigenvectors)])
+        [self.cosine_similarity(a, b) for a, b in zip(old_directions, self.directions)])
       self.summary = tf.Summary()
       self.summary.value.add(tag='Eigenvectors/Min similarity', simple_value=float(min_similarity))
       self.summary.value.add(tag='Eigenvectors/Max similarity', simple_value=float(max_similarity))
       self.summary.value.add(tag='Eigenvectors/Mean similarity', simple_value=float(mean_similarity))
       self.summary_writer.add_summary(self.summary, self.episode_count)
       self.summary_writer.flush()
-      self.global_network.directions = new_eigenvectors
-      self.directions = self.global_network.directions
+
+      # self.plot_policy_and_value_function_approx(self.directions)
 
   def associate_closest_vectors(self, old, new):
     to_return = copy.deepcopy(old)
     skip_list = []
-    featured = new[self.config.first_eigenoption: self.config.nb_options + self.config.first_eigenoption]
+    # featured = new[self.config.first_eigenoption: self.config.nb_options + self.config.first_eigenoption]
+    featured = new[self.config.first_eigenoption: (self.config.nb_options // 2) + self.config.first_eigenoption]
+    featured = np.concatenate((featured, (-1) * featured))
 
-    for v in featured:
-      sign = np.argmax(
-        [np.sum([np.sign(np.dot(v, x)) * (np.dot(v, x) ** 2) for x in self.global_network.sf_matrix_buffer]),
-         np.sum([np.sign(np.dot((-1) * v, x)) * (np.dot(v, x) ** 2) for x in self.global_network.sf_matrix_buffer])])
-      if sign == 1:
-        v = (-1) * v
-      distances = [
-        -np.inf if b_idx in skip_list else (np.inf if np.all(b == np.zeros(b.shape)) else self.cosine_similarity(v, b))
-        for b_idx, b in enumerate(self.global_network.directions)]
+
+    for d in featured:
+      # sign = np.argmax(
+      #   [np.sum([np.sign(np.dot(v, x)) * (np.dot(v, x) ** 2) for x in self.global_network.sf_matrix_buffer]),
+      #    np.sum([np.sign(np.dot((-1) * v, x)) * (np.dot(v, x) ** 2) for x in self.global_network.sf_matrix_buffer])])
+      # if sign == 1:
+      #   v = (-1) * v
+      distances = []
+      for old_didx, old_d in enumerate(old):
+        if old_didx in skip_list:
+          distances.append(-np.inf)
+        else:
+          distances.append(self.cosine_similarity(d, old_d))
+
       closest_distance_idx = np.argmax(distances)
-
-      old_v_idx = closest_distance_idx
-      skip_list.append(old_v_idx)
-
-      to_return[old_v_idx] = v
+      skip_list.append(closest_distance_idx)
+      to_return[closest_distance_idx] = d
 
     return to_return
 
@@ -403,34 +445,35 @@ class EmbeddingAgent(EigenOCAgentDyn):
 
     feed_dict = {self.local_network.target_return: discounted_returns,
                  self.local_network.observation: np.stack(observations, axis=0),
-                 self.local_network.options_placeholder: real_approx_options,
-                 self.local_network.option_direction_placeholder: real_directions
+                 # self.local_network.options_placeholder: real_approx_options,
+                 self.local_network.options_placeholder: options,
+                 # self.local_network.option_direction_placeholder: real_directions
+                 self.local_network.option_direction_placeholder: directions
                  }
 
     _, self.ms_critic = self.sess.run([self.local_network.apply_grads_critic,
                                        self.local_network.merged_summary_critic,
                                        ], feed_dict=feed_dict)
 
-
     feed_dict = {
       self.local_network.observation: np.stack(next_observations, axis=0),
-      self.local_network.options_placeholder: real_approx_options,
-      self.local_network.option_direction_placeholder: real_directions,
+      # self.local_network.options_placeholder: real_approx_options,
+      self.local_network.options_placeholder: options,
+      # self.local_network.option_direction_placeholder: real_directions,
+      self.local_network.option_direction_placeholder: directions,
       self.local_network.primitive_actions_placeholder: primitive_actions
     }
 
-    _, self.ms_term = self.sess.run([
-      self.local_network.apply_grads_term,
-      self.local_network.merged_summary_term,
-    ], feed_dict=feed_dict)
-
+    _, self.ms_term = self.sess.run([self.local_network.apply_grads_term,
+                                     self.local_network.merged_summary_term,
+                                    ], feed_dict=feed_dict)
 
     feed_dict = {self.local_network.target_return: discounted_returns,
+                 self.local_network.target_eigen_return: discounted_eigen_returns,
                  self.local_network.observation: np.stack(observations, axis=0),
                  self.local_network.actions_placeholder: actions,
                  self.local_network.options_placeholder: options,
                  self.local_network.option_direction_placeholder: directions,
-                 self.local_network.target_eigen_return: discounted_eigen_returns,
                  self.local_network.primitive_actions_placeholder: primitive_actions
                  }
 
