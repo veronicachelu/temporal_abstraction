@@ -407,12 +407,6 @@ class EigenOCAgent(BaseAgent):
         self.global_network.directions_init = True
       self.directions = self.global_network.directions
 
-
-      new_eigenvectors = eigenvect[
-                         self.config.first_eigenoption: (self.config.nb_options // 2) + self.config.first_eigenoption]
-      self.global_network.directions = np.concatenate((new_eigenvectors, (-1) * new_eigenvectors))
-      self.directions = self.global_network.directions
-
       min_similarity = np.min(
         [self.cosine_similarity(a, b) for a, b in zip(old_directions, self.directions)])
       max_similarity = np.max(

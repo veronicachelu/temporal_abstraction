@@ -22,14 +22,14 @@ FLAGS = tf.app.flags.FLAGS
 
 
 class EmbeddingAgent(EigenOCAgentDyn):
-  def __init__(self, game, thread_id, global_step, config, lr, network_optimizer, global_network, barrier):
-    super(EmbeddingAgent, self).__init__(game, thread_id, global_step, config, lr, network_optimizer, global_network,
+  def __init__(self, game, thread_id, global_episode, global_step, config, lr, network_optimizer, global_network, barrier):
+    super(EmbeddingAgent, self).__init__(game, thread_id, global_episode, global_step, config, lr, network_optimizer, global_network,
                                          barrier)
     self.barrier = barrier
 
   def init_play(self, sess, saver):
     super(EmbeddingAgent, self).init_play(sess, saver)
-    self.ms_critic = self.ms_eigen_critic = None
+    self.ms_critic = None
 
   def play(self, sess, coord, saver):
     with sess.as_default(), sess.graph.as_default():

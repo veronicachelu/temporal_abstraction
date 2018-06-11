@@ -11,9 +11,6 @@ class EmbeddingNetwork(BaseNetwork):
     super(EmbeddingNetwork, self).__init__(scope, config, action_size, lr, network_optimizer, total_steps_tensor)
     self.random_option_prob = tf.Variable(self.config.initial_random_option_prob, trainable=False,
                                           name="prob_of_random_option", dtype=tf.float32)
-    self.summaries_term = []
-    self.summaries_critic = []
-    self.summaries_eigen_critic = []
     self.build_network()
 
   def build_feature_net(self, out):
@@ -22,37 +19,33 @@ class EmbeddingNetwork(BaseNetwork):
         out = layers.fully_connected(out, num_outputs=nb_filt,
                                      activation_fn=None,
                                      variables_collections=tf.get_collection("variables"),
-                                     outputs_collections="activations", scope="fc_{}".format(i))
-
+                                     outputs_collections="activations", scope="fi_{}".format(i))
         if i < len(self.fc_layers) - 1:
           out = tf.nn.relu(out)
         self.summaries_sf.append(tf.contrib.layers.summarize_activation(out))
         self.summaries_aux.append(tf.contrib.layers.summarize_activation(out))
         self.summaries_option.append(tf.contrib.layers.summarize_activation(out))
       self.fi = out
-      self.fi_relu = tf.nn.elu(self.fi)
+      self.fi_relu = tf.nn.relu(self.fi)
       self.option_direction_placeholder = tf.placeholder(shape=[None, self.sf_layers[-1]], dtype=tf.float32,
                                                          name="option_direction")
       self.fi_option = tf.add(tf.stop_gradient(self.fi), self.option_direction_placeholder)
 
-      return out
-
   def build_next_frame_prediction_net(self):
-    with tf.variable_scope("aux_action_fc"):
+    with tf.variable_scope("action_fc"):
       self.actions_placeholder = tf.placeholder(shape=[None], dtype=tf.float32, name="Actions")
       actions = layers.fully_connected(self.actions_placeholder[..., None], num_outputs=self.fc_layers[-1],
                                        activation_fn=None,
                                        variables_collections=tf.get_collection("variables"),
-                                       outputs_collections="activations", scope="fc")
+                                       outputs_collections="activations", scope="action_fc")
 
     with tf.variable_scope("aux_next_frame"):
       out = tf.add(self.fi, actions)
-      # out = tf.nn.relu(out)
       for i, nb_filt in enumerate(self.aux_fc_layers):
         out = layers.fully_connected(out, num_outputs=nb_filt,
                                      activation_fn=None,
                                      variables_collections=tf.get_collection("variables"),
-                                     outputs_collections="activations", scope="fc_{}".format(i))
+                                     outputs_collections="activations", scope="aux_fc_{}".format(i))
         if i < len(self.aux_fc_layers) - 1:
           out = tf.nn.relu(out)
         self.summaries_aux.append(tf.contrib.layers.summarize_activation(out))
@@ -61,19 +54,19 @@ class EmbeddingNetwork(BaseNetwork):
 
   def build_eigen_option_q_val_net(self):
     with tf.variable_scope("eigen_option_q"):
-      # out = tf.stop_gradient(self.fi_option)
-      out = self.fi_option
+      out = tf.stop_gradient(self.fi_option)
+      # out = self.fi_option
       self.eigen_q_val = layers.fully_connected(out, num_outputs=1,
                                                 activation_fn=None,
                                                 variables_collections=tf.get_collection("variables"),
                                                 outputs_collections="activations", scope="eigen_q_val")
       self.eigen_q_val = tf.squeeze(self.eigen_q_val, 1)
-      self.summaries_eigen_critic.append(tf.contrib.layers.summarize_activation(self.eigen_q_val))
+      self.summaries_option.append(tf.contrib.layers.summarize_activation(self.eigen_q_val))
 
   def build_intraoption_policies_nets(self):
     with tf.variable_scope("option_pi"):
-      # out = tf.stop_gradient(self.fi_option)
-      out = self.fi_option
+      out = tf.stop_gradient(self.fi_option)
+      # out = self.fi_option
       self.option = layers.fully_connected(out, num_outputs=self.action_size,
                                            activation_fn=tf.nn.softmax,
                                            biases_initializer=None,
@@ -93,9 +86,9 @@ class EmbeddingNetwork(BaseNetwork):
       self.summaries_term.append(tf.contrib.layers.summarize_activation(self.termination))
 
   def build_option_q_val_net(self):
-    with tf.variable_scope("option_q"):
-      # out = tf.stop_gradient(self.fi_relu)
-      out = self.fi_relu
+    with tf.variable_scope("option_q_val"):
+      out = tf.stop_gradient(self.fi_relu)
+      # out = self.fi_relu
       self.q_val = layers.fully_connected(out, num_outputs=(
         self.nb_options + self.action_size) if self.config.include_primitive_options else self.nb_options,
                                           activation_fn=None,
@@ -130,9 +123,13 @@ class EmbeddingNetwork(BaseNetwork):
       out = self.observation
       out = layers.flatten(out, scope="flatten")
 
-      _ = self.build_feature_net(out)
-      _ = self.build_option_term_net()
-      _ = self.build_option_q_val_net()
+      self.decrease_prob_of_random_option = tf.assign_sub(self.random_option_prob, tf.constant(
+        (
+        self.config.initial_random_option_prob - self.config.final_random_option_prob) / self.config.explore_options_episodes))
+
+      self.build_feature_net(out)
+      self.build_option_term_net()
+      self.build_option_q_val_net()
 
       self.build_eigen_option_q_val_net()
 
@@ -166,7 +163,7 @@ class EmbeddingNetwork(BaseNetwork):
                                                self.options_placeholder)
 
     self.image_summaries.append(
-      tf.summary.image('next', tf.concat([self.next_obs * 255 * 128, self.target_next_obs * 255 * 128], 2), max_outputs=30))
+      tf.summary.image('next', tf.concat([self.next_obs, self.target_next_obs], 2), max_outputs=30))
 
     if self.config.sr_matrix == "dynamic":
       self.sf_matrix_size = self.config.sf_matrix_size
@@ -193,7 +190,7 @@ class EmbeddingNetwork(BaseNetwork):
 
     with tf.name_scope('critic_loss'):
       td_error = self.target_return - self.q_val_o
-    self.critic_loss = tf.reduce_mean(0.5 * self.config.critic_coef * huber_loss(td_error))
+    self.critic_loss = tf.reduce_mean(0.5 * self.config.critic_coef * tf.square(td_error))
 
     with tf.name_scope('termination_loss'):
       self.term_err = (tf.stop_gradient(self.q_val_o) - tf.stop_gradient(self.v) + self.config.delib_margin)
@@ -228,11 +225,8 @@ class EmbeddingNetwork(BaseNetwork):
     self.grads_sf, self.apply_grads_sf = self.take_gradient(self.sf_loss)
     self.grads_aux, self.apply_grads_aux = self.take_gradient(self.aux_loss)
     self.grads_critic, self.apply_grads_critic = self.take_gradient(self.critic_loss)
-    self.grads_eigen_critic, self.apply_grad_eigen_critic = self.take_gradient(self.eigen_critic_loss)
+    self.grads_option, self.apply_grads_option = self.take_gradient(self.option_loss)
     self.grads_term, self.apply_grads_term = self.take_gradient(self.term_loss)
-
-    with tf.control_dependencies([self.apply_grad_eigen_critic]):
-      self.grads_option, self.apply_grads_option = self.take_gradient(self.option_loss)
 
 
     self.merged_summary_sf = tf.summary.merge(

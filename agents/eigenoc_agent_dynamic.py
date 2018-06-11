@@ -40,22 +40,28 @@ class EigenOCAgentDyn(EigenOCAgent):
             coord.request_stop()
             return 0
 
-          self.sync_threads(force=True)
+          self.sync_threads()
+
+          if self.name == "worker_0" and self.episode_count > 0 and \
+              self.config.eigen and self.config.behaviour_agent is None:
+            if self.config.eigen_approach == "SVD":
+              self.recompute_eigenvectors_dynamic_SVD()
 
           if self.config.sr_matrix is not None:
             self.load_directions()
+
           self.init_episode()
-          r_i = 0
+          r_mix = 0
 
           s = self.env.reset()
           s_idx = None
           self.option_evaluation(s)
           self.o_tracker_steps[self.option] += 1
           while not self.done:
-            gl_step = self.sess.run(self.global_step)
-            if gl_step % self.config.sf_matrix_size == 0 and gl_step > 0 and self.config.eigen:
-              if self.config.eigen_approach == "SVD":
-                self.recompute_eigenvectors_dynamic_SVD()
+            # gl_step = self.sess.run(self.global_step)
+            # if gl_step % self.config.sf_matrix_size == 0 and gl_step > 0 and self.config.eigen:
+            #   if self.config.eigen_approach == "SVD":
+            #     self.recompute_eigenvectors_dynamic_SVD()
 
             self.sync_threads()
             self.policy_evaluation(s)
@@ -83,10 +89,8 @@ class EigenOCAgentDyn(EigenOCAgent):
               self.SF_prediction(s1)
             self.next_frame_prediction()
 
-            # if self.episode_count > 0:
-            if not self.config.eigen or (self.episode_count > 10 and self.config.eigen and
-                                                             len(self.directions) == self.nb_options):
-              r_i = self.option_prediction(s, s1)
+            if not self.config.eigen or (self.episode_count > 0 and self.config.eigen):
+              r_mix = self.option_prediction(s, s1)
 
             if not self.done and (self.o_term or self.primitive_action):
               self.option_evaluation(s1)
@@ -98,7 +102,7 @@ class EigenOCAgentDyn(EigenOCAgent):
               self.save_model()
 
             if self.total_steps % self.config.steps_summary_interval == 0 and self.name == 'worker_0':
-              self.write_step_summary(r, r_i)
+              self.write_step_summary(r, r_mix)
 
             s = s1
             s_idx = s1_idx
@@ -217,6 +221,7 @@ class EigenOCAgentDyn(EigenOCAgent):
         pi = options[0, self.option]
         self.action = np.random.choice(pi, p=pi)
         self.action = np.argmax(pi == self.action)
+
       self.q_value = q_value[0, self.option]
       self.q_values = q_value[0]
       self.value = value[0]
@@ -247,11 +252,20 @@ class EigenOCAgentDyn(EigenOCAgent):
 
   def recompute_eigenvectors_dynamic_SVD(self):
     if self.config.eigen:
+      import seaborn as sns
+      sns.plt.clf()
+      ax = sns.heatmap(self.global_network.sf_matrix_buffer, cmap="Blues")
+      ax.set(xlabel='SR_vect_size=128', ylabel='Grid states/positions')
+      sns.plt.savefig(os.path.join(self.summary_path, 'SR_matrix.png'))
+      sns.plt.close()
+      np.savetxt(os.path.join(self.summary_path, 'Matrix_SF_numeric.txt'), self.global_network.sf_matrix_buffer, fmt='%-7.2f')
+
+      old_directions = self.global_network.directions
       feed_dict = {self.local_network.matrix_sf: [self.global_network.sf_matrix_buffer]}
       eigenvect = self.sess.run(self.local_network.eigenvectors,
                                 feed_dict=feed_dict)
       eigenvect = eigenvect[0]
-      old_directions = self.global_network.directions
+
       if self.global_network.directions_init:
         self.global_network.directions = self.associate_closest_vectors(old_directions, eigenvect)
       else:
@@ -263,20 +277,20 @@ class EigenOCAgentDyn(EigenOCAgent):
       # eigenvalues = eigenval[self.config.first_eigenoption:self.config.nb_options + self.config.first_eigenoption]
       # new_eigenvectors = eigenvect[self.config.first_eigenoption:self.config.nb_options + self.config.first_eigenoption]
 
-      if self.name == "worker_0":
-        min_similarity = np.min(
-          [self.cosine_similarity(a, b) for a, b in zip(old_directions, self.global_network.directions)])
-        max_similarity = np.max(
-          [self.cosine_similarity(a, b) for a, b in zip(old_directions, self.global_network.directions)])
-        mean_similarity = np.mean(
-          [self.cosine_similarity(a, b) for a, b in zip(old_directions, self.global_network.directions)])
-        self.summary = tf.Summary()
-        self.summary.value.add(tag='Eigenvectors/Min similarity', simple_value=float(min_similarity))
-        self.summary.value.add(tag='Eigenvectors/Max similarity', simple_value=float(max_similarity))
-        self.summary.value.add(tag='Eigenvectors/Mean similarity', simple_value=float(mean_similarity))
-        self.summary_writer.add_summary(self.summary, self.episode_count)
-        self.summary_writer.flush()
+      min_similarity = np.min(
+        [self.cosine_similarity(a, b) for a, b in zip(old_directions, self.directions)])
+      max_similarity = np.max(
+        [self.cosine_similarity(a, b) for a, b in zip(old_directions, self.directions)])
+      mean_similarity = np.mean(
+        [self.cosine_similarity(a, b) for a, b in zip(old_directions, self.directions)])
+      self.summary = tf.Summary()
+      self.summary.value.add(tag='Eigenvectors/Min similarity', simple_value=float(min_similarity))
+      self.summary.value.add(tag='Eigenvectors/Max similarity', simple_value=float(max_similarity))
+      self.summary.value.add(tag='Eigenvectors/Mean similarity', simple_value=float(mean_similarity))
+      self.summary_writer.add_summary(self.summary, self.episode_count)
+      self.summary_writer.flush()
 
+      # self.plot_policy_and_value_function_approx(self.directions)
 
   def associate_closest_vectors(self, old, new):
     to_return = copy.deepcopy(old)

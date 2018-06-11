@@ -24,6 +24,7 @@ class BaseNetwork():
     self.summaries_aux = []
     self.summaries_option = []
     self.summaries_term = []
+    self.summaries_critic = []
 
 
     # self.network_optimizer = network_optimizer
