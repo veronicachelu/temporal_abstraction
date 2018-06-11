@@ -113,7 +113,7 @@ class BaseNetwork():
 
     batch_indices = tf.range(tf.shape(self.eigen_q_val)[0])
     indices = tf.stack([batch_indices, self.max_options], axis=1)
-    max_eigen_q = tf.gather_nd(self.concatenated_eigen_q, indices)
+    max_eigen_q = tf.gather_nd(concatenated_eigen_q, indices)
 
     self.eigenv = tf.identity(max_eigen_q * (1 - self.random_option_prob) + \
                   self.random_option_prob * tf.reduce_mean(concatenated_eigen_q, axis=1), name="eigen_V")
