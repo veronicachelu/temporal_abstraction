@@ -398,10 +398,12 @@ class EigenOCAgent(BaseAgent):
       # eigenvect = self.sess.run(self.local_network.eigenvectors,
       #                           feed_dict=feed_dict)
       # eigenvect = eigenvect[0]
-
-      new_eigenvectors = eigenvect[
-                         self.config.first_eigenoption: (self.config.nb_options // 2) + self.config.first_eigenoption]
-      self.global_network.directions = np.concatenate((new_eigenvectors, (-1) * new_eigenvectors))
+      if self.global_network.directions_init:
+        self.global_network.directions = self.associate_closest_vectors(old_directions, eigenvect)
+      else:
+        new_eigenvectors = eigenvect[
+                           self.config.first_eigenoption: (self.config.nb_options // 2) + self.config.first_eigenoption]
+        self.global_network.directions = np.concatenate((new_eigenvectors, (-1) * new_eigenvectors))
       self.directions = self.global_network.directions
 
       min_similarity = np.min(
@@ -418,6 +420,33 @@ class EigenOCAgent(BaseAgent):
       self.summary_writer.flush()
 
       # self.plot_policy_and_value_function_approx(self.directions)
+
+  def associate_closest_vectors(self, old, new):
+    to_return = copy.deepcopy(old)
+    skip_list = []
+    # featured = new[self.config.first_eigenoption: self.config.nb_options + self.config.first_eigenoption]
+    featured = new[self.config.first_eigenoption: (self.config.nb_options // 2) + self.config.first_eigenoption]
+    featured = np.concatenate((featured, (-1) * featured))
+
+
+    for d in featured:
+      # sign = np.argmax(
+      #   [np.sum([np.sign(np.dot(v, x)) * (np.dot(v, x) ** 2) for x in self.global_network.sf_matrix_buffer]),
+      #    np.sum([np.sign(np.dot((-1) * v, x)) * (np.dot(v, x) ** 2) for x in self.global_network.sf_matrix_buffer])])
+      # if sign == 1:
+      #   v = (-1) * v
+      distances = []
+      for old_didx, old_d in enumerate(old):
+        if old_didx in skip_list:
+          distances.append(-np.inf)
+        else:
+          distances.append(self.cosine_similarity(d, old_d))
+
+      closest_distance_idx = np.argmax(distances)
+      skip_list.append(closest_distance_idx)
+      to_return[closest_distance_idx] = d
+
+    return to_return
 
   def train_sf(self, bootstrap_sf):
     rollout = np.array(self.episode_buffer_sf)
