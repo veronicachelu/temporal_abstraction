@@ -256,8 +256,8 @@ def eigenoc():
   sf_matrix_size = 169
   sr_matrix = "static"
   # goal_locations = [(11, 7), (5, 2)] #, (1, 10), (2, 2), (6, 2)]
-  goal_locations = [(1, 11),]
-  # goal_locations = [(11, 7), (5, 2), (1, 10), (2, 2), (6, 2)]
+  # goal_locations = [(1, 11),]
+  goal_locations = [(11, 7), (5, 2), (1, 10), (2, 2), (6, 2)]
   episodes = len(goal_locations)
   move_goal_nb_of_ep = 1000
   env = functools.partial(
@@ -270,7 +270,7 @@ def eigenoc():
   discount_option = 0.9
 
   decrease_option_prob = False
-  delib_margin = 0.0
+  delib_margin = 0.01
   max_length = 1000
 
   # final_random_option_prob = 0.1
@@ -287,7 +287,7 @@ def eigenoc_dyn():
   sf_matrix_size = 5000
   sr_matrix = "dynamic"
   nb_options = 8
-  include_primitive_options = False
+  include_primitive_options = True
   eigen = True
   eigen_approach = "SVD"
   # final_random_option_prob = 0.1
@@ -414,9 +414,9 @@ def oc_montezuma():
   # logging = True
   tau = 0.1
 
-  steps_summary_interval = 100
+  steps_summary_interval = 1000
   episode_summary_interval = 10
-  steps_checkpoint_interval = 100
+  steps_checkpoint_interval = 1000
   episode_checkpoint_interval = 10
   episode_eval_interval = 10
 

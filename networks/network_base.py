@@ -124,8 +124,8 @@ class BaseNetwork():
     else:
       concatenated_eigen_q = self.eigen_q_val
     self.eigenv = tf.identity(tf.reduce_max(concatenated_eigen_q, axis=1) * \
-                              (1 - self.random_option_prob) + \
-                              self.random_option_prob * tf.reduce_mean(concatenated_eigen_q, axis=1), name="eigen_V")
+                  (1 - self.random_option_prob) + \
+                  self.random_option_prob * tf.reduce_mean(concatenated_eigen_q, axis=1), name="eigen_V")
     self.summaries_option.append(tf.contrib.layers.summarize_activation(self.eigenv))
 
   def build_intraoption_policies_nets(self):

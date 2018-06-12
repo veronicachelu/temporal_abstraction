@@ -385,7 +385,12 @@ class EigenOCAgent(BaseAgent):
       sns.plt.close()
       np.savetxt(os.path.join(self.summary_path, 'Matrix_SF_numeric.txt'), matrix_sf, fmt='%-7.2f')
 
-      _, eigenval, eigenvect = np.linalg.svd(matrix_sf)
+      # _, eigenval, eigenvect = np.linalg.svd(matrix_sf)
+      feed_dict = {self.local_network.matrix_sf: [matrix_sf]}
+      eigenvect = self.sess.run(self.local_network.eigenvectors,
+                                feed_dict=feed_dict)
+      eigenvect = eigenvect[0]
+
       # for idx in range(self.nb_states):
       #   s, ii, jj = self.env.fake_get_state(idx)
       #   if self.env.not_wall(ii, jj):
