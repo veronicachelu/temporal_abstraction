@@ -168,7 +168,7 @@ def oc():
   max_length_eval = 1000
   sf_matrix_size = 169
   sr_matrix = None
-  include_primitive_options = False
+  include_primitive_options = True
   goal_locations = [(11, 7), (5, 2), (1, 10), (2, 2), (6, 2)]
   episodes = len(goal_locations)
   # goal_locations = [(1, 11), (3, 2), (6, 2), (1, 4), (1, 1), (8, 1), (2, 5), (11, 10)]
@@ -178,12 +178,12 @@ def oc():
 
 
   decrease_option_prob = False
-  delib_margin = 0.0
+  delib_margin = 0.04
 
   # final_random_option_prob = 0.1
   initial_random_option_prob = 0.1
   # explore_options_episodes = 500
-  lr = 7e-4
+  lr = 1e-3
 
   return locals()
 
@@ -220,7 +220,7 @@ def test_options():
 
   decrease_option_prob = False
   # delib_cost_disc = 0.99
-  delib_margin = 0.0
+  delib_margin = 0.03
 
 
   # final_random_option_prob = 0.1
@@ -266,11 +266,11 @@ def eigenoc():
   eigen_approach = "SVD"
   nb_options = 8
   lr = 1e-3
-  discount = 0.985
+  discount = 0.99
   discount_option = 0.9
 
   decrease_option_prob = False
-  delib_margin = 0.01
+  delib_margin = 0.04
   max_length = 1000
 
   # final_random_option_prob = 0.1
