@@ -235,7 +235,7 @@ class EmbeddingAgent(EigenOCAgentDyn):
 
   def option_prediction(self, s, s1):
     self.option_counter += 1
-    if not self.primitive_action:
+    if not self.old_primitive_action:
       feed_dict = {self.local_network.observation: np.stack([s, s1])}
       fi = self.sess.run(self.local_network.fi,
                          feed_dict=feed_dict)
@@ -245,7 +245,7 @@ class EmbeddingAgent(EigenOCAgentDyn):
       r_mix = self.reward
 
     self.episode_buffer_option.append(
-      [s, self.option, self.action, self.reward, r_mix, self.primitive_action, s1])
+      [s, self.old_option, self.action, self.reward, r_mix, self.old_primitive_action, s1])
 
     if self.option_counter == self.config.max_update_freq or self.done or (
           self.o_term and self.option_counter >= self.config.min_update_freq):
@@ -255,20 +255,20 @@ class EmbeddingAgent(EigenOCAgentDyn):
       else:
         feed_dict = {self.local_network.observation: np.stack([s1])}
         to_run = [self.local_network.v, self.local_network.q_val]
-        if not self.primitive_action:
+        if not self.old_primitive_action:
           feed_dict[self.local_network.option_direction_placeholder] = [self.directions[self.old_option]]
           to_run.append(self.local_network.eigen_q_val)
 
         results = self.sess.run(to_run, feed_dict=feed_dict)
 
-        if self.primitive_action:
-          value, q_value = results
-          q_value = q_value[0, self.old_option]
+        if self.old_primitive_action:
+          value, q_values = results
+          q_value = q_values[0, self.old_option]
           value = value[0]
           R_mix = value if self.o_term else q_value
         else:
-          value, q_value, q_eigen = results
-          q_value = q_value[0, self.old_option]
+          value, q_values, q_eigen = results
+          q_value = q_values[0, self.old_option]
           value = value[0]
           q_eigen = q_eigen[0]
           if self.o_term:
@@ -276,13 +276,12 @@ class EmbeddingAgent(EigenOCAgentDyn):
                          self.local_network.option_direction_placeholder: self.directions,
                          }
             eigen_qs, random_option_prob = self.sess.run([self.local_network.eigen_q_val, self.local_network.random_option_prob], feed_dict=feed_dict)
-            random_option_prob = random_option_prob[0]
+            random_option_prob = random_option_prob
             if self.config.include_primitive_options:
-              concat_eigen_qs = np.concatenate(eigen_qs, tf.zeros((self.action_size,)))
+              concat_eigen_qs = np.concatenate((eigen_qs, q_values[0, self.config.nb_options:]))
             else:
               concat_eigen_qs = eigen_qs
-
-            evalue = concat_eigen_qs[self.option] * (1 - random_option_prob) + random_option_prob * np.mean(eigen_qs)
+            evalue = np.max(concat_eigen_qs) * (1 - random_option_prob) + random_option_prob * np.mean(concat_eigen_qs)
             R_mix = evalue
           else:
             R_mix = q_eigen
@@ -336,13 +335,13 @@ class EmbeddingAgent(EigenOCAgentDyn):
 
   def recompute_eigenvectors_dynamic_SVD(self):
     if self.config.eigen:
-      import seaborn as sns
-      sns.plt.clf()
-      ax = sns.heatmap(self.global_network.sf_matrix_buffer, cmap="Blues")
-      ax.set(xlabel='SR_vect_size=128', ylabel='Grid states/positions')
-      sns.plt.savefig(os.path.join(self.summary_path, 'SR_matrix.png'))
-      sns.plt.close()
-      np.savetxt(os.path.join(self.summary_path, 'Matrix_SF_numeric.txt'), self.global_network.sf_matrix_buffer, fmt='%-7.2f')
+      # import seaborn as sns
+      # sns.plt.clf()
+      # ax = sns.heatmap(self.global_network.sf_matrix_buffer, cmap="Blues")
+      # ax.set(xlabel='SR_vect_size=128', ylabel='Grid states/positions')
+      # sns.plt.savefig(os.path.join(self.summary_path, 'SR_matrix.png'))
+      # sns.plt.close()
+      # np.savetxt(os.path.join(self.summary_path, 'Matrix_SF_numeric.txt'), self.global_network.sf_matrix_buffer, fmt='%-7.2f')
 
       old_directions = self.global_network.directions
       feed_dict = {self.local_network.matrix_sf: [self.global_network.sf_matrix_buffer]}
