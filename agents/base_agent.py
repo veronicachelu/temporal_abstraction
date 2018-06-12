@@ -189,7 +189,7 @@ class BaseAgent():
     # tf.logging.warning("Writing step summary....")
 
   def write_episode_summary(self, r):
-    # self.tracker()
+    self.tracker()
     # self.write_worker_map()
     # if self.config.eigen:
     #   self.write_manager_map()
