@@ -266,11 +266,11 @@ def eigenoc():
   eigen_approach = "SVD"
   nb_options = 8
   lr = 1e-3
-  discount = 0.99
+  discount = 0.985
   discount_option = 0.9
 
   decrease_option_prob = False
-  delib_margin = 0.03
+  delib_margin = 0.01
   max_length = 1000
 
   # final_random_option_prob = 0.1
@@ -305,7 +305,7 @@ def embedding():
   target_agent = EmbeddingAgent
   network = EmbeddingNetwork
 
-  return locals()
+  return locals()s
 
 def embedding_online():
   locals().update(eigenoc_dyn())
