@@ -357,9 +357,6 @@ class EmbeddingAgent(EigenOCAgentDyn):
         self.global_network.directions_init = True
       self.directions = self.global_network.directions
 
-      # eigenvalues = eigenval[self.config.first_eigenoption:self.config.nb_options + self.config.first_eigenoption]
-      # new_eigenvectors = eigenvect[self.config.first_eigenoption:self.config.nb_options + self.config.first_eigenoption]
-
       min_similarity = np.min(
         [self.cosine_similarity(a, b) for a, b in zip(old_directions, self.directions)])
       max_similarity = np.max(
