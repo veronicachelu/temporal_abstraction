@@ -72,8 +72,8 @@ def default():
   clip_by_value = 5
   include_primitive_options = True
 
-  steps_summary_interval = 10
-  episode_summary_interval = 1
+  steps_summary_interval = 1000
+  episode_summary_interval = 10
   steps_checkpoint_interval = 1000
   episode_checkpoint_interval = 10
   episode_eval_interval = 10
@@ -305,7 +305,7 @@ def embedding():
   target_agent = EmbeddingAgent
   network = EmbeddingNetwork
 
-  return locals()s
+  return locals()
 
 def embedding_online():
   locals().update(eigenoc_dyn())
