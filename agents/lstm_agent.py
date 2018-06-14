@@ -212,6 +212,9 @@ class LSTMAgent(EmbeddingAgent):
 
     self.option, self.primitive_action = self.option[0], self.primitive_action[0]
     self.episode_options.append(self.option)
+
+    self.o_tracker_chosen[self.option] += 1
+    self.primitive_action_counter += self.primitive_action * (1 - self.done)
     # if not self.primitive_action:
     #   self.episode_options_lengths[self.option].append(self.episode_len)
 
