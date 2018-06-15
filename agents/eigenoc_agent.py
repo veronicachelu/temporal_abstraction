@@ -65,6 +65,7 @@ class EigenOCAgent(BaseAgent):
     col_size = self.nb_options + self.action_size if self.config.include_primitive_options else self.nb_options
     self.o_tracker_chosen = np.zeros((col_size,), dtype=np.int32)
     self.o_tracker_steps = np.zeros(col_size, dtype=np.int32)
+    self.o_tracker_len = [[] for _ in range(col_size)]
     self.termination_counter = 0
     self.primitive_action_counter = 0
     self.stats_options = np.zeros((self.nb_states, col_size))
@@ -183,6 +184,8 @@ class EigenOCAgent(BaseAgent):
 
             s1, r, self.done, s1_idx = self.env.step(self.action)
 
+            self.crt_op_length += 1
+
             self.episode_reward += r
             self.reward = np.clip(r, -1, 1)
 
@@ -202,8 +205,7 @@ class EigenOCAgent(BaseAgent):
               self.SF_prediction(s1)
             self.next_frame_prediction()
 
-            if not self.config.eigen or (self.episode_count > 0 and self.config.eigen):
-              r_mix = self.option_prediction(s, s1)
+            r_mix = self.option_prediction(s, s1)
 
             if not self.done and (self.o_term or self.primitive_action):
               self.option_evaluation(s1)
@@ -265,6 +267,7 @@ class EigenOCAgent(BaseAgent):
     self.o_tracker_chosen[self.option] += 1
     self.episode_options.append(self.option)
     self.primitive_action_counter += self.primitive_action * (1 - self.done)
+    self.crt_op_length = 0
 
 
   def option_terminate(self, s1):
@@ -277,6 +280,7 @@ class EigenOCAgent(BaseAgent):
       self.prob_terms = o_term[0]
     self.termination_counter += self.o_term * (1 - self.done)
     self.episode_oterm.append(self.o_term)
+    self.o_tracker_len[self.option].append(self.crt_op_length)
 
   def policy_evaluation(self, s):
     # self.action = np.random.choice(range(self.action_size))

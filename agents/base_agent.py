@@ -51,7 +51,6 @@ class BaseAgent():
     self.episode_mean_oterms = []
     self.episode_mean_options = []
     self.episode_mean_actions = []
-    self.episode_mean_options_lengths = np.zeros(self.config.nb_options)
     self.episode_options = []
     self.episode_actions = []
 
@@ -113,11 +112,18 @@ class BaseAgent():
     csv_things += ["opt_steps" + str(ccc) for ccc in range(nb_cols)]
     with open(os.path.join(self.config.stage_logdir, "data.csv"), "a") as myfile:
       myfile.write(",".join([str(cc) for cc in csv_things]) + "\n")
-    csv_things = ["value"]
+    csv_things = ["episode", "episode_steps", "value"]
     csv_things += ["A_" + str(ccc) for ccc in range(nb_cols)]
     csv_things += ["prob_term_" + str(ccc) for ccc in range(nb_cols)]
     with open(os.path.join(self.config.stage_logdir, "q_values.csv"), "a") as myfile:
       myfile.write(",".join([str(cc) for cc in csv_things]) + "\n")
+    csv_things = ["episode", "episode_steps"]
+    csv_things += ["mean_o_len" + str(ccc) for ccc in range(nb_cols)]
+    csv_things += ["max_o_len" + str(ccc) for ccc in range(nb_cols)]
+    csv_things += ["min_o_len" + str(ccc) for ccc in range(nb_cols)]
+    with open(os.path.join(self.config.stage_logdir, "o_lens.csv"), "a") as myfile:
+      myfile.write(",".join([str(cc) for cc in csv_things]) + "\n")
+
 
   def tracker(self):
     term_prob = float(self.termination_counter) / self.episode_len * 100
@@ -129,8 +135,15 @@ class BaseAgent():
     with open(os.path.join(self.config.stage_logdir, "data.csv"), "a") as myfile:
       myfile.write(",".join([str(cc) for cc in csv_things]) + "\n")
     self.advantages = [q - self.value for q in self.q_values]
-    csv_things = [self.value] + list(self.advantages) + list(self.prob_terms)
+    csv_things = [self.episode_count, self.episode_len, self.value] + list(self.advantages) + list(self.prob_terms)
     with open(os.path.join(self.config.stage_logdir, "q_values.csv"), "a") as myfile:
+      myfile.write(",".join([str(cc) for cc in csv_things]) + "\n")
+
+    mean_lengths = [0 if len(o_len) == 0 else get_mode(o_len) for o_len in self.o_tracker_len]
+    max_lengths = [0 if len(o_len) == 0 else np.max(o_len) for o_len in self.o_tracker_len]
+    min_lengths = [0 if len(o_len) == 0 else np.min(o_len) for o_len in self.o_tracker_len]
+    csv_things = [self.episode_count, self.episode_len] + list(mean_lengths) + list(max_lengths) + list(min_lengths)
+    with open(os.path.join(self.config.stage_logdir, "o_lens.csv"), "a") as myfile:
       myfile.write(",".join([str(cc) for cc in csv_things]) + "\n")
 
   def update_episode_stats(self):
@@ -152,9 +165,6 @@ class BaseAgent():
       self.episode_mean_options.append(get_mode(self.episode_options))
     if len(self.episode_actions) != 0:
       self.episode_mean_actions.append(get_mode(self.episode_actions))
-      # for op, option_lengths in enumerate(self.episode_options_lengths):
-      #   if len(option_lengths) != 0:
-      #     self.episode_mean_options_lengths[op] = np.mean(option_lengths)
 
   def save_model(self):
     self.saver.save(self.sess, self.model_path + '/model-{}.{}.cptk'.format(self.episode_count, self.total_steps),
@@ -235,7 +245,7 @@ class BaseAgent():
 
     self.summary_writer.add_summary(self.summary, self.episode_count)
     self.summary_writer.flush()
-    self.write_step_summary(r)
+    # self.write_step_summary(r)
 
   def cosine_similarity(self, a, b):
     a = np.asarray(a, np.float64)

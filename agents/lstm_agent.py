@@ -76,6 +76,8 @@ class LSTMAgent(EmbeddingAgent):
 
             s1, r, self.done, s1_idx = self.env.step(self.action)
 
+            self.crt_op_length += 1
+
             self.episode_reward += r
             self.reward = np.clip(r, -1, 1)
 
@@ -168,6 +170,7 @@ class LSTMAgent(EmbeddingAgent):
 
     self.termination_counter += self.o_term * (1 - self.done)
     self.episode_oterm.append(self.o_term)
+    self.o_tracker_len[self.option].append(self.crt_op_length)
 
   def SF_prediction(self, s1):
     self.sf_counter += 1
@@ -212,11 +215,7 @@ class LSTMAgent(EmbeddingAgent):
 
     self.option, self.primitive_action = self.option[0], self.primitive_action[0]
     self.episode_options.append(self.option)
-
-    self.o_tracker_chosen[self.option] += 1
-    self.primitive_action_counter += self.primitive_action * (1 - self.done)
-    # if not self.primitive_action:
-    #   self.episode_options_lengths[self.option].append(self.episode_len)
+    self.crt_op_length = 0
 
   def policy_evaluation(self, s):
     feed_dict = {

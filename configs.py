@@ -220,7 +220,7 @@ def test_options():
 
   decrease_option_prob = False
   # delib_cost_disc = 0.99
-  delib_margin = 0.03
+  delib_margin = 0.01
 
 
   # final_random_option_prob = 0.1
