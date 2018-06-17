@@ -153,7 +153,7 @@ if __name__ == '__main__':
     # 'resume', True,
     'Resume.')
   tf.app.flags.DEFINE_string(
-    'task', "eigenoption",
+    'task', "sf",
     'Task nature')
   tf.app.flags.DEFINE_string(
     'load_from', None,
