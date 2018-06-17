@@ -65,10 +65,6 @@ class LSTMAgent(EmbeddingAgent):
           while not self.done:
             self.sync_threads()
 
-            if self.episode_len > 0:
-              self.prev_a = self.action
-              self.prev_r = r
-
             self.policy_evaluation(s)
             if s_idx is not None:
               self.stats_actions[s_idx][self.action] += 1
@@ -115,8 +111,11 @@ class LSTMAgent(EmbeddingAgent):
 
             s = s1
             s_idx = s1_idx
+            self.rnn_state = self.next_rnn_state
             self.episode_len += 1
             self.total_steps += 1
+            self.prev_a = self.action
+            self.prev_r = r
 
             sess.run([self.increment_global_step, self.increment_total_steps_tensor])
 
@@ -215,6 +214,7 @@ class LSTMAgent(EmbeddingAgent):
 
     self.option, self.primitive_action = self.option[0], self.primitive_action[0]
     self.episode_options.append(self.option)
+    self.next_rnn_state = rnn_state_new
     self.crt_op_length = 0
 
   def policy_evaluation(self, s):
@@ -240,6 +240,7 @@ class LSTMAgent(EmbeddingAgent):
       pi = option_policy[0]
       self.action = np.random.choice(pi, p=pi)
       self.action = np.argmax(pi == self.action)
+      self.next_rnn_state = rnn_state_new
     else:
       fi, sf, value, q_value, rnn_state_new = results
       self.action = self.option - self.nb_options
@@ -250,7 +251,7 @@ class LSTMAgent(EmbeddingAgent):
     sf = sf[0]
     self.add_SF(sf)
     self.fi = fi[0]
-    self.next_rnn_state = rnn_state_new
+
     self.episode_actions.append(self.action)
     self.episode_values.append(self.value)
     self.episode_q_values.append(self.q_value)
@@ -541,3 +542,253 @@ class LSTMAgent(EmbeddingAgent):
 
     self.R = discounted_returns[-1]
     self.eigen_R = discounted_eigen_returns[-1]
+
+  def eval(self, sess, coord, saver):
+    self.sess = sess
+    self.saver = saver
+    self.episode_count = sess.run(self.global_episode)
+    self.env.set_goal(self.episode_count, self.config.move_goal_nb_of_ep)
+    self.total_steps = sess.run(self.total_steps_tensor)
+    eigenvectors = self.global_network.directions
+
+    tf.logging.info("Starting eval agent")
+    ep_rewards = []
+    ep_lengths = []
+
+    folder = os.path.join(self.stats_path, "policies_eval")
+    tf.gfile.MakeDirs(folder)
+
+    # plt.clf()
+    for i in range(self.config.nb_test_ep):
+      s = self.env.reset()
+      episode_frames = []
+      prev_r = 0
+      prev_a = 0
+      rnn_state = self.local_network.state_init
+      feed_dict = {self.local_network.observation: np.stack([s]),
+                   self.local_network.prev_rewards: [prev_r],
+                   self.local_network.prev_actions: [prev_a],
+                   self.local_network.state_in[0]: rnn_state[0],
+                   self.local_network.state_in[1]: rnn_state[1]
+                   }
+      option, rnn_state_new = self.sess.run(
+        [self.local_network.max_options, self.local_network.state_out],
+        feed_dict=feed_dict)
+
+      option = option[0]
+      primitive_action = option >= self.nb_options
+      d = False
+      episode_length = 0
+      episode_reward = 0
+      while not d:
+        if primitive_action:
+          action = option - self.nb_options
+        else:
+          feed_dict = {
+            self.local_network.observation: np.stack([s]),
+            self.local_network.prev_rewards: [prev_r],
+            self.local_network.prev_actions: [prev_a],
+            self.local_network.state_in[0]: rnn_state[0],
+            self.local_network.state_in[1]: rnn_state[1],
+            self.local_network.option_direction_placeholder: [eigenvectors[option]]
+          }
+
+          option_policy, rnn_state_new = self.sess.run([self.local_network.option, self.local_network.state_out], feed_dict=feed_dict)
+          pi = option_policy[0]
+          action = np.argmax(pi)
+
+        episode_frames.append(set_image(s, option, action, episode_length, primitive_action))
+        s1, r, d, _ = self.env.step(action)
+        r = np.clip(r, -1, 1)
+        episode_reward += r
+        episode_length += 1
+
+        if primitive_action:
+          o_term = True
+        else:
+          feed_dict = {self.local_network.observation: np.stack([s1]),
+                       self.local_network.option_direction_placeholder: [eigenvectors[option]],
+                       self.local_network.prev_rewards: [r],
+                       self.local_network.prev_actions: [action],
+                       self.local_network.state_in[0]: rnn_state_new[0],
+                       self.local_network.state_in[1]: rnn_state_new[1]
+                       }
+          o_term = self.sess.run(self.local_network.termination, feed_dict=feed_dict)
+          o_term = o_term[0] > np.random.uniform()
+
+        rnn_state = rnn_state_new
+        prev_a = action
+        prev_r = r
+        if not d and o_term:
+          feed_dict = {self.local_network.observation: np.stack([s1]),
+                       self.local_network.prev_rewards: [prev_r],
+                       self.local_network.prev_actions: [prev_a],
+                       self.local_network.state_in[0]: rnn_state[0],
+                       self.local_network.state_in[1]: rnn_state[1]
+                       }
+          option, rnn_state_new = self.sess.run(
+            [self.local_network.max_options, self.local_network.state_out],
+            feed_dict=feed_dict)
+
+          option = option[0]
+          primitive_action = option >= self.nb_options
+
+        s = s1
+        if episode_length > self.config.max_length_eval:
+          break
+
+      images = np.array(episode_frames)
+      ep_rewards.append(episode_reward)
+      ep_lengths.append(episode_length)
+      tf.logging.info("Ep {} finished in {} steps with reward {}".format(i, episode_length, episode_reward))
+      make_gif(images, os.path.join(folder, 'test_{}.gif'.format(i)),
+               duration=len(images) * 1.0, true_image=True)
+    tf.logging.info("Won {} episodes of {}".format(ep_rewards.count(1), self.config.nb_test_ep))
+
+
+      # with self.sess.as_default(), self.sess.graph.as_default():
+    #   for i in range(len(eigenvectors)):
+    #     o = eigenvectors[i]
+    #     for idx in range(self.nb_states):
+    #       dx = 0
+    #       dy = 0
+    #       d = False
+    #
+    #       s, i, j = self.env.get_state(idx)
+    #       if not self.env.not_wall(i, j):
+    #         plt.gca().add_patch(
+    #           patches.Rectangle(
+    #             (j, self.config.input_size[0] - i - 1),  # (x,y)
+    #             1.0,  # width
+    #             1.0,  # height
+    #             facecolor="gray"
+    #           )
+    #         )
+    #         continue
+    #
+    #       max_q_val, q_vals, option, primitive_action, options, o_term = self.sess.run(
+    #         [self.local_network.max_q_val, self.local_network.q_val, self.local_network.max_options,
+    #          self.local_network.primitive_action, self.local_network.options, self.local_network.termination],
+    #         feed_dict=feed_dict)
+    #       max_q_val = max_q_val[0]
+    #       # q_vals = q_vals[0]
+    #
+    #       o, primitive_action = option[0], primitive_action[0]
+    #       # q_val = q_vals[o]
+    #       primitive_action = o >= self.config.nb_options
+    #       if primitive_action and self.config.include_primitive_options:
+    #         a = o - self.nb_options
+    #         o_term = True
+    #       else:
+    #         pi = options[0, o]
+    #         action = np.random.choice(pi, p=pi)
+    #         a = np.argmax(pi == action)
+    #         o_term = o_term[0, o] > np.random.uniform()
+    #
+    #       if a == 0:  # up
+    #         dy = 0.35
+    #       elif a == 1:  # right
+    #         dx = 0.35
+    #       elif a == 2:  # down
+    #         dy = -0.35
+    #       elif a == 3:  # left
+    #         dx = -0.35
+    #
+    #       if o_term and not primitive_action:  # termination
+    #         circle = plt.Circle(
+    #           (j + 0.5, self.config.input_size[0] - i + 0.5 - 1), 0.025, color='r' if primitive_action else 'k')
+    #         plt.gca().add_artist(circle)
+    #         continue
+    #       plt.text(j, self.config.input_size[0] - i - 1, str(o), color='r' if primitive_action else 'b', fontsize=8)
+    #       plt.text(j + 0.5, self.config.input_size[0] - i - 1, '{0:.2f}'.format(max_q_val), fontsize=8)
+    #
+    #       plt.arrow(j + 0.5, self.config.input_size[0] - i + 0.5 - 1, dx, dy,
+    #                 head_width=0.05, head_length=0.05, fc='r' if primitive_action else 'k',
+    #                 ec='r' if primitive_action else 'k')
+    #
+    #     plt.xlim([0, self.config.input_size[1]])
+    #     plt.ylim([0, self.config.input_size[0]])
+    #
+    #     for i in range(self.config.input_size[1]):
+    #       plt.axvline(i, color='k', linestyle=':')
+    #     plt.axvline(self.config.input_size[1], color='k', linestyle=':')
+    #
+    #     for j in range(self.config.input_size[0]):
+    #       plt.axhline(j, color='k', linestyle=':')
+    #     plt.axhline(self.config.input_size[0], color='k', linestyle=':')
+    #
+    #     plt.savefig(os.path.join(self.summary_path, 'Training_policy.png'))
+    #     plt.close()
+
+
+  def viz_options2(self, sess, coord, saver):
+    with sess.as_default(), sess.graph.as_default():
+      self.sess = sess
+      self.saver = saver
+      folder_path = os.path.join(self.stats_path, "option_policies")
+      tf.gfile.MakeDirs(folder_path)
+
+      eigenvectors = self.global_network.directions
+
+      for option in range(len(eigenvectors)):
+        plt.clf()
+
+        with sess.as_default(), sess.graph.as_default():
+          for idx in range(self.nb_states):
+            dx = 0
+            dy = 0
+            d = False
+            s, i, j = self.env.get_state(idx)
+            if not self.env.not_wall(i, j):
+              plt.gca().add_patch(
+                patches.Rectangle(
+                  (j, self.config.input_size[0] - i - 1),  # (x,y)
+                  1.0,  # width
+                  1.0,  # height
+                  facecolor="gray"
+                )
+              )
+              continue
+            rnn_state = self.local_network.state_init
+            feed_dict = {
+              self.local_network.observation: np.stack([s]),
+              self.local_network.prev_rewards: [0],
+              self.local_network.prev_actions: [0],
+              self.local_network.state_in[0]: rnn_state[0],
+              self.local_network.state_in[1]: rnn_state[1],
+              self.local_network.option_direction_placeholder: [eigenvectors[option]]
+            }
+            pi = sess.run(self.local_network.option, feed_dict=feed_dict)[0]
+            action = np.random.choice(pi, p=pi)
+            a = np.argmax(pi == action)
+            if a == 0:  # up
+              dy = 0.35
+            elif a == 1:  # right
+              dx = 0.35
+            elif a == 2:  # down
+              dy = -0.35
+            elif a == 3:  # left
+              dx = -0.35
+
+            # if o_term:  # termination
+            #   circle = plt.Circle(
+            #     (j + 0.5, self.config.input_size[0] - i + 0.5 - 1), 0.025, color='k')
+            #   plt.gca().add_artist(circle)
+            #   continue
+
+            plt.arrow(j + 0.5, self.config.input_size[0] - i + 0.5 - 1, dx, dy,
+                      head_width=0.05, head_length=0.05, fc='k', ec='k')
+
+          plt.xlim([0, self.config.input_size[1]])
+          plt.ylim([0, self.config.input_size[0]])
+
+          for i in range(self.config.input_size[1]):
+            plt.axvline(i, color='k', linestyle=':')
+          plt.axvline(self.config.input_size[1], color='k', linestyle=':')
+
+          for j in range(self.config.input_size[0]):
+            plt.axhline(j, color='k', linestyle=':')
+          plt.axhline(self.config.input_size[0], color='k', linestyle=':')
+
+          plt.savefig(os.path.join(folder_path, "Option_{}_policy.png".format(option)))
+          plt.close()

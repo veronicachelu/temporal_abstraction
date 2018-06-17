@@ -94,11 +94,11 @@ def make_gif(images, fname, duration=2, true_image=False):
   clip.write_gif(fname, fps=len(images) / duration, verbose=False)
 
 def set_image(s, option, action, episode_length, primitive):
-  s_big = scipy.misc.imresize(255*(s/2 + 0.5), [200, 200, 3], interp='nearest')
+  s_big = scipy.misc.imresize(85 * np.squeeze(s, 2), [200, 200], interp='nearest')
   frame = Image.fromarray(np.asarray(s_big, np.uint8))
   draw = ImageDraw.Draw(frame)
   font = ImageFont.truetype("./resources/FreeSans.ttf", 10)
-  draw.text((0, 0), "O: {} >> A: {} >> Len: {} >> Primitive >> {}".format(option, action, episode_length, primitive), (0, 0, 0), font=font)
+  draw.text((0, 0), "O: {} >> A: {} >> Len: {} >> Primitive >> {}".format(option, action, episode_length, primitive), font=font)
   return np.asarray(frame)
 
 def get_mode(arr):

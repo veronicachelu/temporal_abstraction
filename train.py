@@ -49,10 +49,10 @@ def train(config, logdir):
           agent = config.target_agent(envs[0], 0, global_step, config, None)
       elif FLAGS.task == "eigenoption":
         with tf.device("/cpu:0"):
-          agent = config.target_agent(envs[0], 0, global_step, config, None)
+          agent = config.target_agent(envs[0], 0, global_step, global_episode, config, lr, network_optimizer, global_network, b)
       elif FLAGS.task == "eval":
         with tf.device("/cpu:0"):
-          agent = config.target_agent(envs[0], 0, global_step, config, global_network)
+          agent = config.target_agent(envs[0], 0, global_step, global_episode, config, lr, network_optimizer, global_network, b)
       else:
         if config.behaviour_agent:
           with tf.device("/cpu:0"):
@@ -89,7 +89,7 @@ def train(config, logdir):
       thread.start()
       agent_threads.append(thread)
     elif FLAGS.task == "eigenoption":
-      thread = threading.Thread(target=(lambda: agent.viz_options(sess, coord, saver)))
+      thread = threading.Thread(target=(lambda: agent.viz_options2(sess, coord, saver)))
       thread.start()
       agent_threads.append(thread)
     elif FLAGS.task == "eval":
@@ -142,7 +142,7 @@ if __name__ == '__main__':
     'logdir', './logdir',
     'Base directory to store logs.')
   tf.app.flags.DEFINE_string(
-    'config', "oc",
+    'config', "lstm",
     'Configuration to execute.')
   tf.app.flags.DEFINE_boolean(
     'train', True,

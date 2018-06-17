@@ -270,7 +270,7 @@ def eigenoc():
   discount_option = 0.9
 
   decrease_option_prob = False
-  delib_margin = 0.01
+  delib_margin = 0.005
   max_length = 1000
 
   # final_random_option_prob = 0.1
