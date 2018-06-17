@@ -75,7 +75,7 @@ def default():
   steps_summary_interval = 1000
   episode_summary_interval = 10
   # steps_checkpoint_interval = 1000
-  episode_checkpoint_interval = 1
+  episode_checkpoint_interval = 100
   episode_eval_interval = 10
 
   logging = False
