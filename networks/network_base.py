@@ -35,7 +35,10 @@ class BaseNetwork():
       l = "0"
       if self.config.resume:
         with open(os.path.join(self.config.load_from, "models/checkpoint")) as f:
-          l = f.readline().split(" ")[1:-1]
+          l = f.readline()
+          l = l.split(" ")
+          l = l[1]
+          l = l[1: -1]
           l = l.split("-")[1]
           l = l.split(".")[0]
 

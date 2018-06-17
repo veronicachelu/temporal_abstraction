@@ -549,7 +549,7 @@ class LSTMAgent(EmbeddingAgent):
     self.sess = sess
     self.saver = saver
     self.episode_count = sess.run(self.global_episode)
-    self.env.set_goal(self.episode_count, self.config.move_goal_nb_of_ep)
+    self.env.set_goal(self.episode_count - 1, self.config.move_goal_nb_of_ep)
     self.total_steps = sess.run(self.total_steps_tensor)
     eigenvectors = self.global_network.directions
 

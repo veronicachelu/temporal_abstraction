@@ -26,6 +26,7 @@ def train(config, logdir):
         config.logdir = logdir
         config.stage_logdir = logdir
         config.load_from = FLAGS.load_from
+        config.resume = FLAGS.resume
         config.network_optimizer = getattr(tf.train, config.network_optimizer)
         global_step = tf.Variable(0, dtype=tf.int32, name='global_step', trainable=False)
         global_episode = tf.Variable(0, dtype=tf.int32, name='global_episode', trainable=False)
@@ -157,6 +158,6 @@ if __name__ == '__main__':
     'Task nature')
   tf.app.flags.DEFINE_string(
     'load_from', None,
-    # 'load_from', "./logdir/0-lstm",
+    # 'load_from', "./logdir/3-lstm",
     'Load directory to load models from.')
   tf.app.run()
