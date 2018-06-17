@@ -32,7 +32,15 @@ class BaseNetwork():
       self.config.lr, name='network_optimizer')
 
     if scope == 'global' and self.config.sr_matrix is not None:
-      self.directions_path = os.path.join(config.logdir, "eigen_directions.npy")
+      l = "0"
+      if self.config.resume:
+        with open(os.path.join(self.config.load_from, "models/checkpoint")) as f:
+          l = f.readline().split(" ")[1:-1]
+          l = l.split("-")[1]
+          l = l.split(".")[0]
+
+      self.directions_path = os.path.join(config.logdir, "eigen_directions_{}.npy".format(l))
+
 
       if self.config.eigen_approach == "NN":
         self.eigencluster = OnlineCluster(config.nb_options, config.sf_layers[-1])
@@ -45,7 +53,7 @@ class BaseNetwork():
         self.directions_init = False
 
       if self.config.sr_matrix == "dynamic":
-        self.sf_matrix_path = os.path.join(config.logdir, "sf_matrix.npy")
+        self.sf_matrix_path = os.path.join(config.logdir, "sf_matrix_{}.npy".format(l))
         if os.path.exists(self.sf_matrix_path):
           self.sf_matrix_buffer = np.load(self.sf_matrix_path)
         else:

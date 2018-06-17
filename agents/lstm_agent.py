@@ -103,8 +103,8 @@ class LSTMAgent(EmbeddingAgent):
             # if self.episode_count > 0:
             r_mix = self.option_prediction(s, s1)
 
-            if self.total_steps % self.config.steps_checkpoint_interval == 0 and self.name == 'worker_0':
-              self.save_model()
+            # if self.total_steps % self.config.steps_checkpoint_interval == 0 and self.name == 'worker_0':
+            #   self.save_model()
 
             if self.total_steps % self.config.steps_summary_interval == 0 and self.name == 'worker_0':
               self.write_step_summary(r, r_mix)
@@ -437,10 +437,12 @@ class LSTMAgent(EmbeddingAgent):
     return to_return
 
   def save_SF_matrix(self):
-    np.save(self.global_network.sf_matrix_path, self.global_network.sf_matrix_buffer)
+    sf_matrix_path = os.path.join(self.config.logdir, "sf_matrix_{}.npy".format(self.episode_count))
+    np.save(sf_matrix_path, self.global_network.sf_matrix_buffer)
 
   def save_eigen_directions(self):
-    np.save(self.global_network.directions_path, self.global_network.directions)
+    directions_path = os.path.join(self.config.logdir, "eigen_directions_{}.npy".format(self.episode_count))
+    np.save(directions_path, self.global_network.directions)
 
   def train_option(self, bootstrap_value, bootstrap_value_mix):
     rollout = np.array(self.episode_buffer_option)  # s, self.option, self.action, r, r_i

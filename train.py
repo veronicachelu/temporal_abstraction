@@ -25,6 +25,7 @@ def train(config, logdir):
       with tf.device("/cpu:0"):
         config.logdir = logdir
         config.stage_logdir = logdir
+        config.load_from = FLAGS.load_from
         config.network_optimizer = getattr(tf.train, config.network_optimizer)
         global_step = tf.Variable(0, dtype=tf.int32, name='global_step', trainable=False)
         global_episode = tf.Variable(0, dtype=tf.int32, name='global_episode', trainable=False)
@@ -152,10 +153,10 @@ if __name__ == '__main__':
     # 'resume', True,
     'Resume.')
   tf.app.flags.DEFINE_string(
-    'task', "sf",
+    'task', "eigenoption",
     'Task nature')
   tf.app.flags.DEFINE_string(
     'load_from', None,
-    # 'load_from', "./logdir/9-eigenoc_dyn",
+    # 'load_from', "./logdir/0-lstm",
     'Load directory to load models from.')
   tf.app.run()
