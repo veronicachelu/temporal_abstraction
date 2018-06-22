@@ -490,8 +490,7 @@ class LSTMAgent(EmbeddingAgent):
         directions.append(np.zeros((self.config.sf_layers[-1])))
       else:
         directions.append(self.global_network.directions[options[i]])
-        real_approx_options.append(np.argmax([self.cosine_similarity(d, self.directions[o]) for o in
-                                              range(self.nb_options)]) if self.episode_count > 0 else options[i])
+        real_approx_options.append(d if self.episode_count > 0 else options[i])
 
     feed_dict = {self.local_network.target_return: discounted_returns,
                  self.local_network.observation: np.stack(observations, axis=0),
