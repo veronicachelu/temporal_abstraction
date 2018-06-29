@@ -27,44 +27,75 @@ class LSTMNetwork(BaseNetwork):
         if i < len(self.fc_layers) - 1:
           out = tf.nn.relu(out)
         self.summaries_aux.append(tf.contrib.layers.summarize_activation(out))
-      self.fi_relu = tf.nn.relu(out)
+      self.fi_percept = tf.nn.relu(out, name="Zt")
 
+      ## Placeholders
       self.prev_rewards = tf.placeholder(shape=[None], dtype=tf.float32, name="Prev_Rewards")
       self.prev_rewards_expanded = tf.expand_dims(self.prev_rewards, 1)
-
+      self.prev_goal = tf.placeholder(shape=[None, self.config.sf_layers[-1]], dtype=tf.float32, name="Prev_Goals")
       self.prev_actions = tf.placeholder(shape=[None], dtype=tf.int32, name="Prev_Actions")
       self.prev_actions_onehot = tf.one_hot(self.prev_actions, self.action_size, dtype=tf.float32,
                                             name="Prev_Actions_OneHot")
-      hidden = tf.concat([self.fi_relu, self.prev_rewards_expanded, self.prev_actions_onehot], 1,
-                         name="Concatenated_input")
 
-      rnn_in = tf.expand_dims(hidden, [0], name="RNN_input")
-      step_size = tf.shape(input)[:1]
+      # Percepts & prev reward
+      self.f_percept_r = tf.concat([self.fi_percept, self.prev_rewards_expanded], 1,
+                    name="Zt_r")
 
-      lstm_cell = tf.contrib.rnn.LayerNormBasicLSTMCell(self.sf_layers[-1])
-      c_init = np.zeros((1, lstm_cell.state_size.c), np.float32)
-      h_init = np.zeros((1, lstm_cell.state_size.h), np.float32)
-      self.state_init = [c_init, h_init]
-      c_in = tf.placeholder(tf.float32, [1, lstm_cell.state_size.c], name="c_in")
-      h_in = tf.placeholder(tf.float32, [1, lstm_cell.state_size.h], name="h_in")
-      self.state_in = (c_in, h_in)
-      state_in = tf.contrib.rnn.LSTMStateTuple(c_in, h_in)
+      # Manager
+      self.f_Mspace = tf.concat([self.f_percept_r, self.prev_goal], 1, name="Mt")
+      self.f_Mspace = tf.contrib.layers.fully_connected(self.f_Mspace, self.config.m_layer)
+      self.f_Mspace = tf.contrib.layers.layer_norm(self.f_Mspace)
+      self.f_Mspace = tf.nn.elu(self.f_Mspace, name="St")
 
-      lstm_outputs, lstm_state = tf.nn.dynamic_rnn(
-        lstm_cell, rnn_in, initial_state=state_in, sequence_length=step_size,
-        time_major=False)
+      m_rnn_in = tf.expand_dims(self.f_Mspace, [0], name="M_rnn_in")
+      m_step_size = tf.shape(input)[:1]
 
-      lstm_c, lstm_h = lstm_state
-      self.state_out = (lstm_c[:1, :], lstm_h[:1, :])
-      self.fi = tf.reshape(lstm_outputs, [-1, self.sf_layers[-1]], name="fi_rnn")
+      m_lstm_cell = tf.contrib.rnn.LayerNormBasicLSTMCell(self.sf_layers[-1])
+      m_c_init = np.zeros((1, m_lstm_cell.state_size.c), np.float32)
+      m_h_init = np.zeros((1, m_lstm_cell.state_size.h), np.float32)
+      self.m_state_init = [m_c_init, m_h_init]
+      m_c_in = tf.placeholder(tf.float32, [1, m_lstm_cell.state_size.c], name="m_c_in")
+      m_h_in = tf.placeholder(tf.float32, [1, m_lstm_cell.state_size.c], name="m_c_in")
+      self.m_state_in = (m_c_in, m_h_in)
+      m_state_in = tf.contrib.rnn.LSTMStateTuple(m_c_in, m_h_in)
 
-      self.summaries_sf.append(tf.contrib.layers.summarize_activation(self.fi))
-      self.summaries_aux.append(tf.contrib.layers.summarize_activation(self.fi))
-      self.summaries_option.append(tf.contrib.layers.summarize_activation(self.fi))
+      m_lstm_outputs, m_lstm_state = tf.nn.dynamic_rnn(
+        m_lstm_cell, m_rnn_in, initial_state=m_state_in, sequence_length=m_step_size,
+        time_major=False, scope="m_rnn")
+      m_lstm_c, m_lstm_h = m_lstm_state
+      self.m_state_out = (m_lstm_c[:1, :], m_lstm_h[:1, :])
+      self.fi_m = tf.reshape(m_lstm_outputs, [-1, self.sf_layers[-1]], name="fi_m")
+
+      # worker
+      self.f_Wspace = tf.concat([self.f_percept_r, self.prev_actions_onehot], 1, name="Wt")
+      w_rnn_in = tf.expand_dims(self.f_Wspace, [0], name="w_RNN_in")
+      w_step_size = tf.shape(input)[:1]
+
+      w_lstm_cell = tf.contrib.rnn.LayerNormBasicLSTMCell(self.sf_layers[-1])
+      w_c_init = np.zeros((1, w_lstm_cell.state_size.c), np.float32)
+      w_h_init = np.zeros((1, w_lstm_cell.state_size.h), np.float32)
+      self.w_state_init = [w_c_init, w_h_init]
+      w_c_in = tf.placeholder(tf.float32, [1, w_lstm_cell.state_size.c], name="w_c_in")
+      w_h_in = tf.placeholder(tf.float32, [1, w_lstm_cell.state_size.h], name="w_h_in")
+      self.w_state_in = (w_c_in, w_h_in)
+      w_state_in = tf.contrib.rnn.LSTMStateTuple(w_c_in, w_h_in)
+
+      w_lstm_outputs, w_lstm_state = tf.nn.dynamic_rnn(
+        w_lstm_cell, w_rnn_in, initial_state=w_state_in, sequence_length=w_step_size,
+        time_major=False, scope="w_rnn")
+
+      w_lstm_c, w_lstm_h = w_lstm_state
+      self.state_out = (w_lstm_c[:1, :], w_lstm_h[:1, :])
+      self.fi_w = tf.reshape(w_lstm_outputs, [-1, self.sf_layers[-1]], name="fi_w")
+
+      # self.summaries_sf.append(tf.contrib.layers.summarize_activation(self.fi))
+      # self.summaries_aux.append(tf.contrib.layers.summarize_activation(self.fi))
+      self.summaries_option.append(tf.contrib.layers.summarize_activation(self.fi_m))
+      self.summaries_option.append(tf.contrib.layers.summarize_activation(self.fi_w))
 
       self.option_direction_placeholder = tf.placeholder(shape=[None, self.sf_layers[-1]], dtype=tf.float32,
                                                          name="option_direction")
-      self.fi_option = tf.add(tf.stop_gradient(self.fi), self.option_direction_placeholder)
+      self.fi_option = tf.add(tf.stop_gradient(self.fi_w), self.option_direction_placeholder)
 
   def build_next_frame_prediction_net(self):
     with tf.variable_scope("action_fc"):
@@ -75,7 +106,7 @@ class LSTMNetwork(BaseNetwork):
                                        outputs_collections="activations", scope="action_fc")
 
     with tf.variable_scope("aux_next_frame"):
-      out = tf.add(self.fi, actions)
+      out = tf.add(self.fi_w, actions)
       # out = tf.nn.relu(out)
       for i, nb_filt in enumerate(self.aux_fc_layers):
         out = layers.fully_connected(out, num_outputs=nb_filt,
@@ -123,7 +154,7 @@ class LSTMNetwork(BaseNetwork):
 
   def build_option_q_val_net(self):
     with tf.variable_scope("option_q_val"):
-      out = tf.stop_gradient(self.fi)
+      out = tf.stop_gradient(self.fi_m)
       self.q_val = layers.fully_connected(out, num_outputs=(
         self.nb_options + self.action_size) if self.config.include_primitive_options else self.nb_options,
                                           activation_fn=None,
@@ -152,7 +183,7 @@ class LSTMNetwork(BaseNetwork):
 
   def build_SF_net(self, layer_norm=False):
     with tf.variable_scope("succ_feat"):
-      out = tf.stop_gradient(self.fi)
+      out = tf.stop_gradient(self.fi_w)
       for i, nb_filt in enumerate(self.sf_layers):
         out = layers.fully_connected(out, num_outputs=nb_filt,
                                      activation_fn=None,

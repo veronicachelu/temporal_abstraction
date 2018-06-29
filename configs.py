@@ -319,6 +319,12 @@ def lstm():
   target_agent = LSTMAgent
   network = LSTMNetwork
 
+  m_layer = 128
+  fc_layers = 128,
+  sf_layers = 128,
+  aux_fc_layers = 13 * 13,
+
+
   return locals()
 
 def doubleAC():
