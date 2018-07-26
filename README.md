@@ -5,8 +5,8 @@ Historically, the prime focus has been on agents that reason at the smallest gra
 
 Hierarchical Reinforcement Learning [1], inspired by human-like behaviour of reasoning over prolonged periods of time and at multiple levels of detail, is a key ingredient in scaling up the framework of general purpose learning to complex behaviors. Temporally abstracting behaviour allows for more sample efficient exploration, faster learning, planning and inductive transfer, especially in terms of an unstructured and very sparse signal from the environment. 
 
-Intrinsic motivation is believed to by essential in the automatic decomposition of a task into a hierarchy, however option discovery and subgoal identification is still a challenge and the exact objective for encouraging abstraction is an open issue. Using a low-dimensional eigendecomposition of the successor representations of states encountered by an agent in an environment [2] can be seen as a way to use intrinsic motivation to discover temporally abstract actions that explore the state manifold. In this thesis, we investigate combining the eigenoptions discovery with the option-critic framework [3] in order to learn options that explore the environment at the same time with a policy over options that optimizes for the goal.
-   Using a low-dimensional eigendecomposition of the successor representations of states 
+Intrinsic motivation is believed to by essential in the automatic decomposition of a task into a hierarchy, however option discovery and subgoal identification is still a challenge and the exact objective for encouraging abstraction is an open issue. Using a low-dimensional eigendecomposition of the successor representations of states encountered by an agent in an environment [2] can be seen as a way to use intrinsic motivation to discover temporally abstract actions that explore the state manifold. Here, we investigate combining the eigenoptions discovery with the option-critic framework [3] in order to learn options that explore the environment at the same time with a policy over options that optimizes for the goal.
+   Using a spectral eigendecomposition of the successor representations of states 
    [2] can be seen as a way to use intrinsic motivation to discover temporally 
    abstract actions. In this report, we investigate combining the eigenoptions discovery with 
    the option-critic framework [3] in order to learn options that explore the environment 
@@ -26,7 +26,7 @@ I ran some some experiments with linear function approximation over one-hot
 
 Then there are experiments using the Option-Critic framework in the same environment 
 in comparison with the direction-based agent. The direction-based agent architecture
- uses exploration by means of the low-level decomposition of the
+ uses exploration by means of the spectral decomposition of the
  SR matrix into useful traversal directions over the state manifold. 
  
  I have also performed experiments in which the options are no longer discreate, but direction embeddings. However, in this case the experiments point toward the fact that the agent learn to ignore the high-level directions.
