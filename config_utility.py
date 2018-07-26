@@ -1,19 +1,3 @@
-# Copyright 2017 The TensorFlow Agents Authors.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#      http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-
-"""Utilities for using reinforcement learning algorithms."""
-
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
@@ -46,74 +30,16 @@ def define_saver(exclude=None):
   saver = tf.train.Saver(variables, max_to_keep=10000)
   return saver
 
-
-# def define_network(constructor, config, action_size):
-#   """Constructor for the recurrent cell for the algorithm.
-#
-#   Args:
-#     constructor: Callable returning the network as RNNCell.
-#     config: Object providing configurations via attributes.
-#     action_size: Integer indicating the amount of action dimensions.
-#
-#   Returns:
-#     Created recurrent cell object.
-#   """
-#   mean_weights_initializer = (
-#       tf.contrib.layers.variance_scaling_initializer(
-#           factor=config.init_mean_factor))
-#   logstd_initializer = tf.random_normal_initializer(
-#       config.init_logstd, 1e-10)
-#   network = constructor(
-#       config.policy_layers, config.value_layers, action_size,
-#       mean_weights_initializer=mean_weights_initializer,
-#       logstd_initializer=logstd_initializer)
-#   return network
-
-def define_network(constructor, config, action_size):
-  """Constructor for the recurrent cell for the algorithm.
-
-  Args:
-    constructor: Callable returning the network as RNNCell.
-    config: Object providing configurations via attributes.
-    action_size: Integer indicating the amount of action dimensions.
-
-  Returns:
-    Created recurrent cell object.
-  """
-  network = constructor(
-      config.conv_layers, config.fc_layers, action_size, config.nb_options, config.num_agents)
-  return network
-
-def initialize_variables(sess, saver, logdir, checkpoint=None, resume=None):
-  """Initialize or restore variables from a checkpoint if available.
-
-  Args:
-    sess: Session to initialize variables in.
-    saver: Saver to restore variables.
-    logdir: Directory to search for checkpoints.
-    checkpoint: Specify what checkpoint name to use; defaults to most recent.
-    resume: Whether to expect recovering a checkpoint or starting a new run.
-
-  Raises:
-    ValueError: If resume expected but no log directory specified.
-    RuntimeError: If no resume expected but a checkpoint was found.
-  """
-  sess.run(tf.group(
-      tf.local_variables_initializer(),
-      tf.global_variables_initializer()))
-  if resume and not (logdir or checkpoint):
-    raise ValueError('Need to specify logdir to resume a checkpoint.')
-  if logdir:
-    state = tf.train.get_checkpoint_state(logdir)
-    if checkpoint:
-      checkpoint = os.path.join(logdir, checkpoint)
-    if not checkpoint and state and state.model_checkpoint_path:
-      checkpoint = state.model_checkpoint_path
-    if checkpoint and resume is False:
-      message = 'Found unexpected checkpoint when starting a new run.'
-      raise RuntimeError(message)
-    if checkpoint:
-      saver.restore(sess, checkpoint)
+def initialize_variables(sess, loader, checkpoint=None, resume=None):
+  """Initialize or restore variables from a checkpoint if available."""
+  if resume:
+    sess.run(tf.global_variables_initializer())
+    ckpt = tf.train.get_checkpoint_state(os.path.join(checkpoint, "models"))
+    print("Loading Model from {}".format(ckpt.model_checkpoint_path))
+    loader.restore(sess, ckpt.model_checkpoint_path)
+    sess.run(tf.local_variables_initializer())
+  else:
+    sess.run([tf.global_variables_initializer(), tf.local_variables_initializer()])
 
 
 def save_config(config, logdir=None):

@@ -16,140 +16,109 @@ from matplotlib import cm
 from auxilary.policy_iteration import PolicyIteration
 FLAGS = tf.app.flags.FLAGS
 
-
+"""This Agent corresponds to the case of performing linear approximation over states, whereas states are encoded as one-hot vectors with size corresponding to the state-space size of 169 (13x13) for the 4 Rooms Domain"""
 class LinearSFAgent():
-  def __init__(self, game, thread_id, global_step, config, global_network):
+  def __init__(self, sess, game, thread_id, global_step, global_episode, config, global_network, barrier):
     self.name = "worker_" + str(thread_id)
     self.thread_id = thread_id
+
+    self.config = config
     self.optimizer = config.network_optimizer
     self.global_step = global_step
-    self.model_path = os.path.join(config.stage_logdir, "models")
-    self.summary_path = os.path.join(config.stage_logdir, "summaries")
+    self.global_episode = global_episode
+    self.increment_global_step = self.global_step.assign_add(1)
+    self.increment_global_episode = self.global_episode.assign_add(1)
 
+    """Save models in the models directory in the logdir config folder"""
+    self.model_path = os.path.join(config.logdir, "models")
+    """Save events file and other stats in the summaries folder of the logdir config folder"""
+    self.summary_path = os.path.join(config.logdir, "summaries")
     tf.gfile.MakeDirs(self.model_path)
     tf.gfile.MakeDirs(self.summary_path)
-    tf.gfile.MakeDirs(os.path.join(os.path.join(config.stage_logdir, "summaries"), "sr_vectors"))
+    """Save successor representation vectors plotted over the environment in the sr_vector inside the summaries folder"""
+    tf.gfile.MakeDirs(os.path.join(os.path.join(config.logdir, "summaries"), "sr_vectors"))
 
-    self.increment_global_step = self.global_step.assign_add(1)
-    self.episode_rewards = []
-    self.episode_lengths = []
-    self.episode_mean_values = []
-    self.episode_mean_q_values = []
-    self.episode_mean_returns = []
-    self.episode_mean_oterms = []
-    self.episode_mean_options = []
-    self.episode_options = []
-    self.config = config
-    self.total_steps_tensor = tf.Variable(0, dtype=tf.int32, name='total_steps_tensor', trainable=False)
-    self.increment_total_steps_tensor = self.total_steps_tensor.assign_add(1)
-    self.total_steps = 0
+    """Environment configuration"""
     self.action_size = game.action_space.n
-    self.nb_states = game.nb_states
+    self.nb_states = config.input_size[0] * config.input_size[1]
+    self.env = game
+    self.sess = sess
+
+    """Setting the summary information"""
     self.summary_writer = tf.summary.FileWriter(self.summary_path + "/worker_" + str(self.thread_id))
     self.summary = tf.Summary()
 
+    """Instantiating local network for function approximation of the policy and state space"""
     self.local_network = config.network(self.name, config, self.action_size)
-
     self.update_local_vars = update_target_graph('global', self.name)
-    self.env = game
-    self.nb_states = game.nb_states
 
-  def train(self, rollout, sess, bootstrap_sf, summaries=False):
+  """Do one n-step update for training the agent's latent successor representation space"""
+  def train(self, rollout, bootstrap_sf):
     rollout = np.array(rollout)
     observations = rollout[:, 0]
-    # actions = rollout[:, 1]
-    # sf = rollout[:, 2]
-    # fi = rollout[:, 3]
     fi = np.identity(self.nb_states)[observations]
+
+    """Construct list of one=hot encodings for the entire trajectory"""
     sf_plus = np.asarray(fi.tolist() + [bootstrap_sf])
+    """Construct the targets for the next step successor representations for the entire trajectory"""
     discounted_sf = discount(sf_plus, self.config.discount)[:-1]
 
     feed_dict = {self.local_network.target_sf: np.stack(discounted_sf, axis=0),
                  self.local_network.observation: np.identity(self.nb_states)[observations]}
 
-    _, ms, loss, sf_loss = \
-      sess.run([self.local_network.apply_grads,
+    _, self.summaries, loss = \
+      self.sess.run([self.local_network.apply_grads,
                 self.local_network.merged_summary,
-                self.local_network.loss,
-                self.local_network.sf_loss],
+                self.local_network.loss],
                feed_dict=feed_dict)
-    return ms, loss, sf_loss
 
-  def build_matrix(self, sess, coord, saver):
-    with sess.as_default(), sess.graph.as_default():
+  """Builds the SR matrix. Plots it. Does eigendecomposition and replots everything on the env"""
+  def build_SR_matrix(self):
+    """Building the SR matrix"""
+    with self.sess.as_default(), self.sess.graph.as_default():
       self.matrix_sf = np.zeros((self.nb_states, self.nb_states))
+      indices = []
       for idx in range(self.nb_states):
         ii, jj = self.env.get_state_xy(idx)
         if self.env.not_wall(ii, jj):
-          feed_dict = {self.local_network.observation: np.identity(self.nb_states)[idx:idx + 1]}
-          self.matrix_sf[idx] = sess.run(self.local_network.sf, feed_dict=feed_dict)[0]
-    # plt.pcolor(self.matrix_sf, cmap='hot', interpolation='nearest')
-    # plt.savefig(os.path.join(self.summary_path, 'SR_matrix.png'))
-      self.reconstruct_sr(self.matrix_sf)
-    # self.plot_sr_vectors(self.matrix_sf)
-    # self.plot_sr_matrix(self.matrix_sf)
-    # self.eigen_decomp(self.matrix_sf)
+          indices.append(idx)
 
-  def reconstruct_sr(self, matrix):
-    U, s, V = np.linalg.svd(matrix)
-    S = np.diag(s[2:60])
-    sr_r_m = np.dot(U[:, 2:60], np.dot(S, V[2:60]))
-    self.plot_sr_vectors(sr_r_m, "reconstructed_sr")
-    self.plot_sr_matrix(sr_r_m, "reconstructed_sr")
+      feed_dict = {self.local_network.observation: np.identity(self.nb_states)[indices]}
+      self.matrix_sf[indices] = self.sess.run(self.local_network.sf, feed_dict=feed_dict)
 
-  def plot_sr_matrix(self, matrix, folder):
+    """Plot the SR matrix"""
+    self.plot_sr_matrix()
+    """Plot individual SR vectors back over the 4 Rooms environment"""
+    self.plot_sr_vectors("sr_vectors")
+    """Do eigendecomposition and plot eigenvectors over the 4 Rooms environment"""
+    self.eigen_decomp()
+
+  """"Plots the SR matrix"""
+  def plot_sr_matrix(self):
     sns.plt.clf()
-    ax = sns.heatmap(matrix, cmap="Blues")
-
-    # for s in range(self.nb_states):
-    #   ii, jj = self.env.get_state_xy(s)
-    #   if self.env.not_wall(ii, jj):
-    #     continue
-    #   else:
-    #     sns.plt.gca().add_patch(
-    #       patches.Rectangle(
-    #         (jj, self.config.input_size[0] - ii - 1),  # (x,y)
-    #         1.0,  # width
-    #         1.0,  # height
-    #         facecolor="gray"
-    #       )
-    #     )
-    folder_path = os.path.join(os.path.join(self.config.stage_logdir, "summaries"), folder)
+    sns.set_style('ticks')
+    ax = sns.heatmap(self.matrix_sf, cmap="Blues")
+    ax.set(xlabel='SR_vect_size=169', ylabel='Grid states/positions')
+    folder_path = os.path.join(self.summary_path, "state_space_matrix")
     tf.gfile.MakeDirs(folder_path)
     sns.plt.savefig(os.path.join(folder_path, 'SR_matrix.png'))
     sns.plt.close()
 
-  def plot_vector(self, vector, i):
+  """Reproject and plot the individual SR vectors over the 4 Rooms environment"""
+  def plot_sr_vectors(self, folder):
     sns.plt.clf()
-    Z = vector.reshape(self.config.input_size[0], self.config.input_size[1])
-    ax = sns.heatmap(Z, cmap="Blues")
-
-    for idx in range(self.nb_states):
-      ii, jj = self.env.get_state_xy(idx)
-      if self.env.not_wall(ii, jj):
-        continue
-      else:
-        sns.plt.gca().add_patch(
-          patches.Rectangle(
-            (jj, self.config.input_size[0] - ii - 1),  # (x,y)
-            1.0,  # width
-            1.0,  # height
-            facecolor="gray"
-          )
-        )
-    sns.plt.savefig(os.path.join(self.summary_path, ("sr_vectors/Return_VECTOR_" + str(i) + '.png')))
-    sns.plt.close()
-
-  def plot_sr_vectors(self, matrix, folder):
-    sns.plt.clf()
-    folder_path = os.path.join(os.path.join(self.config.stage_logdir, "summaries"), folder)
+    """"Where to save the plots"""
+    folder_path = os.path.join(self.summary_path, folder)
     tf.gfile.MakeDirs(folder_path)
+
     for i in range(self.nb_states):
       aa, bb = self.env.get_state_xy(i)
       if self.env.not_wall(aa, bb):
-        Z = matrix[i].reshape(self.config.input_size[0], self.config.input_size[1])
-        ax = sns.heatmap(Z, cmap="Blues")
+        """Reproject the SR vector over the environment"""
+        sr_vector = self.matrix_sf[i].reshape(self.config.input_size[0], self.config.input_size[1])
+        ax = sns.heatmap(sr_vector, cmap="Blues")
 
+        """Add borders"""
         for idx in range(self.nb_states):
           ii, jj = self.env.get_state_xy(idx)
           if self.env.not_wall(ii, jj):
@@ -163,27 +132,45 @@ class LinearSFAgent():
                 facecolor="gray"
               )
             )
+        """Save the plot"""
         sns.plt.savefig(os.path.join(folder_path, "SR_VECTOR_" + str(i) + '.png'))
         sns.plt.close()
 
-  def eigen_decomp(self, matrix):
-    u, s, v = np.linalg.svd(matrix)
-    noise_reduction = s > 1
+  def eigen_decomp(self):
+    """Where to save the eigenvectors, the policies and the value functions"""
+    eigenvector_folder = os.path.join(self.summary_path, "eigenvectors")
+    tf.gfile.MakeDirs(eigenvector_folder)
+
+    policy_folder = os.path.join(self.summary_path, "policies")
+    tf.gfile.MakeDirs(policy_folder)
+
+    v_folder = os.path.join(self.summary_path, "value_functions")
+    tf.gfile.MakeDirs(v_folder)
+
+    """Perform eigendecomposition - in this case SVD for completeness"""
+    u, s, v = np.linalg.svd(self.matrix_sf)
+    # noise_reduction = s > 1
     # s = s[noise_reduction]
     # v = v[noise_reduction]
-    # self.plot_basis_functions(s, v)
-    self.plot_policy_and_value_function(s, v)
 
-  def plot_basis_functions(self, eigenvalues, eigenvectors):
+    """Plot eigenvectors"""
+    self.plot_eigenvectors(s, v, eigenvector_folder)
+    """Plot policies and value functions"""
+    self.plot_policy_and_value_function(s, v, policy_folder, v_folder)
+
+  """Reproject and plot eigenvectors"""
+  def plot_eigenvectors(self, eigenvalues, eigenvectors, eigenvector_folder):
     sns.plt.clf()
     for k in ["poz", "neg"]:
       for i in range(len(eigenvalues)):
-        Z = eigenvectors[i].reshape(self.config.input_size[0], self.config.input_size[1])
+        reproj_eigenvector = eigenvectors[i].reshape(self.config.input_size[0], self.config.input_size[1])
+        """Take both signs"""
         if k == "neg":
-          Z = -Z
-        # sns.palplot(sns.dark_palette("purple", reverse=True))
-        ax = sns.heatmap(Z, cmap="Blues")
+          reproj_eigenvector = -reproj_eigenvector
+        """Plot of the eigenvector"""
+        ax = sns.heatmap(reproj_eigenvector, cmap="Blues")
 
+        """Adding borders"""
         for idx in range(self.nb_states):
           ii, jj = self.env.get_state_xy(idx)
           if self.env.not_wall(ii, jj):
@@ -197,58 +184,59 @@ class LinearSFAgent():
                 facecolor="gray"
               )
             )
-        sns.plt.savefig(os.path.join(self.summary_path, ("Eigenvector" + str(i) + '_eig_' + k + '.png')))
+        """Saving plots"""
+        sns.plt.savefig(os.path.join(eigenvector_folder, ("Eigenvector" + str(i) + '_eig_' + k + '.png')))
         sns.plt.close()
 
+    """Plot also the eigenvalues"""
     sns.plt.plot(eigenvalues, 'o')
-    sns.plt.savefig(self.summary_path + 'eigenvalues.png')
+    sns.plt.savefig(os.path.join(eigenvector_folder,  'eigenvalues.png'))
+    sns.plt.close()
 
-  def plot_policy_and_value_function(self, eigenvalues, eigenvectors):
+  """Plot plicies and value functions"""
+  def plot_policy_and_value_function(self, eigenvalues, eigenvectors, policy_folder, v_folder):
     epsilon = 0.0001
-    options = []
     for k in ["poz", "neg"]:
       for i in range(len(eigenvalues)):
-        polIter = PolicyIteration(0.9, self.env, augmentActionSet=True)
+        """Do policy iteration"""
+        discount = 0.9
+        polIter = PolicyIteration(discount, self.env, augmentActionSet=True)
+        """Use the direction of the eigenvector as intrinsic reward for the policy iteration algorithm"""
         self.env.define_reward_function(eigenvectors[i] if k == "poz" else -eigenvectors[i])
+        """Get the optimal value function and policy"""
         V, pi = polIter.solvePolicyIteration()
 
-        # Now I will eliminate any actions that may give us a small improvement.
-        # This is where the epsilon parameter is important. If it is not set all
-        # it will never be considered, since I set it to a very small value
         for j in range(len(V)):
           if V[j] < epsilon:
             pi[j] = len(self.env.get_action_set())
 
-        # if plotGraphs:
-        self.plot_value_function(V[0:self.nb_states], str(i) + '_' + k + "_")
-        self.plot_policy(pi[0:self.nb_states], str(i) + '_' + k + "_")
+        """Plot them"""
+        self.plot_value_function(V[0:self.nb_states], str(i) + '_' + k + "_", v_folder)
+        self.plot_policy(pi[0:self.nb_states], str(i) + '_' + k + "_", policy_folder)
 
-        options.append(pi[0:self.nb_states])
-        # optionsActionSet = self.env.get_action_set()
-        # np.append(optionsActionSet, ['terminate'])
-        # actionSetPerOption.append(optionsActionSet)
-
-  def plot_value_function(self, value_function, prefix):
-    '''3d plot of a value function.'''
+  """Plot value functions"""
+  def plot_value_function(self, value_function, prefix, v_folder):
     fig, ax = plt.subplots(subplot_kw=dict(projection='3d'))
     X, Y = np.meshgrid(np.arange(self.config.input_size[1]), np.arange(self.config.input_size[0]))
-    Z = value_function.reshape(self.config.input_size[0], self.config.input_size[1])
+    reproj_value_function = value_function.reshape(self.config.input_size[0], self.config.input_size[1])
 
+    """Build the support"""
     for i in range(len(X)):
         for j in range(int(len(X[i]) / 2)):
             tmp = X[i][j]
             X[i][j] = X[i][len(X[i]) - j - 1]
             X[i][len(X[i]) - j - 1] = tmp
 
-    my_col = cm.jet(np.random.rand(Z.shape[0], Z.shape[1]))
+    cm.jet(np.random.rand(reproj_value_function.shape[0], reproj_value_function.shape[1]))
 
-    ax.plot_surface(X, Y, Z, rstride=1, cstride=1,
+    ax.plot_surface(X, Y, reproj_value_function, rstride=1, cstride=1,
                     cmap=plt.get_cmap('jet'))
     plt.gca().view_init(elev=30, azim=30)
-    plt.savefig(os.path.join(self.summary_path, "SuccessorFeatures" + prefix + 'value_function.png'))
+    plt.savefig(os.path.join(v_folder, "SuccessorFeatures" + prefix + 'value_function.png'))
     plt.close()
 
-  def plot_policy(self, policy, prefix):
+  """Plot the policy"""
+  def plot_policy(self, policy, prefix, policy_folder):
     plt.clf()
     for idx in range(len(policy)):
         i, j = self.env.get_state_xy(idx)
@@ -292,135 +280,86 @@ class LinearSFAgent():
         plt.axhline(j, color='k', linestyle=':')
     plt.axhline(self.config.input_size[0], color='k', linestyle=':')
 
-    plt.savefig(os.path.join(self.summary_path, "SuccessorFeatures_" + prefix + 'policy.png'))
+    plt.savefig(os.path.join(policy_folder, "SuccessorFeatures_" + prefix + 'policy.png'))
     plt.close()
 
-  # def build_matrix(self, sess, coord, saver):
-  #   with sess.as_default(), sess.graph.as_default():
-  #     episode_count = sess.run(self.global_step)
-  #     self.total_steps = sess.run(self.total_steps_tensor)
-  #
-  #     print("Starting worker " + str(self.thread_id))
-  #
-  #     while not coord.should_stop():
-  #       if episode_count > self.config.steps:
-  #         return 0
-  #
-  #       sess.run(self.update_local_vars)
-  #       episode_buffer = []
-  #       episode_reward = 0
-  #       d = False
-  #       t = 0
-  #       t_counter = 0
-  #       R = 0
-  #       old_sf = None
-  #
-  #       s = self.env.get_initial_state()
-  #
-  #       while not d:
-  #         a = np.random.choice(range(self.action_size))
-  #         feed_dict = {self.local_network.observation: np.identity(self.nb_states)[s:s+1]}
-  #         sf = sess.run(self.local_network.sf, feed_dict=feed_dict)[0]
-  #         _, r, d, s1 = self.env.step(a)
-  #
-  #         r = np.clip(r, -1, 1)
-  #         self.total_steps += 1
-  #         sess.run(self.increment_total_steps_tensor)
-  #         episode_buffer.append([s])
-  #         episode_reward += r
-  #         t += 1
-  #         t_counter += 1
-  #         s = s1
-  #
-  #       self.episode_rewards.append(episode_reward)
-  #       self.episode_lengths.append(t)
-  #
-  #       episode_count += 1
+  """Starting point of the agent acting in the environment"""
+  def play(self, coord, saver):
+    self.saver = saver
 
-  def play(self, sess, coord, saver):
-    with sess.as_default(), sess.graph.as_default():
-      episode_count = sess.run(self.global_step)
-      self.total_steps = sess.run(self.total_steps_tensor)
+    with self.sess.as_default(), self.sess.graph.as_default():
+      self.global_episode_np = self.sess.run(self.global_episode)
+      self.global_step_np = self.sess.run(self.global_step)
 
       print("Starting worker " + str(self.thread_id))
 
       while not coord.should_stop():
-        if episode_count > self.config.steps:
+        if self.global_step_np > self.config.steps and self.config.steps != -1 and self.name == "worker_0":
+          coord.request_stop()
           return 0
 
-        sess.run(self.update_local_vars)
-        episode_buffer = []
-        episode_reward = 0
-        d = False
-        t = 0
-        t_counter = 0
-        R = 0
-        old_sf = None
+        """update local network parameters from global network"""
+        self.sess.run(self.update_local_vars)
 
+        """initializations"""
+        episode_buffer = []
+        self.episode_reward = 0
+        d = False
+        self.episode_length = 0
+
+        """Reset the environment and get the initial state"""
         s = self.env.get_initial_state()
 
+        """While the episode does not terminate"""
         while not d:
+          """act according to the behaviour policy - random walk"""
           a = np.random.choice(range(self.action_size))
-          # feed_dict = {self.local_network.observation: np.identity(self.nb_states)[s:s+1]}
-          # sf = sess.run(self.local_network.sf, feed_dict=feed_dict)
+
           _, r, d, s1 = self.env.special_step(a, s)
 
-          r = np.clip(r, -1, 1)
-          self.total_steps += 1
-          sess.run(self.increment_total_steps_tensor)
+          """Add transition to buffer - this case is just the stqate"""
           episode_buffer.append([s])
-          episode_reward += r
-          t += 1
-          t_counter += 1
+          self.episode_reward += r
+          self.episode_length += 1
           s = s1
 
-          if t_counter == self.config.max_update_freq or d:
-            feed_dict = {self.local_network.observation: np.identity(self.nb_states)[s:s+1]}
-            sf = sess.run(self.local_network.sf,
-                                      feed_dict=feed_dict)[0]
-            bootstrap_sf = np.zeros_like(sf) if d else sf
-            ms, img_summ, loss = self.train(episode_buffer, sess, bootstrap_sf)
-            if self.name == "worker_0":
-              print("Episode {} >>> Step {} >>> SF_loss {} ".format(episode_count, self.total_steps, loss))
+          """Do n-step prediction over the successor representation"""
+          if len(episode_buffer) == self.config.max_update_freq or d:
+            """Get the successor features of the next state for which to bootstrap from"""
+            next_sf = self.sess.run(self.local_network.sf,
+                               feed_dict={self.local_network.observation: np.identity(self.nb_states)[s:s+1]})[0]
+            bootstrap_sf = np.zeros_like(next_sf) if d else next_sf
+            """Do one update step"""
+            self.train(episode_buffer, bootstrap_sf)
 
+            """Clear buffer for the next n steps"""
             episode_buffer = []
-            t_counter = 0
+
           if self.name == "worker_0":
-            print("Episode {} >>> Step {} >>> Length: {} >>> Reward: {}".format(episode_count, self.total_steps, t, episode_reward))
-        self.episode_rewards.append(episode_reward)
-        self.episode_lengths.append(t)
+            self.sess.run(self.increment_global_step)
+            self.global_step_np = self.global_step.eval()
 
-        if episode_count % self.config.checkpoint_interval == 0 and self.name == 'worker_0' and \
-                self.total_steps != 0:
-          saver.save(sess, self.model_path + '/model-' + str(episode_count) + '.cptk',
-                     global_step=self.global_step)
-          print("Saved Model at {}".format(self.model_path + '/model-' + str(episode_count) + '.cptk'))
+        if self.name == "worker_0":
+          self.sess.run(self.increment_global_episode)
+          self.global_episode_np = self.global_episode.eval()
 
-        if episode_count % self.config.summary_interval == 0 and self.total_steps != 0 and \
-                self.name == 'worker_0':
+          if self.global_episode_np % self.config.checkpoint_interval == 0:
+            self.save_model()
 
-          last_reward = self.episode_rewards[-1]
-          last_length = self.episode_lengths[-1]
+          if self.global_episode_np % self.config.summary_interval == 0:
+            self.write_summaries()
 
-          self.summary.value.add(tag='Perf/Reward', simple_value=float(last_reward))
-          self.summary.value.add(tag='Perf/Length', simple_value=float(last_length))
+  def write_summaries(self):
+    self.summary.value.add(tag='Perf/Reward', simple_value=float(self.episode_reward))
+    self.summary.value.add(tag='Perf/Length', simple_value=float(self.episode_length))
 
-          self.summary_writer.add_summary(ms, self.total_steps)
+    self.summary_writer.add_summary(self.summaries, self.global_episode_np)
+    self.summary_writer.add_summary(self.summary, self.global_episode_np)
+    self.summary_writer.flush()
 
-          # self.summary_writer.add_summary(img_summ, self.total_steps)
+  def save_model(self):
+    self.saver.save(self.sess, self.model_path + '/model-' + str(self.global_episode_np) + '.cptk',
+               global_step=self.global_episode)
+    print("Saved Model at {}".format(self.model_path + '/model-' + str(self.global_episode_np) + '.cptk'))
 
-          self.summary_writer.add_summary(self.summary, self.total_steps)
-          self.summary_writer.flush()
-
-        if self.name == 'worker_0':
-          sess.run(self.increment_global_step)
-        episode_count += 1
-
-  # def build_sf_matrix(self, sf):
-  #   if len(self.sf_transition_matrix) == self.config.sf_transition_matrix_size:
-  #     print("Matrix is ready")
-  #     self.task = 3
-  #     self.sf_transition_matrix.popleft()
-  #
-  #   self.sf_transition_matrix.append(sf_new - sf_old)
 

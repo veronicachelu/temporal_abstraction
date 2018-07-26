@@ -2,343 +2,80 @@ import tensorflow as tf
 import tensorflow.contrib.layers as layers
 from config_utility import gradient_summaries, huber_loss
 import numpy as np
-from networks.network_base import BaseNetwork
+from networks.network_embedding import EmbeddingNetwork
 import os
 
+"""Function approximation network for the option critic policies and value functions when options are given as embeddings corresponding to the spectral decomposition of the SR matrixand keeping track of the past with lsmts"""
+class LSTMNetwork(EmbeddingNetwork):
+  def __init__(self, scope, config, action_size):
+    super(LSTMNetwork, self).__init__(scope, config, action_size)
 
-class LSTMNetwork(BaseNetwork):
-  def __init__(self, scope, config, action_size, lr, network_optimizer, total_steps_tensor=None):
-    super(LSTMNetwork, self).__init__(scope, config, action_size, lr, network_optimizer, total_steps_tensor)
-    self.summaries_term = []
-    self.summaries_critic = []
-    self.summaries_eigen_critic = []
-    self.random_option_prob = tf.Variable(self.config.initial_random_option_prob, trainable=False,
-                                          name="prob_of_random_option", dtype=tf.float32)
-    self.build_network()
-
+  """Build the encoder for the latent representation space"""
   def build_feature_net(self, out):
+    """keep a copy of the input"""
     input = out
     with tf.variable_scope("fi"):
-      for i, nb_filt in enumerate(self.fc_layers):
+      for i, nb_filt in enumerate(self.config.fc_layers):
         out = layers.fully_connected(out, num_outputs=nb_filt,
                                      activation_fn=None,
                                      variables_collections=tf.get_collection("variables"),
                                      outputs_collections="activations", scope="fi_{}".format(i))
-        if i < len(self.fc_layers) - 1:
+        if i < len(self.config.fc_layers) - 1:
           out = tf.nn.relu(out)
         self.summaries_aux.append(tf.contrib.layers.summarize_activation(out))
-      self.fi_percept = tf.nn.relu(out, name="Zt")
+      fi_relu = tf.nn.relu(out)
 
-      ## Placeholders
+      """Placeholder for the previous rewards"""
       self.prev_rewards = tf.placeholder(shape=[None], dtype=tf.float32, name="Prev_Rewards")
       self.prev_rewards_expanded = tf.expand_dims(self.prev_rewards, 1)
-      self.prev_goal = tf.placeholder(shape=[None, self.config.sf_layers[-1]], dtype=tf.float32, name="Prev_Goals")
+
+      """Placeholder for the previous actions"""
       self.prev_actions = tf.placeholder(shape=[None], dtype=tf.int32, name="Prev_Actions")
       self.prev_actions_onehot = tf.one_hot(self.prev_actions, self.action_size, dtype=tf.float32,
                                             name="Prev_Actions_OneHot")
+      """The merged representation of the input"""
+      hidden = tf.concat([fi_relu, self.prev_rewards_expanded, self.prev_actions_onehot], 1,
+                         name="Concatenated_input")
+      """Preparing the input to the RNN, need to add a batch size of one since the current batch size will be used as the sequence size"""
+      rnn_in = tf.expand_dims(hidden, [0], name="RNN_input")
+      """This is the sequence size"""
+      step_size = tf.shape(input)[:1]
 
-      # Percepts & prev reward
-      self.f_percept_r = tf.concat([self.fi_percept, self.prev_rewards_expanded], 1,
-                    name="Zt_r")
+      """Use a normal LSTM cell for the recurrent network"""
+      lstm_cell = tf.contrib.rnn.LayerNormBasicLSTMCell(self.config.sf_layers[-1])
 
-      # Manager
-      self.f_Mspace = tf.concat([self.f_percept_r, self.prev_goal], 1, name="Mt")
-      self.f_Mspace = tf.contrib.layers.fully_connected(self.f_Mspace, self.config.m_layer)
-      self.f_Mspace = tf.contrib.layers.layer_norm(self.f_Mspace)
-      self.f_Mspace = tf.nn.elu(self.f_Mspace, name="St")
+      """Initialize the cell's state with zeros"""
+      c_init = np.zeros((1, lstm_cell.state_size.c), np.float32)
+      h_init = np.zeros((1, lstm_cell.state_size.h), np.float32)
+      self.state_init = [c_init, h_init]
 
-      m_rnn_in = tf.expand_dims(self.f_Mspace, [0], name="M_rnn_in")
-      m_step_size = tf.shape(input)[:1]
+      """Placeholders for the previous state of the cell to plug in"""
+      c_in = tf.placeholder(tf.float32, [1, lstm_cell.state_size.c], name="c_in")
+      h_in = tf.placeholder(tf.float32, [1, lstm_cell.state_size.h], name="h_in")
+      self.state_in = (c_in, h_in)
 
-      m_lstm_cell = tf.contrib.rnn.LayerNormBasicLSTMCell(self.sf_layers[-1])
-      m_c_init = np.zeros((1, m_lstm_cell.state_size.c), np.float32)
-      m_h_init = np.zeros((1, m_lstm_cell.state_size.h), np.float32)
-      self.m_state_init = [m_c_init, m_h_init]
-      m_c_in = tf.placeholder(tf.float32, [1, m_lstm_cell.state_size.c], name="m_c_in")
-      m_h_in = tf.placeholder(tf.float32, [1, m_lstm_cell.state_size.c], name="m_c_in")
-      self.m_state_in = (m_c_in, m_h_in)
-      m_state_in = tf.contrib.rnn.LSTMStateTuple(m_c_in, m_h_in)
+      """Create a state tuple for the previous state of the cell"""
+      state_in = tf.contrib.rnn.LSTMStateTuple(c_in, h_in)
 
-      m_lstm_outputs, m_lstm_state = tf.nn.dynamic_rnn(
-        m_lstm_cell, m_rnn_in, initial_state=m_state_in, sequence_length=m_step_size,
-        time_major=False, scope="m_rnn")
-      m_lstm_c, m_lstm_h = m_lstm_state
-      self.m_state_out = (m_lstm_c[:1, :], m_lstm_h[:1, :])
-      self.fi_m = tf.reshape(m_lstm_outputs, [-1, self.sf_layers[-1]], name="fi_m")
+      """Rollout the LSTM for the sequence of inputs"""
+      lstm_outputs, lstm_state = tf.nn.dynamic_rnn(
+        lstm_cell, rnn_in, initial_state=state_in, sequence_length=step_size,
+        time_major=False)
 
-      # worker
-      self.f_Wspace = tf.concat([self.f_percept_r, self.prev_actions_onehot], 1, name="Wt")
-      w_rnn_in = tf.expand_dims(self.f_Wspace, [0], name="w_RNN_in")
-      w_step_size = tf.shape(input)[:1]
+      """Get the next state of the LSTM"""
+      lstm_c, lstm_h = lstm_state
+      self.state_out = (lstm_c[:1, :], lstm_h[:1, :])
 
-      w_lstm_cell = tf.contrib.rnn.LayerNormBasicLSTMCell(self.sf_layers[-1])
-      w_c_init = np.zeros((1, w_lstm_cell.state_size.c), np.float32)
-      w_h_init = np.zeros((1, w_lstm_cell.state_size.h), np.float32)
-      self.w_state_init = [w_c_init, w_h_init]
-      w_c_in = tf.placeholder(tf.float32, [1, w_lstm_cell.state_size.c], name="w_c_in")
-      w_h_in = tf.placeholder(tf.float32, [1, w_lstm_cell.state_size.h], name="w_h_in")
-      self.w_state_in = (w_c_in, w_h_in)
-      w_state_in = tf.contrib.rnn.LSTMStateTuple(w_c_in, w_h_in)
+      """Get the output of the LSTM.
+      This is the latent state representation"""
+      self.fi = tf.reshape(lstm_outputs, [-1, self.config.sf_layers[-1]], name="fi_rnn")
 
-      w_lstm_outputs, w_lstm_state = tf.nn.dynamic_rnn(
-        w_lstm_cell, w_rnn_in, initial_state=w_state_in, sequence_length=w_step_size,
-        time_major=False, scope="w_rnn")
+      self.fi_relu = tf.nn.relu(self.fi)
 
-      w_lstm_c, w_lstm_h = w_lstm_state
-      self.state_out = (w_lstm_c[:1, :], w_lstm_h[:1, :])
-      self.fi_w = tf.reshape(w_lstm_outputs, [-1, self.sf_layers[-1]], name="fi_w")
+      self.summaries_aux.append(tf.contrib.layers.summarize_activation(self.fi))
 
-      # self.summaries_sf.append(tf.contrib.layers.summarize_activation(self.fi))
-      # self.summaries_aux.append(tf.contrib.layers.summarize_activation(self.fi))
-      self.summaries_option.append(tf.contrib.layers.summarize_activation(self.fi_m))
-      self.summaries_option.append(tf.contrib.layers.summarize_activation(self.fi_w))
-
-      self.option_direction_placeholder = tf.placeholder(shape=[None, self.sf_layers[-1]], dtype=tf.float32,
+      """Plug in the option's direction"""
+      self.option_direction_placeholder = tf.placeholder(shape=[None, self.config.sf_layers[-1]], dtype=tf.float32,
                                                          name="option_direction")
-      self.fi_option = tf.add(tf.stop_gradient(self.fi_w), self.option_direction_placeholder)
-
-  def build_next_frame_prediction_net(self):
-    with tf.variable_scope("action_fc"):
-      self.actions_placeholder = tf.placeholder(shape=[None], dtype=tf.float32, name="Actions")
-      actions = layers.fully_connected(self.actions_placeholder[..., None], num_outputs=self.fc_layers[-1],
-                                       activation_fn=None,
-                                       variables_collections=tf.get_collection("variables"),
-                                       outputs_collections="activations", scope="action_fc")
-
-    with tf.variable_scope("aux_next_frame"):
-      out = tf.add(self.fi_w, actions)
-      # out = tf.nn.relu(out)
-      for i, nb_filt in enumerate(self.aux_fc_layers):
-        out = layers.fully_connected(out, num_outputs=nb_filt,
-                                     activation_fn=None,
-                                     variables_collections=tf.get_collection("variables"),
-                                     outputs_collections="activations", scope="aux_fc_{}".format(i))
-        if i < len(self.aux_fc_layers) - 1:
-          out = tf.nn.relu(out)
-        self.summaries_aux.append(tf.contrib.layers.summarize_activation(out))
-      self.next_obs = tf.reshape(out,
-                                 (-1, self.config.input_size[0], self.config.input_size[1], self.config.history_size))
-
-  def build_eigen_option_q_val_net(self):
-    with tf.variable_scope("eigen_option_q"):
-      out = tf.stop_gradient(self.fi_option)
-      # out = self.fi_option
-      self.eigen_q_val = layers.fully_connected(out, num_outputs=1,
-                                                activation_fn=None,
-                                                variables_collections=tf.get_collection("variables"),
-                                                outputs_collections="activations", scope="eigen_q_val")
-      self.eigen_q_val = tf.squeeze(self.eigen_q_val, 1)
-      self.summaries_option.append(tf.contrib.layers.summarize_activation(self.eigen_q_val))
-
-  def build_intraoption_policies_nets(self):
-    with tf.variable_scope("option_pi"):
-      out = tf.stop_gradient(self.fi_option)
-      # out = self.fi_option
-      self.option = layers.fully_connected(out, num_outputs=self.action_size,
-                                           activation_fn=tf.nn.softmax,
-                                           biases_initializer=None,
-                                           variables_collections=tf.get_collection("variables"),
-                                           outputs_collections="activations", scope="policy")
-      self.summaries_option.append(tf.contrib.layers.summarize_activation(self.option))
-
-  def build_option_term_net(self):
-    with tf.variable_scope("option_term"):
-      out = tf.stop_gradient(self.fi_option)
-      # out = self.fi_option
-      self.termination = layers.fully_connected(out, num_outputs=1,
-                                                activation_fn=tf.nn.sigmoid,
-                                                variables_collections=tf.get_collection("variables"),
-                                                outputs_collections="activations", scope="termination")
-      self.termination = tf.squeeze(self.termination, 1)
-      self.summaries_term.append(tf.contrib.layers.summarize_activation(self.termination))
-
-  def build_option_q_val_net(self):
-    with tf.variable_scope("option_q_val"):
-      out = tf.stop_gradient(self.fi_m)
-      self.q_val = layers.fully_connected(out, num_outputs=(
-        self.nb_options + self.action_size) if self.config.include_primitive_options else self.nb_options,
-                                          activation_fn=None,
-                                          variables_collections=tf.get_collection("variables"),
-                                          outputs_collections="activations", scope="q_val")
-      self.summaries_critic.append(tf.contrib.layers.summarize_activation(self.q_val))
-      self.max_q_val = tf.reduce_max(self.q_val, 1)
-      self.max_options = tf.cast(tf.argmax(self.q_val, 1), dtype=tf.int32)
-      self.exp_options = tf.random_uniform(shape=[tf.shape(self.q_val)[0]], minval=0, maxval=(
-        self.nb_options + self.action_size) if self.config.include_primitive_options else self.nb_options,
-                                           dtype=tf.int32)
-      self.local_random = tf.random_uniform(shape=[tf.shape(self.q_val)[0]], minval=0., maxval=1., dtype=tf.float32,
-                                            name="rand_options")
-      self.condition = self.local_random > self.random_option_prob
-
-      self.current_option = tf.where(self.condition, self.max_options, self.exp_options, name="current_option")
-      self.primitive_action = tf.where(self.current_option >= self.nb_options,
-                                       tf.ones_like(self.current_option),
-                                       tf.zeros_like(self.current_option))
-      self.summaries_critic.append(tf.contrib.layers.summarize_activation(self.current_option))
-      self.v = tf.identity(self.max_q_val * (1 - self.random_option_prob) + \
-               self.random_option_prob * tf.reduce_mean(self.q_val, axis=1), name="V")
-      self.summaries_critic.append(tf.contrib.layers.summarize_activation(self.v))
-
-      return out
-
-  def build_SF_net(self, layer_norm=False):
-    with tf.variable_scope("succ_feat"):
-      out = tf.stop_gradient(self.fi_w)
-      for i, nb_filt in enumerate(self.sf_layers):
-        out = layers.fully_connected(out, num_outputs=nb_filt,
-                                     activation_fn=None,
-                                     biases_initializer=None,
-                                     variables_collections=tf.get_collection("variables"),
-                                     outputs_collections="activations", scope="sf_{}".format(i))
-        if i < len(self.sf_layers) - 1:
-          if layer_norm:
-            out = self.layer_norm_fn(out, relu=True)
-          else:
-            out = tf.nn.relu(out)
-        self.summaries_sf.append(tf.contrib.layers.summarize_activation(out))
-      self.sf = out
-
-  def build_network(self):
-    with tf.variable_scope(self.scope):
-      self.observation = tf.placeholder(
-        shape=[None, self.config.input_size[0], self.config.input_size[1], self.config.history_size],
-        dtype=tf.float32, name="Inputs")
-      out = self.observation
-      out = layers.flatten(out, scope="flatten")
-
-      self.decrease_prob_of_random_option = tf.assign_sub(self.random_option_prob, tf.constant(
-        (
-        self.config.initial_random_option_prob - self.config.final_random_option_prob) / self.config.explore_options_episodes))
-
-      self.build_feature_net(out)
-      self.build_option_term_net()
-      self.build_option_q_val_net()
-
-      self.build_eigen_option_q_val_net()
-
-      self.build_intraoption_policies_nets()
-      self.build_SF_net(layer_norm=False)
-      self.build_next_frame_prediction_net()
-      self.build_placeholders(self.config.history_size)
-
-      if self.scope != 'global':
-        self.build_losses()
-        self.gradients_and_summaries()
-
-  def build_placeholders(self, next_frame_channel_size):
-    self.target_sf = tf.placeholder(shape=[None, self.sf_layers[-1]], dtype=tf.float32, name="target_SF")
-    self.target_next_obs = tf.placeholder(
-      shape=[None, self.config.input_size[0], self.config.input_size[1], next_frame_channel_size], dtype=tf.float32,
-      name="target_next_obs")
-    self.options_placeholder = tf.placeholder(shape=[None], dtype=tf.int32, name="options")
-    self.target_eigen_return = tf.placeholder(shape=[None], dtype=tf.float32)
-    self.target_return = tf.placeholder(shape=[None], dtype=tf.float32)
-    self.primitive_actions_placeholder = tf.placeholder(shape=[None], dtype=tf.bool,
-                                                        name="primitive_actions_placeholder")
-
-  def build_losses(self):
-    self.responsible_actions = self.get_responsible_actions(self.option, self.actions_placeholder)
-
-    self.q_val_o = self.get_q(self.options_placeholder)
-    # o_term = self.get_o_term(self.options_placeholder)
-
-    self.only_non_primitve_options = tf.map_fn(lambda x: tf.cond(tf.less(x, self.nb_options), lambda: x, lambda: 0),
-                                               self.options_placeholder)
-
-    self.image_summaries.append(
-      tf.summary.image('next', tf.concat([self.next_obs, self.target_next_obs], 2), max_outputs=30))
-
-    if self.config.sr_matrix == "dynamic":
-      self.sf_matrix_size = self.config.sf_matrix_size
-    else:
-      self.sf_matrix_size = 104
-    self.matrix_sf = tf.placeholder(shape=[1, self.sf_matrix_size, self.sf_layers[-1]],
-                                    dtype=tf.float32, name="matrix_sf")
-    self.eigenvalues, _, ev = tf.svd(self.matrix_sf, full_matrices=False, compute_uv=True)
-    self.eigenvectors = tf.transpose(tf.conj(ev), perm=[0, 2, 1])
-
-    with tf.name_scope('sf_loss'):
-      sf_td_error = self.target_sf - self.sf
-    self.sf_loss = tf.reduce_mean(self.config.sf_coef * huber_loss(sf_td_error))
-
-    with tf.name_scope('aux_loss'):
-      aux_error = self.next_obs - self.target_next_obs
-    self.aux_loss = tf.reduce_mean(self.config.aux_coef * huber_loss(aux_error))
-
-    if self.config.eigen:
-      with tf.name_scope('eigen_critic_loss'):
-        eigen_td_error = tf.where(self.primitive_actions_placeholder, tf.zeros_like(self.target_eigen_return),
-                                  self.target_eigen_return - self.eigen_q_val)
-        self.eigen_critic_loss = tf.reduce_mean(0.5 * self.config.eigen_critic_coef * tf.square(eigen_td_error))
-
-    with tf.name_scope('critic_loss'):
-      td_error = self.target_return - self.q_val_o
-    self.critic_loss = tf.reduce_mean(0.5 * self.config.critic_coef * tf.square(td_error))
-
-    with tf.name_scope('termination_loss'):
-      self.term_err = (tf.stop_gradient(self.q_val_o) - tf.stop_gradient(self.v) + self.config.delib_margin)
-
-      self.term_loss = tf.reduce_mean(tf.where(self.primitive_actions_placeholder, tf.zeros_like(self.q_val_o),
-                                               self.termination * self.term_err))
-
-    with tf.name_scope('entropy_loss'):
-      self.entropy_loss = -self.entropy_coef * tf.reduce_mean(tf.where(self.primitive_actions_placeholder,
-                                                                       tf.zeros_like(self.option),
-                                                                       self.option * tf.log(self.option + 1e-7)))
-    with tf.name_scope('policy_loss'):
-      self.policy_loss = -tf.reduce_mean(
-        tf.where(self.primitive_actions_placeholder, tf.zeros_like(self.responsible_actions),
-                 tf.log(self.responsible_actions + 1e-7) * tf.stop_gradient(
-                   eigen_td_error)))
-
-    self.option_loss = self.policy_loss - self.entropy_loss + self.eigen_critic_loss
-
-  def take_gradient(self, loss):
-    local_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, self.scope)
-    global_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, 'global')
-    gradients = tf.gradients(loss, local_vars)
-    var_norms = tf.global_norm(local_vars)
-    grads, grad_norms = tf.clip_by_global_norm(gradients, self.config.gradient_clip_norm_value)
-    apply_grads = self.network_optimizer.apply_gradients(zip(grads, global_vars))
-    return grads, apply_grads
-
-  def gradients_and_summaries(self):
-    local_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, self.scope)
-
-    self.grads_sf, self.apply_grads_sf = self.take_gradient(self.sf_loss)
-    self.grads_aux, self.apply_grads_aux = self.take_gradient(self.aux_loss)
-    self.grads_critic, self.apply_grads_critic = self.take_gradient(self.critic_loss)
-    self.grads_option, self.apply_grads_option = self.take_gradient(self.option_loss)
-    self.grads_term, self.apply_grads_term = self.take_gradient(self.term_loss)
-
-
-    self.merged_summary_sf = tf.summary.merge(
-      self.summaries_sf + [tf.summary.scalar('avg_sf_loss', self.sf_loss),
-        gradient_summaries(zip(self.grads_sf, local_vars))])
-    self.merged_summary_aux = tf.summary.merge(self.image_summaries + self.summaries_aux +
-                                               [tf.summary.scalar('aux_loss', self.aux_loss),
-                                                 gradient_summaries(zip(self.grads_aux, local_vars))])
-    options_to_merge = self.summaries_option + [
-                                                tf.summary.scalar('avg_entropy_loss', self.entropy_loss),
-                                                tf.summary.scalar('avg_policy_loss', self.policy_loss),
-                                                tf.summary.scalar('random_option_prob', self.random_option_prob),
-                                                # tf.summary.scalar('LR', self.lr),
-                                                tf.summary.scalar('avg_eigen_critic_loss', self.eigen_critic_loss),
-                                                # gradient_summaries(zip(self.grads_eigen_critic, local_vars)),
-                                                gradient_summaries(zip(self.grads_option, local_vars),)]
-
-    self.merged_summary_option = tf.summary.merge(options_to_merge)
-
-    self.merged_summary_term = tf.summary.merge(
-      self.summaries_term + [tf.summary.scalar('avg_termination_loss', self.term_loss)] + [
-        tf.summary.scalar('avg_termination_error', tf.reduce_mean(self.term_err)),
-        gradient_summaries(zip(self.grads_term, local_vars))])
-
-    self.merged_summary_critic = tf.summary.merge(
-      self.summaries_term + [tf.summary.scalar('avg_critic_loss', self.critic_loss),] + [
-        gradient_summaries(zip(self.grads_critic, local_vars))])
-
-    # self.merged_summary_eigen_critic = tf.summary.merge(
-    #   self.summaries_eigen_critic + [tf.summary.scalar('avg_eigen_critic_loss', self.eigen_critic_loss),
-    #                          gradient_summaries(zip(self.grads_eigen_critic, local_vars))])
+      self.fi_option = tf.add(tf.stop_gradient(self.fi), self.option_direction_placeholder)
 
