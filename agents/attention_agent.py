@@ -256,20 +256,20 @@ class AttentionAgent(EigenOCAgentDyn):
 
   """Do one minibatch update over the next frame prediction network"""
   def train_aux(self):
-		minibatch = random.sample(self.aux_episode_buffer, self.config.batch_size)
-		rollout = np.array(minibatch)
-		observations = rollout[:, 0]
-		next_observations = rollout[:, 1]
-		actions = rollout[:, 2]
+    minibatch = random.sample(self.aux_episode_buffer, self.config.batch_size)
+    rollout = np.array(minibatch)
+    observations = rollout[:, 0]
+    next_observations = rollout[:, 1]
+    actions = rollout[:, 2]
 
-		feed_dict = {self.local_network.observation: np.stack(observations, axis=0),
-								 self.local_network.target_next_obs: np.stack(next_observations, axis=0),
-								 self.local_network.actions_placeholder: actions}
+    feed_dict = {self.local_network.observation: np.stack(observations, axis=0),
+                 self.local_network.target_next_obs: np.stack(next_observations, axis=0),
+                 self.local_network.actions_placeholder: actions}
 
-		aux_loss, _, self.summaries_aux = \
-			self.sess.run([self.local_network.aux_loss, self.local_network.apply_grads_aux,
-										 self.local_network.merged_summary_aux],
-										feed_dict=feed_dict)
+    aux_loss, _, self.summaries_aux = \
+      self.sess.run([self.local_network.aux_loss, self.local_network.apply_grads_aux,
+                     self.local_network.merged_summary_aux],
+                    feed_dict=feed_dict)
 
   """Do n-step prediction on the critics and policies"""
   def train_option(self, bootstrap_value_mix):
