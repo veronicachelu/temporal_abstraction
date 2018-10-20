@@ -138,7 +138,7 @@ class AttentionAgent(EigenOCAgentDyn):
     #   results = self.sess.run(tensor_list, feed_dict=feed_dict)
     # except:
     #   print("pam pam")
-    #
+		#
     # fi,\
     # sf,\
     # current_option_direction,\
@@ -161,9 +161,9 @@ class AttentionAgent(EigenOCAgentDyn):
     ###### EXECUTE RANDOM ACTION TODO ####
     self.action = np.random.choice(range(self.action_size))
 
-    sf = sf[0]
-    self.fi = fi[0]
-    self.add_SF(sf)
+    # sf = sf[0]
+    # self.fi = fi[0]
+    # self.add_SF(sf)
 
     """Store information in buffers for stats in tensorboard"""
     self.episode_actions.append(self.action)
