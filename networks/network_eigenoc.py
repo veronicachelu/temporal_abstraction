@@ -41,7 +41,8 @@ class EignOCNetwork():
     self.entropy_coef = self.config.final_random_action_prob
 
     """The probability of taking a random option"""
-    self.random_option_prob = tf.Variable(self.config.initial_random_option_prob, trainable=False, name="prob_of_random_option", dtype=tf.float32)
+    self.random_option_prob = tf.Variable(self.config.initial_random_option_prob, trainable=False,
+                                          name="prob_of_random_option", dtype=tf.float32)
 
     """If we want to gradually converge to a deterministic option"""
     self.decrease_prob_of_random_option = tf.assign_sub(self.random_option_prob, tf.constant(

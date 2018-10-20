@@ -113,11 +113,11 @@ https://drive.google.com/open?id=10PDUOyclVthsLwW9uq8nZmUF6Suj2d5A
 
 * To train direction-based OC use:
 
-        python train.py --logdir=./logdir --config=eigenoc_dyn --task=sf --resume=False
+        python train.py --logdir=./logdir --config=eigenoc_dyn --task=train --resume=False
 
 * To resume training of the direction-based OC use:
 
-        python train.py --logdir=./logdir --config=eigenoc_dyn --task=sf --resume=True --load_from=<dir_to_load_from>
+        python train.py --logdir=./logdir --config=eigenoc_dyn --task=train --resume=True --load_from=<dir_to_load_from>
         
 
 * To see training progress run tensorboard from the ```logdir/<logdir_oc_dir>/dif/summaries``` directory:

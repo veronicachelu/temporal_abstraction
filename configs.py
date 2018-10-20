@@ -1,4 +1,5 @@
 from agents import EmbeddingAgent
+from agents import AttentionAgent
 from agents import EigenOCAgent
 from agents import LinearSFAgent
 from agents import EigenOCAgentDyn
@@ -7,6 +8,7 @@ from agents import LSTMAgent
 from env_tools import GridWorld
 import functools
 from networks import EmbeddingNetwork
+from networks import AttentionNetwork
 from networks import EignOCNetwork
 from networks import LinearSFNetwork
 from networks import DynSRNetwork
@@ -396,6 +398,17 @@ def embedding():
 
 	return locals()
 
+def attention():
+	"""Load configuration options from eigenoc_dyn and override or add new ones"""
+	locals().update(eigenoc_dyn())
+
+	"""The kind of agent to use in the environment"""
+	target_agent = AttentionAgent
+
+	"""The kind of network to use for function approximation"""
+	network = AttentionNetwork
+
+	return locals()
 
 def lstm():
 	"""Load configuration options from embedding and override or add new ones"""
