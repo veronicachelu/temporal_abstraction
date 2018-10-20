@@ -279,3 +279,22 @@ class AttentionAgent(EigenOCAgentDyn):
       self.episode_mean_eigen_q_values.append(np.mean(self.episode_eigen_q_values))
     if len(self.episode_actions) != 0:
       self.episode_mean_actions.append(get_mode(self.episode_actions))
+
+  def write_summaries(self):
+    self.summary = tf.Summary()
+    self.summary.value.add(tag='Perf/Reward', simple_value=float(self.episode_reward))
+    self.summary.value.add(tag='Perf/Length', simple_value=float(self.episode_length))
+
+    for sum in [self.summaries_sf, self.summaries_aux, self.summaries_critic, self.summaries_option]:
+      if sum is not None:
+        self.summary_writer.add_summary(sum, self.global_episode_np)
+
+    if len(self.episode_mean_eigen_q_values) != 0:
+      last_mean_eigen_q_value = np.mean(self.episode_mean_eigen_q_values[-self.config.step_summary_interval:])
+      self.summary.value.add(tag='Perf/EigenQValue', simple_value=float(last_mean_eigen_q_value))
+    if len(self.episode_mean_actions) != 0:
+      last_frequent_action = self.episode_mean_actions[-1]
+      self.summary.value.add(tag='Perf/FreqActions', simple_value=last_frequent_action)
+
+    self.summary_writer.add_summary(self.summary, self.global_episode_np)
+    self.summary_writer.flush()

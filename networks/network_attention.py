@@ -74,7 +74,7 @@ class AttentionNetwork(EignOCNetwork):
       self.attention_weights = tf.nn.softmax(content_match)
 
       current_direction = tf.tensordot(self.attention_weights, self.eigenvectors[0], axes=[[1], [0]])
-      self.current_option_direction = tf.nn.l2_normalize(current_direction, axis=1)
+      self.current_option_direction = tf.nn.l2_normalize(tf.cast(current_direction, tf.float64), axis=1)
 
       self.summaries_critic.append(tf.contrib.layers.summarize_activation(self.current_option_direction))
 
