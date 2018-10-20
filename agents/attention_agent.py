@@ -156,9 +156,9 @@ class AttentionAgent(EigenOCAgentDyn):
     #   print("NAN error")
 		#
 		# pi = option_policy[0]
-    """Sample an action"""
-    self.action = np.random.choice(pi, p=pi)
-    self.action = np.argmax(pi == self.action)
+		# """Sample an action"""
+    # self.action = np.random.choice(pi, p=pi)
+    # self.action = np.argmax(pi == self.action)
 
     ###### EXECUTE RANDOM ACTION TODO ####
     self.action = np.random.choice(range(self.action_size))
