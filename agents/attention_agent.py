@@ -81,8 +81,8 @@ class AttentionAgent(EigenOCAgentDyn):
             self.next_frame_prediction()
 
             """Do n-step prediction for the returns"""
-            # r_mix = self.option_prediction(s, s1)
-            r_mix = 0
+            r_mix = self.option_prediction(s, s1)
+            # r_mix = 0
 
             if self.total_steps % self.config.step_summary_interval == 0 and self.name == 'worker_0':
               self.write_step_summary(r, r_mix)
@@ -141,10 +141,10 @@ class AttentionAgent(EigenOCAgentDyn):
                  self.local_network.matrix_sf: [self.global_network.sf_matrix_buffer]}
 
     tensor_list = [self.local_network.fi,
-                   self.local_network.sf,]
-                   # self.local_network.current_option_direction,
-                   # self.local_network.eigen_q_val,
-                   # self.local_network.option_policy]
+                   self.local_network.sf,
+                   self.local_network.current_option_direction,
+                   self.local_network.eigen_q_val,
+                   self.local_network.option_policy]
     try:
       results = self.sess.run(tensor_list, feed_dict=feed_dict)
     except:
@@ -152,27 +152,26 @@ class AttentionAgent(EigenOCAgentDyn):
 
     fi,\
     sf, \
+    current_option_direction,\
+    eigen_q_value,\
+    option_policy \
       = results
-    # current_option_direction,\
-    # eigen_q_value,\
-    # option_policy \
-
     """Add the eigen option-value function to the buffer in order to add stats to tensorboad at the end of the episode"""
-    # self.eigen_q_value = eigen_q_value[0]
-    # self.episode_eigen_q_values.append(self.eigen_q_value)
-    # self.current_option_direction = current_option_direction[0]
+    self.eigen_q_value = eigen_q_value[0]
+    self.episode_eigen_q_values.append(self.eigen_q_value)
+    self.current_option_direction = current_option_direction[0]
 
-    # """Get the intra-option policy for the current option"""
-    # if np.isnan(self.current_option_direction[0]):
-    #   print("NAN error")
-		#
-		# pi = option_policy[0]
-		# """Sample an action"""
-    # self.action = np.random.choice(pi, p=pi)
-    # self.action = np.argmax(pi == self.action)
+    """Get the intra-option policy for the current option"""
+    if np.isnan(self.current_option_direction[0]):
+      print("NAN error")
+
+    pi = option_policy[0]
+    """Sample an action"""
+    self.action = np.random.choice(pi, p=pi)
+    self.action = np.argmax(pi == self.action)
 
     ###### EXECUTE RANDOM ACTION TODO ####
-    self.action = np.random.choice(range(self.action_size))
+    # self.action = np.random.choice(range(self.action_size))
 
     sf = sf[0]
     self.fi = fi[0]
