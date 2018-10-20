@@ -401,7 +401,9 @@ def embedding():
 def attention():
 	"""Load configuration options from eigenoc_dyn and override or add new ones"""
 	locals().update(eigenoc_dyn())
-
+	num_agents = 2
+	summary_interval = 1
+	checkpoint_interval = 1
 	"""The kind of agent to use in the environment"""
 	target_agent = AttentionAgent
 

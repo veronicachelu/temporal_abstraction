@@ -64,6 +64,7 @@ class AttentionNetwork(EignOCNetwork):
     with tf.variable_scope("option_policy"):
       out = tf.stop_gradient(self.fi_relu)
       """If we accept primitive actions as options, we add action-value functions to those as well and we increase the number of units to include them at the end"""
+
       direction_features = layers.fully_connected(out, num_outputs=self.goal_embedding_size,
                                           activation_fn=None,
                                           variables_collections=tf.get_collection("variables"),
@@ -74,7 +75,12 @@ class AttentionNetwork(EignOCNetwork):
       self.attention_weights = tf.nn.softmax(content_match)
 
       current_direction = tf.tensordot(self.attention_weights, self.eigenvectors[0], axes=[[1], [0]])
-      self.current_option_direction = tf.cast(tf.nn.l2_normalize(tf.cast(current_direction, tf.float64), axis=1), tf.float32)
+      self.current_option_direction = tf.check_numerics(
+                            current_direction,
+                            "NaN in current_direction",
+                            name=None
+                          )
+      #tf.cast(tf.nn.l2_normalize(tf.cast(current_direction, tf.float64), axis=1), tf.float32)
 
       self.summaries_critic.append(tf.contrib.layers.summarize_activation(self.current_option_direction))
 
@@ -150,5 +156,9 @@ class AttentionNetwork(EignOCNetwork):
                                     dtype=tf.float32, name="matrix_sf")
     self.eigenvalues, _, ev = tf.svd(self.matrix_sf, full_matrices=False, compute_uv=True)
     self.eigenvectors = tf.transpose(tf.conj(ev), perm=[0, 2, 1])
-
+    self.eigenvectors = tf.check_numerics(
+                            self.eigenvectors,
+                            "NaN in eigenvectors",
+                            name=None
+                          )
     super(AttentionNetwork, self).build_network()

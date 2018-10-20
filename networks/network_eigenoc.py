@@ -111,8 +111,9 @@ class EignOCNetwork():
   def build_next_frame_prediction_net(self):
     """Plugging in the current action taken into the environment for next frame prediction"""
     with tf.variable_scope("action_fc"):
-      self.actions_placeholder = tf.placeholder(shape=[None], dtype=tf.float32, name="Actions")
-      actions = layers.fully_connected(self.actions_placeholder[..., None], num_outputs=self.config.fc_layers[-1],
+      self.actions_placeholder = tf.placeholder(shape=[None], dtype=tf.int32, name="Actions")
+      actions = tf.one_hot(self.actions_placeholder, depth=self.action_size)
+      actions = layers.fully_connected(actions, num_outputs=self.config.fc_layers[-1],
                                        activation_fn=None,
                                        variables_collections=tf.get_collection("variables"),
                                        outputs_collections="activations", scope="action_fc")

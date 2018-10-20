@@ -55,7 +55,6 @@ class AttentionAgent(EigenOCAgentDyn):
 
             """Choose an action from the current intra-option policy"""
             self.policy_evaluation(s)
-            # self.add_stats_to_tracker()
 
             s1, r, self.done, self.s1_idx = self.env.step(self.action)
 
@@ -70,12 +69,9 @@ class AttentionAgent(EigenOCAgentDyn):
             self.episode_buffer_sf.append([s, s1, self.action, self.reward, self.fi])
             self.sf_prediction(s1)
 
-            # if not self.done:
-            #   """Increase the timesteps for the options - for statistics purposes"""
-            #   self.o_tracker_steps[self.option] += 1
-
             """Do n-step prediction for the returns"""
-            r_mix = self.option_prediction(s, s1)
+            # r_mix = self.option_prediction(s, s1)
+            r_mix = 0
 
             if self.total_steps % self.config.step_summary_interval == 0 and self.name == 'worker_0':
               self.write_step_summary(r, r_mix)
@@ -129,32 +125,41 @@ class AttentionAgent(EigenOCAgentDyn):
 
   """Sample an action from the current option's policy"""
   def policy_evaluation(self, s):
-    feed_dict = {self.local_network.observation: [s],
-                 self.local_network.matrix_sf: [self.global_network.sf_matrix_buffer]}
 
-    tensor_list = [self.local_network.fi,
-                   self.local_network.sf,
-                   self.local_network.current_option_direction,
-                   self.local_network.eigen_q_val,
-                   self.local_network.option_policy]
+    # feed_dict = {self.local_network.observation: [s],
+    #              self.local_network.matrix_sf: [self.global_network.sf_matrix_buffer]}
+		#
+    # tensor_list = [self.local_network.fi,
+    #                self.local_network.sf,
+    #                self.local_network.current_option_direction,
+    #                self.local_network.eigen_q_val,
+    #                self.local_network.option_policy]
+    # try:
+    #   results = self.sess.run(tensor_list, feed_dict=feed_dict)
+    # except:
+    #   print("pam pam")
+    #
+    # fi,\
+    # sf,\
+    # current_option_direction,\
+    # eigen_q_value,\
+    # option_policy = results
+    # """Add the eigen option-value function to the buffer in order to add stats to tensorboad at the end of the episode"""
+    # self.eigen_q_value = eigen_q_value[0]
+    # self.episode_eigen_q_values.append(self.eigen_q_value)
+    # self.current_option_direction = current_option_direction[0]
+		#
+    # """Get the intra-option policy for the current option"""
+    # if np.isnan(self.current_option_direction[0]):
+    #   print("NAN error")
+		#
+    # pi = option_policy[0]
+    # """Sample an action"""
+    # self.action = np.random.choice(pi, p=pi)
+    # self.action = np.argmax(pi == self.action)
 
-    results = self.sess.run(tensor_list, feed_dict=feed_dict)
-
-    fi,\
-    sf,\
-    current_option_direction,\
-    eigen_q_value,\
-    option_policy = results
-    """Add the eigen option-value function to the buffer in order to add stats to tensorboad at the end of the episode"""
-    self.eigen_q_value = eigen_q_value[0]
-    self.episode_eigen_q_values.append(self.eigen_q_value)
-    self.current_option_direction = current_option_direction[0]
-
-    """Get the intra-option policy for the current option"""
-    pi = option_policy[0]
-    """Sample an action"""
-    self.action = np.random.choice(pi, p=pi)
-    self.action = np.argmax(pi == self.action)
+    ###### EXECUTE RANDOM ACTION TODO ####
+    self.action = np.random.choice(range(self.action_size))
 
     sf = sf[0]
     self.fi = fi[0]
@@ -275,7 +280,7 @@ class AttentionAgent(EigenOCAgentDyn):
     self.summary_writer.flush()
 
   def update_episode_stats(self):
-    if self.config.use_eigendirections and len(self.episode_eigen_q_values) != 0:
+    if len(self.episode_eigen_q_values) != 0:
       self.episode_mean_eigen_q_values.append(np.mean(self.episode_eigen_q_values))
     if len(self.episode_actions) != 0:
       self.episode_mean_actions.append(get_mode(self.episode_actions))
