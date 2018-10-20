@@ -126,43 +126,45 @@ class AttentionAgent(EigenOCAgentDyn):
   """Sample an action from the current option's policy"""
   def policy_evaluation(self, s):
 
-    # feed_dict = {self.local_network.observation: [s],
-    #              self.local_network.matrix_sf: [self.global_network.sf_matrix_buffer]}
-		#
-    # tensor_list = [self.local_network.fi,
-    #                self.local_network.sf,
-    #                self.local_network.current_option_direction,
-    #                self.local_network.eigen_q_val,
-    #                self.local_network.option_policy]
-    # try:
-    #   results = self.sess.run(tensor_list, feed_dict=feed_dict)
-    # except:
-    #   print("pam pam")
-		#
-    # fi,\
-    # sf,\
+    feed_dict = {self.local_network.observation: [s],
+                 self.local_network.matrix_sf: [self.global_network.sf_matrix_buffer]}
+
+    tensor_list = [self.local_network.fi,
+                   self.local_network.sf,]
+                   # self.local_network.current_option_direction,
+                   # self.local_network.eigen_q_val,
+                   # self.local_network.option_policy]
+    try:
+      results = self.sess.run(tensor_list, feed_dict=feed_dict)
+    except:
+      print("pam pam")
+
+    fi,\
+    sf, \
+      = results
     # current_option_direction,\
     # eigen_q_value,\
-    # option_policy = results
-    # """Add the eigen option-value function to the buffer in order to add stats to tensorboad at the end of the episode"""
+    # option_policy \
+
+    """Add the eigen option-value function to the buffer in order to add stats to tensorboad at the end of the episode"""
     # self.eigen_q_value = eigen_q_value[0]
     # self.episode_eigen_q_values.append(self.eigen_q_value)
     # self.current_option_direction = current_option_direction[0]
-		#
+
     # """Get the intra-option policy for the current option"""
     # if np.isnan(self.current_option_direction[0]):
     #   print("NAN error")
 		#
-    # pi = option_policy[0]
-    # """Sample an action"""
-    # self.action = np.random.choice(pi, p=pi)
-    # self.action = np.argmax(pi == self.action)
+		# pi = option_policy[0]
+    """Sample an action"""
+    self.action = np.random.choice(pi, p=pi)
+    self.action = np.argmax(pi == self.action)
 
     ###### EXECUTE RANDOM ACTION TODO ####
     self.action = np.random.choice(range(self.action_size))
 
-    # sf = sf[0]
-    # self.fi = fi[0]
+    sf = sf[0]
+    self.fi = fi[0]
     # self.add_SF(sf)
 
     """Store information in buffers for stats in tensorboard"""
