@@ -66,8 +66,19 @@ class AttentionAgent(EigenOCAgentDyn):
               s1 = s
               self.s1_idx = self.s_idx
 
+            """If the next state prediction buffer is full override the oldest memories"""
+            if len(self.aux_episode_buffer) == self.config.memory_size:
+              self.aux_episode_buffer.popleft()
+            if self.config.history_size <= 3:
+              self.aux_episode_buffer.append([s, s1, self.action])
+            else:
+              self.aux_episode_buffer.append([s, s1[:, :, -2:-1], self.action])
+
             self.episode_buffer_sf.append([s, s1, self.action, self.reward, self.fi])
             self.sf_prediction(s1)
+
+            """If the experience buffer has sufficient experience in it, every so often do an update with a batch of transition from it for next state prediction"""
+            self.next_frame_prediction()
 
             """Do n-step prediction for the returns"""
             # r_mix = self.option_prediction(s, s1)
@@ -232,15 +243,33 @@ class AttentionAgent(EigenOCAgentDyn):
                  self.local_network.actions_placeholder: actions,
                  self.local_network.target_next_obs: np.stack(next_observations, axis=0)}
 
-    _, self.summaries_sf, sf_loss, _, self.summaries_aux, aux_loss = \
+    # _, self.summaries_sf, sf_loss, _, self.summaries_aux, aux_loss = \
+    _, self.summaries_sf, sf_loss = \
       self.sess.run([self.local_network.apply_grads_sf,
                      self.local_network.merged_summary_sf,
                      self.local_network.sf_loss,
-                     self.local_network.apply_grads_aux,
-                     self.local_network.merged_summary_aux,
-                     self.local_network.aux_loss
+                     # self.local_network.apply_grads_aux,
+                     # self.local_network.merged_summary_aux,
+                     # self.local_network.aux_loss
                      ],
                     feed_dict=feed_dict)
+
+  """Do one minibatch update over the next frame prediction network"""
+  def train_aux(self):
+		minibatch = random.sample(self.aux_episode_buffer, self.config.batch_size)
+		rollout = np.array(minibatch)
+		observations = rollout[:, 0]
+		next_observations = rollout[:, 1]
+		actions = rollout[:, 2]
+
+		feed_dict = {self.local_network.observation: np.stack(observations, axis=0),
+								 self.local_network.target_next_obs: np.stack(next_observations, axis=0),
+								 self.local_network.actions_placeholder: actions}
+
+		aux_loss, _, self.summaries_aux = \
+			self.sess.run([self.local_network.aux_loss, self.local_network.apply_grads_aux,
+										 self.local_network.merged_summary_aux],
+										feed_dict=feed_dict)
 
   """Do n-step prediction on the critics and policies"""
   def train_option(self, bootstrap_value_mix):

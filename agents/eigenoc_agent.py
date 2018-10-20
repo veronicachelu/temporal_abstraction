@@ -172,17 +172,6 @@ class EigenOCAgent():
       self.stats_actions[self.s_idx][self.action] += 1
       self.stats_options[self.s_idx][self.option] += 1
 
-  """Do n-step prediction for the successor representation latent"""
-  def sf_prediction(self, s1):
-    if len(self.episode_buffer_sf) == self.config.max_update_freq or self.done:
-      """Get the successor features of the next state for which to bootstrap from"""
-      feed_dict = {self.local_network.observation: [s1]}
-      next_sf = self.sess.run(self.local_network.sf,
-                         feed_dict=feed_dict)[0]
-      bootstrap_sf = np.zeros_like(next_sf) if self.done else next_sf
-      self.train_sf(bootstrap_sf)
-      self.episode_buffer_sf = []
-
   """Do an update for the representation latent using 1-step next frame prediction"""
   def next_frame_prediction(self):
     if len(self.aux_episode_buffer) > self.config.observation_steps and \
@@ -555,6 +544,18 @@ class EigenOCAgent():
     self.summary.value.add(tag='Eigenvectors/Mean similarity', simple_value=float(mean_similarity))
     self.summary_writer.add_summary(self.summary, self.total_steps)
     self.summary_writer.flush()
+
+    """Do n-step prediction for the successor representation latent"""
+
+    def sf_prediction(self, s1):
+      if len(self.episode_buffer_sf) == self.config.max_update_freq or self.done:
+        """Get the successor features of the next state for which to bootstrap from"""
+        feed_dict = {self.local_network.observation: [s1]}
+        next_sf = self.sess.run(self.local_network.sf,
+                                feed_dict=feed_dict)[0]
+        bootstrap_sf = np.zeros_like(next_sf) if self.done else next_sf
+        self.train_sf(bootstrap_sf)
+        self.episode_buffer_sf = []
 
   """Map ejgen directions to the closest old directions in terms of cosine similarity, 
   so as not to change option basis too abruptly"""

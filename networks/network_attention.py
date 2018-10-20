@@ -21,19 +21,17 @@ class AttentionNetwork(EignOCNetwork):
 
   """Build the encoder for the latent representation space"""
   def build_feature_net(self, out):
-    self.current_option_direction_placeholder = tf.placeholder(shape=[None, self.config.sf_layers[-1]],
-                                                       dtype=tf.float32,
-                                                       name="option_direction")
-
     super(AttentionNetwork, self).build_feature_net(out)
-    intra_features = layers.fully_connected(tf.stop_gradient(self.fi_relu),
-                                      num_outputs=self.action_size * self.goal_embedding_size,
-                                      activation_fn=None,
-                                      variables_collections=tf.get_collection("variables"),
-                                      outputs_collections="activations", scope="U")
-    self.policy_features = tf.reshape(intra_features, [-1 , self.action_size, self.goal_embedding_size],
-                               name="policy_features")
-    self.value_features = tf.identity(intra_features, name="value_features")
+
+    with tf.variable_scope("option_features"):
+      intra_features = layers.fully_connected(tf.stop_gradient(self.fi_relu),
+                                        num_outputs=self.action_size * self.goal_embedding_size,
+                                        activation_fn=None,
+                                        variables_collections=tf.get_collection("variables"),
+                                        outputs_collections="activations", scope="U")
+      self.policy_features = tf.reshape(intra_features, [-1, self.action_size, self.goal_embedding_size],
+                                 name="policy_features")
+      self.value_features = tf.identity(intra_features, name="value_features")
 
   """Build the intra-option policies critics"""
   def build_eigen_option_q_val_net(self):
