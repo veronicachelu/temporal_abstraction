@@ -183,11 +183,13 @@ class AttentionNetwork(EignOCNetwork):
                                     dtype=tf.float32, name="matrix_sf")
     self.eigenvalues, _, ev = tf.svd(self.matrix_sf, full_matrices=False, compute_uv=True)
     self.eigenvectors = tf.transpose(tf.conj(ev), perm=[0, 2, 1])
+
     self.eigenvectors = tf.check_numerics(
                             self.eigenvectors,
                             "NaN in eigenvectors",
                             name=None
                           )
+
     self.eigenvectors_placeholders = tf.placeholder_with_default(self.eigenvectors, shape=self.eigenvectors.shape)
 
     super(AttentionNetwork, self).build_network()

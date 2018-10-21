@@ -17,8 +17,11 @@ def run(config, logdir):
   tf.reset_default_graph()
 
   """Create a global session."""
+  from tensorflow.python import debug as tf_debug
   sess = tf.Session(config=tf.ConfigProto(
     allow_soft_placement=True, log_device_placement=False))
+  sess = tf_debug.LocalCLIDebugWrapperSession(sess, ui_type=FLAGS.ui_type)
+
 
   """Make log directory if it does not exist."""
   tf.gfile.MakeDirs(logdir)

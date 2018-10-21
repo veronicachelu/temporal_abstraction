@@ -205,6 +205,7 @@ class AttentionAgent(EigenOCAgentDyn):
     """The internal reward will be the cosine similary between the direction in latent space and the 
          eigen direction corresponding to the current option"""
     r_i = self.cosine_similarity((fi[1] - fi[0]), self.current_option_direction)
+    assert r_i <= 1 and r_i >= -1
     r_mix = self.config.alpha_r * r_i + (1 - self.config.alpha_r) * self.reward
 
     """Adding to the transition buffer for doing n-step prediction on critics and policies"""
@@ -218,10 +219,12 @@ class AttentionAgent(EigenOCAgentDyn):
         bootstrap_eigen_V = 0
         bootstrap_V = 0
       else:
-        feed_dict = {self.local_network.observation: [s1],
-                     self.local_network.matrix_sf: [self.global_network.sf_matrix_buffer]}
-        v, eigen_v = self.sess.run([self.local_network.value, self.local_network.eigen_val], feed_dict=feed_dict)
-
+        try:
+          feed_dict = {self.local_network.observation: [s1],
+                       self.local_network.matrix_sf: [self.global_network.sf_matrix_buffer]}
+          v, eigen_v = self.sess.run([self.local_network.value, self.local_network.eigen_val], feed_dict=feed_dict)
+        except:
+          print("stop exec")
         bootstrap_V = v[0]
         bootstrap_eigen_V = eigen_v[0]
 
