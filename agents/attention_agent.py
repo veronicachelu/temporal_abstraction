@@ -23,6 +23,7 @@ FLAGS = tf.app.flags.FLAGS
 class AttentionAgent(EigenOCAgentDyn):
   def __init__(self, sess, game, thread_id, global_step, global_episode, config, global_network, barrier):
     super(AttentionAgent, self).__init__(sess, game, thread_id, global_step, global_episode, config, global_network, barrier)
+    self.episode_mean_eigen_values = []
 
   """Starting point of the agent acting in the environment"""
   def play(self, coord, saver):
@@ -45,6 +46,7 @@ class AttentionAgent(EigenOCAgentDyn):
 
           self.init_episode()
           self.episode_mixed_reward = 0
+          self.episode_eigen_values = []
 
           """Reset the environment and get the initial state"""
           s = self.env.reset()
@@ -149,8 +151,9 @@ class AttentionAgent(EigenOCAgentDyn):
     tensor_list = [self.local_network.fi,
                    self.local_network.sf,
                    self.local_network.current_option_direction,
-                   self.local_network.eigen_q_val,
-                   self.local_network.option_policy]
+                   self.local_network.eigen_val,
+                   self.local_network.option_policy,
+                   self.local_network.value,]
     if compute_svd:
       tensor_list.append(self.local_network.eigenvectors)
 
@@ -162,13 +165,15 @@ class AttentionAgent(EigenOCAgentDyn):
     fi = results[0]
     sf = results[1]
     current_option_direction = results[2]
-    eigen_q_value = results[3]
+    eigen_value = results[3]
     option_policy = results[4]
+    value = results[5]
     if compute_svd:
-      self.global_network.eigenvectors = results[5]
+      self.global_network.eigenvectors = results[6]
     """Add the eigen option-value function to the buffer in order to add stats to tensorboad at the end of the episode"""
-    self.eigen_q_value = eigen_q_value[0]
-    self.episode_eigen_q_values.append(self.eigen_q_value)
+    self.eigen_value = eigen_value[0]
+    self.value = value[0]
+    self.episode_eigen_values.append(self.eigen_value)
     self.current_option_direction = current_option_direction[0]
 
     """Get the intra-option policy for the current option"""
@@ -210,16 +215,17 @@ class AttentionAgent(EigenOCAgentDyn):
           self.o_term and len(self.episode_buffer_option) >= self.config.min_update_freq):
       """Get the bootstrap option-value functions for the next time step"""
       if self.done:
-        bootstrap_eigen_Q = 0
+        bootstrap_eigen_V = 0
+        bootstrap_V = 0
       else:
         feed_dict = {self.local_network.observation: [s1],
                      self.local_network.matrix_sf: [self.global_network.sf_matrix_buffer]}
-        q_eigen = self.sess.run(self.local_network.eigen_q_val, feed_dict=feed_dict)
+        v, eigen_v = self.sess.run([self.local_network.value, self.local_network.eigen_val], feed_dict=feed_dict)
 
-        q_eigen = q_eigen[0]
-        bootstrap_eigen_Q = q_eigen
+        bootstrap_V = v[0]
+        bootstrap_eigen_V = eigen_v[0]
 
-      self.train_option(bootstrap_eigen_Q)
+      self.train_option(bootstrap_V, bootstrap_eigen_V)
 
       self.episode_buffer_option = []
 
@@ -284,7 +290,7 @@ class AttentionAgent(EigenOCAgentDyn):
                     feed_dict=feed_dict)
 
   """Do n-step prediction on the critics and policies"""
-  def train_option(self, bootstrap_value_mix):
+  def train_option(self, bootstrap_value, bootstrap_value_mix):
     rollout = np.array(self.episode_buffer_option)
     observations = rollout[:, 0]
     option_directions = rollout[:, 1]
@@ -293,11 +299,15 @@ class AttentionAgent(EigenOCAgentDyn):
     eigen_rewards = rollout[:, 4]
     next_observations = rollout[:, 5]
 
+    """Construct list of discounted returns for the entire n-step trajectory"""
+    rewards_plus = np.asarray(rewards.tolist() + [bootstrap_value])
+    discounted_returns = reward_discount(rewards_plus, self.config.discount)[:-1]
+
     """Construct list of discounted returns using mixed reward signals for the entire n-step trajectory"""
     eigen_rewards_plus = np.asarray(eigen_rewards.tolist() + [bootstrap_value_mix])
     discounted_eigen_returns = reward_discount(eigen_rewards_plus, self.config.discount)[:-1]
 
-    feed_dict = {
+    feed_dict = {self.local_network.target_return: discounted_returns,
                  self.local_network.target_eigen_return: discounted_eigen_returns,
                  self.local_network.observation: np.stack(observations, axis=0),
                  self.local_network.actions_placeholder: actions,
@@ -306,27 +316,32 @@ class AttentionAgent(EigenOCAgentDyn):
                  }
 
     """Do an update on the intra-option policies"""
-    _, self.summaries_option = self.sess.run([self.local_network.apply_grads_option,
-                                       self.local_network.merged_summary_option,
+    _, _, self.summaries_option, self.summaries_critic = self.sess.run([self.local_network.apply_grads_option,
+                                                 self.local_network.apply_grads_critic,
+                                                 self.local_network.merged_summary_option,
+                                                 self.local_network.merged_summary_critic,
                                        ], feed_dict=feed_dict)
 
     """Store the bootstrap target returns at the end of the trajectory"""
     self.eigen_R = discounted_eigen_returns[-1]
+    self.R = discounted_returns[-1]
 
   def write_step_summary(self, r, r_mix=None):
     self.summary = tf.Summary()
     self.summary.value.add(tag='Step/Action', simple_value=self.action)
     self.summary.value.add(tag='Step/MixedReward', simple_value=r_mix)
     self.summary.value.add(tag='Step/Reward', simple_value=r)
-    self.summary.value.add(tag='Step/EigenQ', simple_value=self.eigen_q_value)
-    self.summary.value.add(tag='Step/Target_EigenQ', simple_value=self.eigen_R)
+    self.summary.value.add(tag='Step/EigenV', simple_value=self.eigen_value)
+    self.summary.value.add(tag='Step/V', simple_value=self.value)
+    self.summary.value.add(tag='Step/Target_Eigen_Return', simple_value=self.eigen_R)
+    self.summary.value.add(tag='Step/Target_Return', simple_value=self.R)
 
     self.summary_writer.add_summary(self.summary, self.total_steps)
     self.summary_writer.flush()
 
   def update_episode_stats(self):
-    if len(self.episode_eigen_q_values) != 0:
-      self.episode_mean_eigen_q_values.append(np.mean(self.episode_eigen_q_values))
+    if len(self.episode_eigen_values) != 0:
+      self.episode_mean_eigen_values.append(np.mean(self.episode_eigen_values))
     if len(self.episode_actions) != 0:
       self.episode_mean_actions.append(get_mode(self.episode_actions))
 
@@ -340,9 +355,9 @@ class AttentionAgent(EigenOCAgentDyn):
       if sum is not None:
         self.summary_writer.add_summary(sum, self.global_episode_np)
 
-    if len(self.episode_mean_eigen_q_values) != 0:
-      last_mean_eigen_q_value = np.mean(self.episode_mean_eigen_q_values[-self.config.step_summary_interval:])
-      self.summary.value.add(tag='Perf/EigenQValue', simple_value=float(last_mean_eigen_q_value))
+    if len(self.episode_mean_eigen_values) != 0:
+      last_mean_eigen_value = np.mean(self.episode_mean_eigen_values[-self.config.step_summary_interval:])
+      self.summary.value.add(tag='Perf/EigenValue', simple_value=float(last_mean_eigen_value))
     if len(self.episode_mean_actions) != 0:
       last_frequent_action = self.episode_mean_actions[-1]
       self.summary.value.add(tag='Perf/FreqActions', simple_value=last_frequent_action)

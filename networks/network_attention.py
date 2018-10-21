@@ -39,10 +39,10 @@ class AttentionNetwork(EignOCNetwork):
       value_embedding = tf.get_variable("value_embedding",
                                      shape=[self.action_size * self.goal_embedding_size + self.goal_embedding_size, 1],
                                      initializer=normalized_columns_initializer(1.0))
-      self.eigen_q_val = tf.matmul(tf.concat([self.value_features, self.current_option_direction], 1), value_embedding,
+      self.eigen_val = tf.matmul(tf.concat([self.value_features, self.current_option_direction], 1), value_embedding,
                                name="fc_option_value")
-      self.eigen_q_val = tf.squeeze(self.eigen_q_val, 1)
-      self.summaries_option.append(tf.contrib.layers.summarize_activation(self.eigen_q_val))
+      self.eigen_val = tf.squeeze(self.eigen_val, 1)
+      self.summaries_option.append(tf.contrib.layers.summarize_activation(self.eigen_val))
 
   """Build the intra-option policies"""
   def build_intraoption_policies_nets(self):
@@ -66,7 +66,10 @@ class AttentionNetwork(EignOCNetwork):
       direction_features = layers.fully_connected(out, num_outputs=self.goal_embedding_size,
                                           activation_fn=None,
                                           variables_collections=tf.get_collection("variables"),
-                                          outputs_collections="activations", scope="q_val")
+                                          outputs_collections="activations", scope="direction_features")
+      self.value = layers.fully_connected(out, num_outputs=1, activation_fn=None,
+                                                  variables_collections=tf.get_collection("variables"),
+                                                  outputs_collections="activations", scope="V")
       # self.summaries_critic.append(tf.contrib.layers.summarize_activation(direction_features))
 
       content_match = tf.tensordot(direction_features, self.eigenvectors_placeholders[0], axes=[[1], [1]])
@@ -74,7 +77,7 @@ class AttentionNetwork(EignOCNetwork):
 
       current_direction = tf.tensordot(self.attention_weights, self.eigenvectors_placeholders[0], axes=[[1], [0]])
       self.current_option_direction = tf.check_numerics(
-                            tf.nn.l2_normalize(current_direction),
+                            current_direction,
                             "NaN in current_direction",
                             name=None
                           )
@@ -102,10 +105,19 @@ class AttentionNetwork(EignOCNetwork):
       aux_error = self.next_obs - self.target_next_obs
       self.aux_loss = tf.reduce_mean(self.config.aux_coef * huber_loss(aux_error))
 
+    with tf.name_scope('critic_loss'):
+      td_error = self.target_return - self.value
+      self.critic_loss = tf.reduce_mean(0.5 * self.config.critic_coef * tf.square(td_error))
+
+    with tf.name_scope('direction_loss'):
+      self.direction_loss = -tf.reduce_mean(self.cosine_similarity(self.target_fi_horiz - self.fi,
+                                                                   self.current_option_direction, 1) *
+                                            tf.stop_gradient(td_error))
+
     """If we use eigendirections for the options, than do TD on the eigen intra-option critics"""
     with tf.name_scope('eigen_critic_loss'):
       """Zero out where the option was a primitve one"""
-      eigen_td_error = self.target_eigen_return - self.eigen_q_val
+      eigen_td_error = self.target_eigen_return - self.eigen_val
       self.eigen_critic_loss = tf.reduce_mean(0.5 * self.config.eigen_critic_coef * tf.square(eigen_td_error))
 
     """Add an entropy regularization for each intra-option policy, driving exploration in the action space of intra-option policies"""
@@ -119,6 +131,17 @@ class AttentionNetwork(EignOCNetwork):
 
     self.option_loss = self.policy_loss - self.entropy_loss + self.eigen_critic_loss
 
+  def cosine_similarity(self, v1, v2, axis):
+    def l2_normalize(x, axis):
+        norm = tf.sqrt(tf.reduce_sum(tf.square(x), axis=axis, keepdims=True))
+        return tf.maximum(x, 1e-8) / tf.maximum(norm, 1e-8)
+    v1_norm = l2_normalize(v1, axis)
+    v2_norm = l2_normalize(v2, axis)
+    sim = tf.matmul(
+      v1_norm, v2_norm, transpose_b=True)
+
+    return sim
+
   """Build gradients for the losses with respect to the network params.
       Build summaries and update ops"""
   def gradients_and_summaries(self):
@@ -128,6 +151,8 @@ class AttentionNetwork(EignOCNetwork):
     self.grads_sf, self.apply_grads_sf = self.take_gradient(self.sf_loss)
     self.grads_aux, self.apply_grads_aux = self.take_gradient(self.aux_loss)
     self.grads_option, self.apply_grads_option = self.take_gradient(self.option_loss)
+    self.grads_critic, self.apply_grads_critic = self.take_gradient(self.critic_loss)
+    self.grads_direction, self.apply_grads_direction = self.take_gradient(self.direction_loss)
 
     """Summaries"""
     self.merged_summary_sf = tf.summary.merge(
@@ -145,6 +170,10 @@ class AttentionNetwork(EignOCNetwork):
 
     self.merged_summary_option = tf.summary.merge(options_to_merge)
 
+    self.merged_summary_critic = tf.summary.merge(
+                                              [tf.summary.scalar('critic_loss', self.critic_loss), ])
+    self.merged_summary_direction = tf.summary.merge(
+      [tf.summary.scalar('direction_loss', self.direction_loss), ])
 
   def build_network(self):
     # if self.scope != 'global':
@@ -160,4 +189,10 @@ class AttentionNetwork(EignOCNetwork):
                             name=None
                           )
     self.eigenvectors_placeholders = tf.placeholder_with_default(self.eigenvectors, shape=self.eigenvectors.shape)
+
     super(AttentionNetwork, self).build_network()
+
+  """Add additional placeholders for losses and such"""
+  def build_placeholders(self, next_frame_channel_size):
+    super(AttentionNetwork, self).build_placeholders(next_frame_channel_size)
+    self.target_fi_horiz = tf.placeholder(shape=[None, self.config.sf_layers[-1]], dtype=tf.float32, name="target_fi_horiz")
