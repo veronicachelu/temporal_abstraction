@@ -20,7 +20,7 @@ def run(config, logdir):
   from tensorflow.python import debug as tf_debug
   sess = tf.Session(config=tf.ConfigProto(
     allow_soft_placement=True, log_device_placement=False))
-  sess = tf_debug.LocalCLIDebugWrapperSession(sess, ui_type=FLAGS.ui_type)
+  sess = tf_debug.LocalCLIDebugWrapperSession(sess, ui_type='curses')
 
 
   """Make log directory if it does not exist."""
