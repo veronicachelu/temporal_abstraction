@@ -69,10 +69,10 @@ class AttentionNetwork(EignOCNetwork):
                                           outputs_collections="activations", scope="q_val")
       # self.summaries_critic.append(tf.contrib.layers.summarize_activation(direction_features))
 
-      content_match = tf.tensordot(direction_features, self.eigenvectors[0], axes=[[1], [1]])
+      content_match = tf.tensordot(direction_features, self.eigenvectors_placeholders[0], axes=[[1], [1]])
       self.attention_weights = tf.nn.softmax(content_match)
 
-      current_direction = tf.tensordot(self.attention_weights, self.eigenvectors[0], axes=[[1], [0]])
+      current_direction = tf.tensordot(self.attention_weights, self.eigenvectors_placeholders[0], axes=[[1], [0]])
       self.current_option_direction = tf.check_numerics(
                             tf.nn.l2_normalize(current_direction),
                             "NaN in current_direction",
@@ -159,4 +159,5 @@ class AttentionNetwork(EignOCNetwork):
                             "NaN in eigenvectors",
                             name=None
                           )
+    self.eigenvectors_placeholders = tf.placeholder_with_default(self.eigenvectors, shape=self.eigenvectors.shape)
     super(AttentionNetwork, self).build_network()

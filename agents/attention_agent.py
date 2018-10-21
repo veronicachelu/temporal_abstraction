@@ -44,6 +44,7 @@ class AttentionAgent(EigenOCAgentDyn):
           self.sync_threads()
 
           self.init_episode()
+          self.episode_mixed_reward = 0
 
           """Reset the environment and get the initial state"""
           s = self.env.reset()
@@ -54,7 +55,7 @@ class AttentionAgent(EigenOCAgentDyn):
             self.sync_threads()
 
             """Choose an action from the current intra-option policy"""
-            self.policy_evaluation(s)
+            self.policy_evaluation(s, self.episode_length == 0)
 
             s1, r, self.done, self.s1_idx = self.env.step(self.action)
 
@@ -82,6 +83,7 @@ class AttentionAgent(EigenOCAgentDyn):
 
             """Do n-step prediction for the returns"""
             r_mix = self.option_prediction(s, s1)
+            self.episode_mixed_reward += r_mix
             # r_mix = 0
 
             if self.total_steps % self.config.step_summary_interval == 0 and self.name == 'worker_0':
@@ -135,27 +137,35 @@ class AttentionAgent(EigenOCAgentDyn):
     self.o_tracker_len[self.option].append(self.crt_op_length)
 
   """Sample an action from the current option's policy"""
-  def policy_evaluation(self, s):
+  def policy_evaluation(self, s, compute_svd):
 
     feed_dict = {self.local_network.observation: [s],
-                 self.local_network.matrix_sf: [self.global_network.sf_matrix_buffer]}
+                 }
+    if compute_svd:
+      feed_dict[self.local_network.matrix_sf] = [self.global_network.sf_matrix_buffer]
+    else:
+      feed_dict[self.local_network.eigenvectors] = self.global_network.eigenvectors
 
     tensor_list = [self.local_network.fi,
                    self.local_network.sf,
                    self.local_network.current_option_direction,
                    self.local_network.eigen_q_val,
                    self.local_network.option_policy]
+    if compute_svd:
+      tensor_list.append(self.local_network.eigenvectors)
+
     try:
       results = self.sess.run(tensor_list, feed_dict=feed_dict)
     except:
       print("pam pam")
 
-    fi,\
-    sf, \
-    current_option_direction,\
-    eigen_q_value,\
-    option_policy \
-      = results
+    fi = results[0]
+    sf = results[1]
+    current_option_direction = results[2]
+    eigen_q_value = results[3]
+    option_policy = results[4]
+    if compute_svd:
+      self.global_network.eigenvectors = results[5]
     """Add the eigen option-value function to the buffer in order to add stats to tensorboad at the end of the episode"""
     self.eigen_q_value = eigen_q_value[0]
     self.episode_eigen_q_values.append(self.eigen_q_value)
@@ -212,6 +222,8 @@ class AttentionAgent(EigenOCAgentDyn):
       self.train_option(bootstrap_eigen_Q)
 
       self.episode_buffer_option = []
+
+    return r_mix
 
   """Do n-step prediction for the successor representation latent and an update for the representation latent using 1-step next frame prediction"""
   def sf_prediction(self, s1):
@@ -319,6 +331,7 @@ class AttentionAgent(EigenOCAgentDyn):
   def write_summaries(self):
     self.summary = tf.Summary()
     self.summary.value.add(tag='Perf/Reward', simple_value=float(self.episode_reward))
+    self.summary.value.add(tag='Perf/MixedReward', simple_value=float(self.episode_mixed_reward))
     self.summary.value.add(tag='Perf/Length', simple_value=float(self.episode_length))
 
     for sum in [self.summaries_sf, self.summaries_aux, self.summaries_critic, self.summaries_option]:
