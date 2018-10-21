@@ -316,6 +316,8 @@ class AttentionAgent(EigenOCAgentDyn):
   def write_step_summary(self, r, r_mix=None):
     self.summary = tf.Summary()
     self.summary.value.add(tag='Step/Action', simple_value=self.action)
+    self.summary.value.add(tag='Step/MixedReward', simple_value=r_mix)
+    self.summary.value.add(tag='Step/Reward', simple_value=r)
     self.summary.value.add(tag='Step/EigenQ', simple_value=self.eigen_q_value)
     self.summary.value.add(tag='Step/Target_EigenQ', simple_value=self.eigen_R)
 
