@@ -67,20 +67,20 @@ class AttentionNetwork(EignOCNetwork):
                                           activation_fn=None,
                                           variables_collections=tf.get_collection("variables"),
                                           outputs_collections="activations", scope="q_val")
-      self.summaries_critic.append(tf.contrib.layers.summarize_activation(direction_features))
+      # self.summaries_critic.append(tf.contrib.layers.summarize_activation(direction_features))
 
       content_match = tf.tensordot(direction_features, self.eigenvectors[0], axes=[[1], [1]])
       self.attention_weights = tf.nn.softmax(content_match)
 
       current_direction = tf.tensordot(self.attention_weights, self.eigenvectors[0], axes=[[1], [0]])
       self.current_option_direction = tf.check_numerics(
-                            current_direction,
+                            tf.nn.l2_normalize(current_direction),
                             "NaN in current_direction",
                             name=None
                           )
       #tf.cast(tf.nn.l2_normalize(tf.cast(current_direction, tf.float64), axis=1), tf.float32)
 
-      self.summaries_critic.append(tf.contrib.layers.summarize_activation(self.current_option_direction))
+      # self.summaries_critic.append(tf.contrib.layers.summarize_activation(self.current_option_direction))
 
 
   def build_losses(self):
@@ -135,13 +135,13 @@ class AttentionNetwork(EignOCNetwork):
         gradient_summaries(zip(self.grads_sf, local_vars))])
     self.merged_summary_aux = tf.summary.merge(self.image_summaries +
                                                self.summaries_aux +
-                                               [tf.summary.scalar('aux_loss', self.aux_loss),
-                                                 gradient_summaries(zip(self.grads_aux, local_vars))])
+                                               [tf.summary.scalar('aux_loss', self.aux_loss),])
+                                                 # gradient_summaries(zip(self.grads_aux, local_vars))])
     options_to_merge = self.summaries_option +\
                        [tf.summary.scalar('avg_entropy_loss', self.entropy_loss),
                         tf.summary.scalar('avg_policy_loss', self.policy_loss),
-                        tf.summary.scalar('avg_eigen_critic_loss', self.eigen_critic_loss),
-                        gradient_summaries(zip(self.grads_option, local_vars),)]
+                        tf.summary.scalar('avg_eigen_critic_loss', self.eigen_critic_loss),]
+                        # gradient_summaries(zip(self.grads_option, local_vars),)]
 
     self.merged_summary_option = tf.summary.merge(options_to_merge)
 

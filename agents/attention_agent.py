@@ -171,11 +171,12 @@ class AttentionAgent(EigenOCAgentDyn):
     self.action = np.argmax(pi == self.action)
 
     ###### EXECUTE RANDOM ACTION TODO ####
-    # self.action = np.random.choice(range(self.action_size))
+    if self.config.test_random_action:
+      self.action = np.random.choice(range(self.action_size))
 
     sf = sf[0]
     self.fi = fi[0]
-    # self.add_SF(sf)
+    self.add_SF(sf)
 
     """Store information in buffers for stats in tensorboard"""
     self.episode_actions.append(self.action)

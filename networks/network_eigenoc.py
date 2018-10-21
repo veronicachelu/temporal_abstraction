@@ -102,7 +102,7 @@ class EignOCNetwork():
       """This is the latent state representation"""
       self.fi = out
       out = tf.nn.relu(out)
-      self.summaries_aux.append(tf.contrib.layers.summarize_activation(out))
+      # self.summaries_aux.append(tf.contrib.layers.summarize_activation(out))
 
       """This is the latent state representation with relu on top, will be used for all the other layers later on"""
       self.fi_relu = out
