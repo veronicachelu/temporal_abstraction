@@ -70,6 +70,7 @@ class AttentionNetwork(EignOCNetwork):
       self.value = layers.fully_connected(out, num_outputs=1, activation_fn=None,
                                                   variables_collections=tf.get_collection("variables"),
                                                   outputs_collections="activations", scope="V")
+      self.value = tf.squeeze(self.value, 1)
       # self.summaries_critic.append(tf.contrib.layers.summarize_activation(direction_features))
 
       content_match = tf.tensordot(direction_features, self.eigenvectors_placeholders[0], axes=[[1], [1]])
@@ -181,8 +182,8 @@ class AttentionNetwork(EignOCNetwork):
             Transopose eigenvectors and cojugate to be equivalent to the numpy decomposition"""
     self.matrix_sf = tf.placeholder(shape=[1, self.config.sf_matrix_size, self.goal_embedding_size],
                                     dtype=tf.float32, name="matrix_sf")
-    self.eigenvalues, _, ev = tf.svd(self.matrix_sf, full_matrices=False, compute_uv=True)
-    self.eigenvectors = tf.transpose(tf.conj(ev), perm=[0, 2, 1])
+    self.eigenvalues, _, ev = tf.svd(tf.cast(self.matrix_sf, tf.float64), full_matrices=False, compute_uv=True)
+    self.eigenvectors = tf.cast(tf.transpose(tf.conj(ev), perm=[0, 2, 1]), tf.float32)
 
     self.eigenvectors = tf.check_numerics(
                             self.eigenvectors,

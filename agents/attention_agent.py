@@ -148,39 +148,38 @@ class AttentionAgent(EigenOCAgentDyn):
     else:
       feed_dict[self.local_network.eigenvectors] = self.global_network.eigenvectors
 
-    tensor_list = [self.local_network.fi,
-                   self.local_network.sf,
-                   self.local_network.current_option_direction,
-                   self.local_network.eigen_val,
-                   self.local_network.option_policy,
-                   self.local_network.value,]
+    tensor_results = {"fi": self.local_network.fi,
+                   "sf": self.local_network.sf,
+                   "option_direction": self.local_network.current_option_direction,
+                   "eigen_value": self.local_network.eigen_val,
+                   "option_policy": self.local_network.option_policy,
+                   "value": self.local_network.value}
     if compute_svd:
-      tensor_list.append(self.local_network.eigenvectors)
+      tensor_results["eigenvectors"] = self.local_network.eigenvectors
 
     try:
-      results = self.sess.run(tensor_list, feed_dict=feed_dict)
+      results = self.sess.run(tensor_results, feed_dict=feed_dict)
     except:
       print("pam pam")
 
-    fi = results[0]
-    sf = results[1]
-    current_option_direction = results[2]
-    eigen_value = results[3]
-    option_policy = results[4]
-    value = results[5]
-    if compute_svd:
-      self.global_network.eigenvectors = results[6]
+    self.fi = results["fi"][0]
+    sf = results["sf"][0]
     """Add the eigen option-value function to the buffer in order to add stats to tensorboad at the end of the episode"""
-    self.eigen_value = eigen_value[0]
-    self.value = value[0]
-    self.episode_eigen_values.append(self.eigen_value)
-    self.current_option_direction = current_option_direction[0]
+    self.add_SF(sf)
 
-    """Get the intra-option policy for the current option"""
+    self.current_option_direction = results["option_direction"][0]
+    self.eigen_value =  results["eigen_value"][0]
+    self.value = results["value"][0]
+    pi = results["option_policy"][0]
+
+    if compute_svd:
+      self.global_network.eigenvectors = results["eigenvectors"]
+
+    self.episode_eigen_values.append(self.eigen_value)
+
     if np.isnan(self.current_option_direction[0]):
       print("NAN error")
 
-    pi = option_policy[0]
     """Sample an action"""
     self.action = np.random.choice(pi, p=pi)
     self.action = np.argmax(pi == self.action)
@@ -189,9 +188,7 @@ class AttentionAgent(EigenOCAgentDyn):
     if self.config.test_random_action:
       self.action = np.random.choice(range(self.action_size))
 
-    sf = sf[0]
-    self.fi = fi[0]
-    self.add_SF(sf)
+
 
     """Store information in buffers for stats in tensorboard"""
     self.episode_actions.append(self.action)
@@ -319,11 +316,14 @@ class AttentionAgent(EigenOCAgentDyn):
                  }
 
     """Do an update on the intra-option policies"""
-    _, _, self.summaries_option, self.summaries_critic = self.sess.run([self.local_network.apply_grads_option,
-                                                 self.local_network.apply_grads_critic,
-                                                 self.local_network.merged_summary_option,
-                                                 self.local_network.merged_summary_critic,
-                                       ], feed_dict=feed_dict)
+    try:
+      _, _, self.summaries_option, self.summaries_critic = self.sess.run([self.local_network.apply_grads_option,
+                                                   self.local_network.apply_grads_critic,
+                                                   self.local_network.merged_summary_option,
+                                                   self.local_network.merged_summary_critic,
+                                         ], feed_dict=feed_dict)
+    except:
+      print("eerrere")
 
     """Store the bootstrap target returns at the end of the trajectory"""
     self.eigen_R = discounted_eigen_returns[-1]
