@@ -218,7 +218,9 @@ class AttentionAgent(EigenOCAgentDyn):
       else:
         try:
           feed_dict = {self.local_network.observation: [s1],
-                       self.local_network.matrix_sf: [self.global_network.sf_matrix_buffer]}
+                       # self.local_network.matrix_sf: [self.global_network.sf_matrix_buffer],
+                       self.local_network.eigenvectors: self.global_network.eigenvectors}
+
           v, eigen_v = self.sess.run([self.local_network.value, self.local_network.eigen_val], feed_dict=feed_dict)
         except:
           print("stop exec")
@@ -311,7 +313,8 @@ class AttentionAgent(EigenOCAgentDyn):
                  self.local_network.target_eigen_return: discounted_eigen_returns,
                  self.local_network.observation: np.stack(observations, axis=0),
                  self.local_network.actions_placeholder: actions,
-                 self.local_network.matrix_sf: [self.global_network.sf_matrix_buffer]
+                 # self.local_network.matrix_sf: [self.global_network.sf_matrix_buffer],
+                 self.local_network.eigenvectors: self.global_network.eigenvectors,
                  # self.local_network.current_option_direction: option_directions,
                  }
 
@@ -350,8 +353,8 @@ class AttentionAgent(EigenOCAgentDyn):
 
   def write_summaries(self):
     self.summary = tf.Summary()
-    self.summary.value.add(tag='Perf/Reward', simple_value=float(self.episode_reward))
-    self.summary.value.add(tag='Perf/MixedReward', simple_value=float(self.episode_mixed_reward))
+    self.summary.value.add(tag='Perf/Return', simple_value=float(self.episode_reward))
+    self.summary.value.add(tag='Perf/MixedReturn', simple_value=float(self.episode_mixed_reward))
     self.summary.value.add(tag='Perf/Length', simple_value=float(self.episode_length))
 
     for sum in [self.summaries_sf, self.summaries_aux, self.summaries_critic, self.summaries_option]:
