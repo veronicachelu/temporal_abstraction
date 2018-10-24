@@ -321,10 +321,21 @@ class AttentionAgent(EigenOCAgentDyn):
     """Do an update on the intra-option policies"""
     try:
       _, _, self.summaries_option, self.summaries_critic = self.sess.run([self.local_network.apply_grads_option,
-                                                   self.local_network.apply_grads_critic,
-                                                   self.local_network.merged_summary_option,
-                                                   self.local_network.merged_summary_critic,
-                                         ], feed_dict=feed_dict)
+                                                                          self.local_network.apply_grads_critic,
+                                                                          self.local_network.merged_summary_option,
+                                                                          self.local_network.merged_summary_critic,
+                                                                          ], feed_dict=feed_dict)
+      # _, _, _, \
+      # self.summaries_option,\
+      # self.summaries_critic,\
+      # self.summaries_direction = \
+      #   self.sess.run([self.local_network.apply_grads_option,
+      #                  self.local_network.apply_grads_critic,
+      #                  self.local_network.apply_grads_direction,
+      #                  self.local_network.merged_summary_option,
+      #                  self.local_network.merged_summary_critic,
+      #                  self.local_network.merged_summary_direction
+      #                  ], feed_dict=feed_dict)
     except:
       print("eerrere")
 
@@ -370,3 +381,62 @@ class AttentionAgent(EigenOCAgentDyn):
 
     self.summary_writer.add_summary(self.summary, self.global_episode_np)
     self.summary_writer.flush()
+
+  def eval(self, coord, saver):
+
+    with self.sess.as_default(), self.sess.graph.as_default():
+      self.init_agent()
+      tf.logging.info("Starting eval agent")
+      ep_rewards = []
+      ep_lengths = []
+      episode_frames = []
+
+      for i in range(self.config.nb_test_ep):
+        episode_reward = 0
+        """Reset the environment and get the initial state"""
+        s = self.env.reset()
+
+        self.done = False
+        episode_length = 0
+        """While the episode does not terminate"""
+        while not self.done:
+          """Choose an action from the current intra-option policy"""
+          self.policy_evaluation(s, self.episode_length == 0)
+
+          feed_dict = {self.local_network.observation: np.stack([s])}
+          options, o_term = self.sess.run([self.local_network.options, self.local_network.termination],
+                                          feed_dict=feed_dict)
+
+          if primitive_action:
+            action = option - self.nb_options
+            o_term = True
+          else:
+            pi = options[0, option]
+            action = np.random.choice(pi, p=pi)
+            action = np.argmax(pi == action)
+            o_term = o_term[0, option] > np.random.uniform()
+
+          # episode_frames.append(set_image(s, option, action, episode_length, primitive_action))
+          s1, r, d, _ = self.env.step(action)
+
+          r = np.clip(r, -1, 1)
+          episode_reward += r
+          episode_length += 1
+
+          if not d and (o_term or primitive_action):
+            feed_dict = {self.local_network.observation: np.stack([s1])}
+            option, primitive_action = self.sess.run(
+              [self.local_network.max_options, self.local_network.primitive_action], feed_dict=feed_dict)
+            option, primitive_action = option[0], primitive_action[0]
+            primitive_action = option >= self.config.nb_options
+          s = s1
+          if episode_length > self.config.max_length_eval:
+            break
+
+        ep_rewards.append(episode_reward)
+        ep_lengths.append(episode_length)
+        tf.logging.info("Ep {} finished in {} steps with reward {}".format(i, episode_length, episode_reward))
+      # images = np.array(episode_frames)
+      # make_gif(images, os.path.join(self.test_path, 'test_episodes.gif'),
+      #          duration=len(images) * 1.0, true_image=True)
+      tf.logging.info("Won {} episodes of {}".format(ep_rewards.count(1), self.config.nb_test_ep))

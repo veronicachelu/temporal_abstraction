@@ -84,7 +84,7 @@ class AttentionNetwork(EignOCNetwork):
                           )
       #tf.cast(tf.nn.l2_normalize(tf.cast(current_direction, tf.float64), axis=1), tf.float32)
 
-      # self.summaries_critic.append(tf.contrib.layers.summarize_activation(self.current_option_direction))
+      self.summaries_critic.append(tf.contrib.layers.summarize_activation(self.current_option_direction))
 
 
   def build_losses(self):

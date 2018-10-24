@@ -147,7 +147,9 @@ class EigenOCAgentDyn(EigenOCAgent):
     self.summary_writer.flush()
 
   def save_SF_matrix(self):
+    self.global_network.sf_matrix_path = os.path.join(self.config.logdir, "sf_matrix_{}.npy".format(self.global_episode_np))
     np.save(self.global_network.sf_matrix_path, self.global_network.sf_matrix_buffer)
 
   def save_eigen_directions(self):
+    self.global_network.directions_path = os.path.join(self.config.logdir, "eigen_directions_{}.npy".format(self.global_episode_np))
     np.save(self.global_network.directions_path, self.global_network.directions)
