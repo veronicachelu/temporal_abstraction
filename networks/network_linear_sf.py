@@ -1,17 +1,18 @@
 import tensorflow as tf
 import tensorflow.contrib.layers as layers
 from config_utility import gradient_summaries
-
+from online_clustering import OnlineCluster
 """Linear function approximation network for the successor representation when states are one-hot"""
 class LinearSFNetwork():
   def __init__(self, scope, config, action_size):
     self._scope = scope
     """The size of the input space flatten out"""
     self.nb_states = config.input_size[0] * config.input_size[1]
-    self._config = config
-    self._network_optimizer = config.network_optimizer(
-      self._config.lr, name='network_optimizer')
+    self.config = config
+    self.network_optimizer = config.network_optimizer(
+      self.config.lr, name='network_optimizer')
 
+    self.init_clustering()
     with tf.variable_scope(scope):
       self.observation = tf.placeholder(shape=[None, self.nb_states],
                                         dtype=tf.float32, name="Inputs")
@@ -30,10 +31,12 @@ class LinearSFNetwork():
 
         local_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope)
         gradients = tf.gradients(self.loss, local_vars)
-        grads, grad_norms = tf.clip_by_global_norm(gradients, self._config.gradient_clip_norm_value)
+        grads, grad_norms = tf.clip_by_global_norm(gradients, self.config.gradient_clip_norm_value)
 
         self.merged_summary = tf.summary.merge(loss_summaries + [
           gradient_summaries(zip(grads, local_vars))])
         global_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, 'global')
-        self.apply_grads = self._network_optimizer.apply_gradients(zip(grads, global_vars))
+        self.apply_grads = self.network_optimizer.apply_gradients(zip(grads, global_vars))
 
+  def init_clustering(self):
+    self.direction_clusters = OnlineCluster(4, self.nb_states)#np.zeros((self.config.nb_options, self.config.sf_layers[-1]))

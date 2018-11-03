@@ -14,6 +14,7 @@ sns.set()
 import matplotlib.pyplot as plt
 from matplotlib import cm
 from auxilary.policy_iteration import PolicyIteration
+from online_clustering import OnlineCluster
 FLAGS = tf.app.flags.FLAGS
 
 """This Agent corresponds to the case of performing linear approximation over states, whereas states are encoded as one-hot vectors with size corresponding to the state-space size of 169 (13x13) for the 4 Rooms Domain"""
@@ -28,6 +29,7 @@ class LinearSFAgent():
     self.global_episode = global_episode
     self.increment_global_step = self.global_step.assign_add(1)
     self.increment_global_episode = self.global_episode.assign_add(1)
+    self.global_network = global_network
 
     """Save models in the models directory in the logdir config folder"""
     self.model_path = os.path.join(config.logdir, "models")
@@ -156,7 +158,7 @@ class LinearSFAgent():
     """Plot eigenvectors"""
     self.plot_eigenvectors(s, v, eigenvector_folder)
     """Plot policies and value functions"""
-    self.plot_policy_and_value_function(s, v, policy_folder, v_folder)
+    self.plot_policy_and_value_function(v, policy_folder, v_folder)
 
   """Reproject and plot eigenvectors"""
   def plot_eigenvectors(self, eigenvalues, eigenvectors, eigenvector_folder):
@@ -194,10 +196,10 @@ class LinearSFAgent():
     sns.plt.close()
 
   """Plot plicies and value functions"""
-  def plot_policy_and_value_function(self, eigenvalues, eigenvectors, policy_folder, v_folder):
+  def plot_policy_and_value_function(self, eigenvectors, policy_folder, v_folder):
     epsilon = 0.0001
     for k in ["poz", "neg"]:
-      for i in range(len(eigenvalues)):
+      for i in range(len(eigenvectors)):
         """Do policy iteration"""
         discount = 0.9
         polIter = PolicyIteration(discount, self.env, augmentActionSet=True)
@@ -362,4 +364,87 @@ class LinearSFAgent():
                global_step=self.global_episode)
     print("Saved Model at {}".format(self.model_path + '/model-' + str(self.global_episode_np) + '.cptk'))
 
+  def cluster(self, coord):
+    with self.sess.as_default(), self.sess.graph.as_default():
+      self.global_episode_np = self.sess.run(self.global_episode)
+      self.global_step_np = self.sess.run(self.global_step)
+      # c = OnlineCluster(4, self.nb_states)
+      c = self.global_network.direction_clusters
+      print("Starting worker " + str(self.thread_id))
 
+      while not coord.should_stop():
+        if self.global_step_np > self.config.steps and self.config.steps != -1 and self.name == "worker_0":
+          coord.request_stop()
+          return 0
+
+        """update local network parameters from global network"""
+        self.sess.run(self.update_local_vars)
+
+        d = False
+        self.episode_length = 0
+
+        """Reset the environment and get the initial state"""
+        s = self.env.get_initial_state()
+        """While the episode does not terminate"""
+        while not d:
+          """act according to the behaviour policy - random walk"""
+          a = np.random.choice(range(self.action_size))
+          sf = self.sess.run(self.local_network.sf,
+                             feed_dict={self.local_network.observation: np.identity(self.nb_states)[s:s + 1]})[0]
+          c.cluster(sf)
+          _, r, d, s1 = self.env.special_step(a, s)
+
+          self.episode_length += 1
+          s = s1
+
+          if self.name == "worker_0":
+            self.sess.run(self.increment_global_step)
+            self.global_step_np = self.global_step.eval()
+
+        if self.name == "worker_0":
+          self.sess.run(self.increment_global_episode)
+          self.global_episode_np = self.global_episode.eval()
+
+          if self.global_episode_np % 10 == 0:
+            print("Reclustering")
+            clusters = c.get_clusters()
+            """Where to save the eigenvectors, the policies and the value functions"""
+            clusters_folder = os.path.join(self.summary_path, "clusters")
+            tf.gfile.MakeDirs(clusters_folder)
+
+            policy_folder = os.path.join(self.summary_path, "policies_clusters")
+            tf.gfile.MakeDirs(policy_folder)
+
+            v_folder = os.path.join(self.summary_path, "value_functions_clusters")
+            tf.gfile.MakeDirs(v_folder)
+
+            self.plot_clusters(clusters, clusters_folder)
+            """Plot policies and value functions"""
+            self.plot_policy_and_value_function(clusters, policy_folder, v_folder)
+
+  """Reproject and plot cluster directions"""
+  def plot_clusters(self, clusters, cluster_folder):
+    sns.plt.clf()
+    for i in range(len(clusters)):
+      reproj_eigenvector = clusters[i].reshape(self.config.input_size[0], self.config.input_size[1])
+      """Take both signs"""
+      """Plot of the eigenvector"""
+      ax = sns.heatmap(reproj_eigenvector, cmap="Blues")
+
+      """Adding borders"""
+      for idx in range(self.nb_states):
+        ii, jj = self.env.get_state_xy(idx)
+        if self.env.not_wall(ii, jj):
+          continue
+        else:
+          sns.plt.gca().add_patch(
+            patches.Rectangle(
+              (jj, self.config.input_size[0] - ii - 1),  # (x,y)
+              1.0,  # width
+              1.0,  # height
+              facecolor="gray"
+            )
+          )
+      """Saving plots"""
+      sns.plt.savefig(os.path.join(cluster_folder, ("Direction" + str(i) + '.png')))
+      sns.plt.close()
