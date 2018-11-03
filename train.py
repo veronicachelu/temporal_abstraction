@@ -80,7 +80,7 @@ def run(config, logdir):
                     range(config.num_agents)]
 
     """Construct saver and loader of weights."""
-    saver = loader = utility.define_saver(exclude=(r'.*_temporary/.*',))
+    saver = loader = utility.define_saver(exclude=(r'.*_temporary/.*', r'beta*/.*'))
 
     """Initialize vars."""
     utility.initialize_variables(sess, loader, checkpoint=FLAGS.load_from, resume=FLAGS.resume)

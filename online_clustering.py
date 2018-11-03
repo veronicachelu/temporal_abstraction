@@ -12,6 +12,7 @@ from mpl_toolkits.mplot3d import Axes3D  # noqa: F401 unused import
 import matplotlib.pyplot as plt
 import threading
 
+lock = threading.RLock()
 
 def kernel_linear(x, y):
 	return scipy.dot(x, y)
@@ -125,7 +126,7 @@ class OnlineCluster(object):
 
 		self.n = 0
 		self.N = N
-		self.lock = threading.RLock()
+
 
 		self.clusters = []
 		# max number of dimensions we've seen so far
@@ -140,7 +141,7 @@ class OnlineCluster(object):
 		self.dim = dim
 
 	def cluster(self, e):
-		if not self.lock.acquire(False):
+		if not lock.acquire(False):
 			pass
 		else:
 			e = normaliz(e)
@@ -174,7 +175,7 @@ class OnlineCluster(object):
 			self.updatedist(newc)
 
 			self.n += 1
-			self.lock.release()
+			lock.release()
 
 
 	def removedist(self, c):
