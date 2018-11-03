@@ -11,7 +11,6 @@ import scipy
 from mpl_toolkits.mplot3d import Axes3D  # noqa: F401 unused import
 import matplotlib.pyplot as plt
 import threading
-
 lock = threading.RLock()
 
 def kernel_linear(x, y):
@@ -128,6 +127,7 @@ class OnlineCluster(object):
 		self.N = N
 
 
+
 		self.clusters = []
 		# max number of dimensions we've seen so far
 		self.dim = dim
@@ -141,6 +141,8 @@ class OnlineCluster(object):
 		self.dim = dim
 
 	def cluster(self, e):
+		global lock
+
 		if not lock.acquire(False):
 			pass
 		else:
@@ -198,12 +200,20 @@ class OnlineCluster(object):
 			heapq.heappush(self.dist, t)
 
 	def get_clusters(self):
-		cls = self.clusters
-		clusters = [normaliz(c.center) for c in cls]
+		global lock
 
-		if len(cls) < self.N:
-			clusters += [np.zeros(shape=self.dim) for _ in range(self.N - len(cls))]
+		if not lock.acquire(False):
+			clusters = [np.zeros(shape=self.dim) for _ in range(self.N)]
+		else:
+			cls, len_cls = self.clusters, len(self.clusters)
+			clusters = [normaliz(c.center) for c in cls]
+
+			if len_cls < self.N:
+				clusters += [np.zeros(shape=self.dim) for _ in range(self.N - len_cls)]
+
+			lock.release()
 		return clusters
+
 
 	def trimclusters(self):
 		"""Return only clusters over threshold"""
