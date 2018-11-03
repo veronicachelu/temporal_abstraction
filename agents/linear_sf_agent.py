@@ -97,18 +97,18 @@ class LinearSFAgent():
 
   """"Plots the SR matrix"""
   def plot_sr_matrix(self):
-    sns.plt.clf()
+    plt.clf()
     sns.set_style('ticks')
     ax = sns.heatmap(self.matrix_sf, cmap="Blues")
     ax.set(xlabel='SR_vect_size=169', ylabel='Grid states/positions')
     folder_path = os.path.join(self.summary_path, "state_space_matrix")
     tf.gfile.MakeDirs(folder_path)
-    sns.plt.savefig(os.path.join(folder_path, 'SR_matrix.png'))
-    sns.plt.close()
+    plt.savefig(os.path.join(folder_path, 'SR_matrix.png'))
+    plt.close()
 
   """Reproject and plot the individual SR vectors over the 4 Rooms environment"""
   def plot_sr_vectors(self, folder):
-    sns.plt.clf()
+    plt.clf()
     """"Where to save the plots"""
     folder_path = os.path.join(self.summary_path, folder)
     tf.gfile.MakeDirs(folder_path)
@@ -126,7 +126,7 @@ class LinearSFAgent():
           if self.env.not_wall(ii, jj):
             continue
           else:
-            sns.plt.gca().add_patch(
+            plt.gca().add_patch(
               patches.Rectangle(
                 (jj, self.config.input_size[0] - ii - 1),  # (x,y)
                 1.0,  # width
@@ -135,8 +135,8 @@ class LinearSFAgent():
               )
             )
         """Save the plot"""
-        sns.plt.savefig(os.path.join(folder_path, "SR_VECTOR_" + str(i) + '.png'))
-        sns.plt.close()
+        plt.savefig(os.path.join(folder_path, "SR_VECTOR_" + str(i) + '.png'))
+        plt.close()
 
   def eigen_decomp(self):
     """Where to save the eigenvectors, the policies and the value functions"""
@@ -162,7 +162,7 @@ class LinearSFAgent():
 
   """Reproject and plot eigenvectors"""
   def plot_eigenvectors(self, eigenvalues, eigenvectors, eigenvector_folder):
-    sns.plt.clf()
+    plt.clf()
     for k in ["poz", "neg"]:
       for i in range(len(eigenvalues)):
         reproj_eigenvector = eigenvectors[i].reshape(self.config.input_size[0], self.config.input_size[1])
@@ -178,7 +178,7 @@ class LinearSFAgent():
           if self.env.not_wall(ii, jj):
            continue
           else:
-            sns.plt.gca().add_patch(
+            plt.gca().add_patch(
               patches.Rectangle(
                 (jj, self.config.input_size[0] - ii - 1),  # (x,y)
                 1.0,  # width
@@ -187,13 +187,13 @@ class LinearSFAgent():
               )
             )
         """Saving plots"""
-        sns.plt.savefig(os.path.join(eigenvector_folder, ("Eigenvector" + str(i) + '_eig_' + k + '.png')))
-        sns.plt.close()
+        plt.savefig(os.path.join(eigenvector_folder, ("Eigenvector" + str(i) + '_eig_' + k + '.png')))
+        plt.close()
 
     """Plot also the eigenvalues"""
-    sns.plt.plot(eigenvalues, 'o')
-    sns.plt.savefig(os.path.join(eigenvector_folder,  'eigenvalues.png'))
-    sns.plt.close()
+    plt.plot(eigenvalues, 'o')
+    plt.savefig(os.path.join(eigenvector_folder,  'eigenvalues.png'))
+    plt.close()
 
   """Plot plicies and value functions"""
   def plot_policy_and_value_function(self, eigenvectors, policy_folder, v_folder):
@@ -424,7 +424,7 @@ class LinearSFAgent():
 
   """Reproject and plot cluster directions"""
   def plot_clusters(self, clusters, cluster_folder):
-    sns.plt.clf()
+    plt.clf()
     for i in range(len(clusters)):
       reproj_eigenvector = clusters[i].reshape(self.config.input_size[0], self.config.input_size[1])
       """Take both signs"""
@@ -437,7 +437,7 @@ class LinearSFAgent():
         if self.env.not_wall(ii, jj):
           continue
         else:
-          sns.plt.gca().add_patch(
+          plt.gca().add_patch(
             patches.Rectangle(
               (jj, self.config.input_size[0] - ii - 1),  # (x,y)
               1.0,  # width
@@ -446,5 +446,5 @@ class LinearSFAgent():
             )
           )
       """Saving plots"""
-      sns.plt.savefig(os.path.join(cluster_folder, ("Direction" + str(i) + '.png')))
-      sns.plt.close()
+      plt.savefig(os.path.join(cluster_folder, ("Direction" + str(i) + '.png')))
+      plt.close()
