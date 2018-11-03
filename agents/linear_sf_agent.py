@@ -424,7 +424,7 @@ class LinearSFAgent():
 
   """Reproject and plot cluster directions"""
   def plot_clusters(self, clusters, cluster_folder):
-    sns.plt.clf()
+    plt.clf()
     for i in range(len(clusters)):
       reproj_eigenvector = clusters[i].reshape(self.config.input_size[0], self.config.input_size[1])
       """Take both signs"""
@@ -437,7 +437,7 @@ class LinearSFAgent():
         if self.env.not_wall(ii, jj):
           continue
         else:
-          sns.plt.gca().add_patch(
+          plt.gca().add_patch(
             patches.Rectangle(
               (jj, self.config.input_size[0] - ii - 1),  # (x,y)
               1.0,  # width
@@ -446,5 +446,5 @@ class LinearSFAgent():
             )
           )
       """Saving plots"""
-      sns.plt.savefig(os.path.join(cluster_folder, ("Direction" + str(i) + '.png')))
-      sns.plt.close()
+      plt.savefig(os.path.join(cluster_folder, ("Direction" + str(i) + '.png')))
+      plt.close()
