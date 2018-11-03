@@ -207,10 +207,10 @@ class AttentionAgent(EigenOCAgentDyn):
                        feed_dict=feed_dict)
     """The internal reward will be the cosine similary between the direction in latent space and the 
          eigen direction corresponding to the current option"""
-    r_i = self.cosine_similarity((fi[1] - fi[0]), self.current_option_direction)
-    assert r_i <= 1 and r_i >= -1
-    r_mix = self.config.alpha_r * r_i + (1 - self.config.alpha_r) * self.reward
-
+    # r_i = self.cosine_similarity((fi[1] - fi[0]), self.current_option_direction)
+    # assert r_i <= 1 and r_i >= -1
+    # r_mix = self.config.alpha_r * r_i + (1 - self.config.alpha_r) * self.reward
+    r_mix = self.reward
     """Adding to the transition buffer for doing n-step prediction on critics and policies"""
     self.episode_buffer_option.append(
       [s, self.current_option_direction, self.action, self.reward, r_mix, s1])
