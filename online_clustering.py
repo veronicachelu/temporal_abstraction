@@ -72,11 +72,11 @@ class Cluster(object):
 	# 	self.center += (e - self.center) / self.size
 	def add(self, e):
 		w_n = kernel(self.center, e)
-		self.center = normaliz((self.center * self.size + w_n * e) / (self.size + w_n))
+		self.center = normaliz((self.center * self.size + w_n * e) / (self.size + w_n + 1e-8))
 		self.size += w_n
 
 	def merge(self, c):
-		self.center = normaliz((self.center * self.size + c.center * c.size) / (self.size + c.size))
+		self.center = normaliz((self.center * self.size + c.center * c.size) / (self.size + c.size + 1e-8))
 		self.size += c.size
 
 	def resize(self, dim):
