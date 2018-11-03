@@ -200,18 +200,14 @@ class OnlineCluster(object):
 			heapq.heappush(self.dist, t)
 
 	def get_clusters(self):
-		global lock
+		cls = self.clusters[:]
+		len_cls = len(cls)
 
-		if not lock.acquire(False):
-			clusters = [np.zeros(shape=self.dim) for _ in range(self.N)]
-		else:
-			cls, len_cls = self.clusters, len(self.clusters)
-			clusters = [normaliz(c.center) for c in cls]
+		clusters = [normaliz(np.copy(c.center)) for c in cls]
 
-			if len_cls < self.N:
-				clusters += [np.zeros(shape=self.dim) for _ in range(self.N - len_cls)]
+		for _ in range(self.N - len_cls):
+			clusters.append(np.zeros(shape=self.dim))
 
-			lock.release()
 		return clusters
 
 
