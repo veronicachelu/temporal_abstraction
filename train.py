@@ -58,9 +58,12 @@ def run(config, logdir):
         b = Barrier(config.num_agents)
 
       """Switching between multiple tasks."""
-      if FLAGS.task == "build_sr_matrix":
+      if FLAGS.task == "build_sr_matrix" or FLAGS.task == "cluster":
         with tf.device("/cpu:0"):
-          agent = config.target_agent(sess, envs[0], 0, global_step, global_episode, config, None, None)
+          agents = [config.target_agent(sess, envs[i], i, global_step, global_episode, config, global_network, b) for i
+                    in
+                    range(config.num_agents)]
+          # agent = config.target_agent(sess, envs[0], 0, global_step, global_episode, config, global_network, b)
       elif FLAGS.task == "plot_options":
         with tf.device("/cpu:0"):
           agent = config.target_agent(sess, envs[0], 0, global_step, global_episode, config, global_network, b)
@@ -92,6 +95,11 @@ def run(config, logdir):
       thread = threading.Thread(target=(lambda: agent.build_SR_matrix()))
       thread.start()
       agent_threads.append(thread)
+    elif FLAGS.task == "cluster":
+      for agent in agents:
+        thread = threading.Thread(target=(lambda: agent.cluster(coord)))
+        thread.start()
+        agent_threads.append(thread)
     elif FLAGS.task == "plot_options":
       thread = threading.Thread(target=(lambda: agent.plot_high_level_directions(coord, saver)))
       thread.start()

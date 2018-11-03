@@ -143,6 +143,7 @@ class OnlineCluster(object):
 		if not self.lock.acquire(False):
 			pass
 		else:
+			e = normaliz(e)
 			if len(e) > self.dim:
 				self.resize(len(e))
 
@@ -154,12 +155,15 @@ class OnlineCluster(object):
 				# invalidate dist-cache for this cluster
 				self.updatedist(closest)
 
-			if len(self.clusters) >= self.N and len(self.clusters) > 1:
+			if len(self.clusters) >= self.N:
 				# merge closest two clusters
 				m = heapq.heappop(self.dist)
 				m.x.merge(m.y)
 
-				self.clusters.remove(m.y)
+				try:
+					self.clusters.remove(m.y)
+				except:
+					print("err")
 				self.removedist(m.y)
 
 				self.updatedist(m.x)
@@ -193,9 +197,9 @@ class OnlineCluster(object):
 			heapq.heappush(self.dist, t)
 
 	def get_clusters(self):
-		clusters = [c.center for c in self.clusters]
-		if len(clusters) < self.N:
-			clusters += [np.zeros(shape=self.dim) for _ in range(self.N - len(clusters))]
+		clusters = [normaliz(c.center) for c in self.clusters]
+		# if len(clusters) < self.N:
+		# 	clusters += [np.zeros(shape=self.dim) for _ in range(self.N - len(clusters))]
 		return clusters
 
 	def trimclusters(self):
