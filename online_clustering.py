@@ -198,10 +198,13 @@ class OnlineCluster(object):
 			heapq.heappush(self.dist, t)
 
 	def get_clusters(self):
-		clusters = [normaliz(c.center) for c in self.clusters]
-		# if len(clusters) < self.N:
-		# 	clusters += [np.zeros(shape=self.dim) for _ in range(self.N - len(clusters))]
-		return clusters
+		if not lock.acquire(False):
+			pass
+		else:
+			clusters = [normaliz(c.center) for c in self.clusters]
+			if len(clusters) < self.N:
+				clusters += [np.zeros(shape=self.dim) for _ in range(self.N - len(clusters))]
+			return clusters
 
 	def trimclusters(self):
 		"""Return only clusters over threshold"""
