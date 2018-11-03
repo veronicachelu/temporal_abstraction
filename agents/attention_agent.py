@@ -140,6 +140,8 @@ class AttentionAgent(EigenOCAgentDyn):
 
   """Sample an action from the current option's policy"""
   def policy_evaluation(self, s, compute_svd, test=False, direction=None):
+    if len(self.global_network.direction_clusters.get_clusters()) == 9:
+      print("err")
     feed_dict = {self.local_network.observation: [s],
                  self.local_network.direction_clusters: self.global_network.direction_clusters.get_clusters()
                  }
