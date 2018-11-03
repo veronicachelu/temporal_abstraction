@@ -439,14 +439,11 @@ class EignOCNetwork():
     if self.scope == 'global' and self.config.sr_matrix is not None:
       l = "0"
       if self.config.resume:
-        """If we resume training, load the eigen directions as well from saved checkpoint"""
-        with open(os.path.join(self.config.load_from, "models/checkpoint")) as f:
-          l = f.readline()
-          l = l.split(" ")
-          l = l[1]
-          l = l[1: -1]
-          l = l.split("-")[1]
-          l = l.split(".")[0]
+        checkpoint = self.config.load_from
+        ckpt = tf.train.get_checkpoint_state(os.path.join(checkpoint, "models"))
+        model_checkpoint_path = ckpt.model_checkpoint_path
+        episode_checkpoint = os.path.basename(model_checkpoint_path).split(".")[0].split("-")[1]
+        l = episode_checkpoint
 
       self.directions_path = os.path.join(self.config.logdir, "eigen_directions_{}.npy".format(l))
 
@@ -467,6 +464,7 @@ class EignOCNetwork():
         else:
           self.sf_matrix_buffer = np.zeros(shape=(self.config.sf_matrix_size, self.config.sf_layers[-1]),
                                            dtype=np.float32)
+
 
   def layer_norm_fn(self, x, relu=True):
     x = layers.layer_norm(x, scale=True, center=True)

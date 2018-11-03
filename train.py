@@ -35,6 +35,7 @@ def run(config, logdir):
         """Add some tensorflow flag information to the config."""
         config.logdir = logdir
         config.resume = FLAGS.resume
+        config.load_from = FLAGS.load_from
 
         """Instantiated the network optimizer."""
         config.network_optimizer = getattr(tf.train, config.network_optimizer)
@@ -60,9 +61,9 @@ def run(config, logdir):
       if FLAGS.task == "build_sr_matrix":
         with tf.device("/cpu:0"):
           agent = config.target_agent(sess, envs[0], 0, global_step, global_episode, config, None, None)
-      elif FLAGS.task == "option":
+      elif FLAGS.task == "plot_options":
         with tf.device("/cpu:0"):
-          agent = config.target_agent(sess, envs[0], 0, global_step, config, None)
+          agent = config.target_agent(sess, envs[0], 0, global_step, global_episode, config, global_network, b)
       elif FLAGS.task == "eigenoption":
         with tf.device("/cpu:0"):
           agent = config.target_agent(sess, envs[0], 0, global_step, global_episode, config, global_network, b)
@@ -91,8 +92,8 @@ def run(config, logdir):
       thread = threading.Thread(target=(lambda: agent.build_SR_matrix()))
       thread.start()
       agent_threads.append(thread)
-    elif FLAGS.task == "option":
-      thread = threading.Thread(target=(lambda: agent.plot_options(sess, coord, saver)))
+    elif FLAGS.task == "plot_options":
+      thread = threading.Thread(target=(lambda: agent.plot_high_level_directions(coord, saver)))
       thread.start()
       agent_threads.append(thread)
     elif FLAGS.task == "eigenoption":
@@ -100,7 +101,7 @@ def run(config, logdir):
       thread.start()
       agent_threads.append(thread)
     elif FLAGS.task == "eval":
-      thread = threading.Thread(target=(lambda: agent.eval(sess, coord, saver)))
+      thread = threading.Thread(target=(lambda: agent.eval(coord, saver)))
       thread.start()
       agent_threads.append(thread)
     elif FLAGS.task == "train":

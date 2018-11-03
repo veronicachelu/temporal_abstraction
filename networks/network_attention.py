@@ -4,6 +4,7 @@ from config_utility import gradient_summaries, huber_loss
 import numpy as np
 from networks.network_eigenoc import EignOCNetwork
 import os
+from online_clustering import OnlineCluster
 
 def normalized_columns_initializer(std=1.0):
     def _initializer(shape, dtype=None, partition_info=None):
@@ -18,6 +19,9 @@ class AttentionNetwork(EignOCNetwork):
   def __init__(self, scope, config, action_size):
     self.goal_embedding_size = config.sf_layers[-1]
     super(AttentionNetwork, self).__init__(scope, config, action_size)
+
+    if self.config.use_clustering:
+      self.init_clustering()
 
   """Build the encoder for the latent representation space"""
   def build_feature_net(self, out):
@@ -73,10 +77,10 @@ class AttentionNetwork(EignOCNetwork):
       self.value = tf.squeeze(self.value, 1)
       # self.summaries_critic.append(tf.contrib.layers.summarize_activation(direction_features))
 
-      content_match = tf.tensordot(direction_features, self.eigenvectors_placeholders[0], axes=[[1], [1]])
+      content_match = tf.tensordot(direction_features, self.direction_clusters, axes=[[1], [1]])
       self.attention_weights = tf.nn.softmax(content_match)
 
-      current_direction = tf.tensordot(self.attention_weights, self.eigenvectors_placeholders[0], axes=[[1], [0]])
+      current_direction = tf.tensordot(self.attention_weights, self.direction_clusters, axes=[[1], [0]])
       self.current_option_direction = tf.check_numerics(
                             current_direction,
                             "NaN in current_direction",
@@ -176,26 +180,69 @@ class AttentionNetwork(EignOCNetwork):
     self.merged_summary_direction = tf.summary.merge(
       [tf.summary.scalar('direction_loss', self.direction_loss), ])
 
-  def build_network(self):
-    # if self.scope != 'global':
-    """Perform singular value decomposition on the SR matrix buffer.
-            Transopose eigenvectors and cojugate to be equivalent to the numpy decomposition"""
-    self.matrix_sf = tf.placeholder(shape=[1, self.config.sf_matrix_size, self.goal_embedding_size],
-                                    dtype=tf.float32, name="matrix_sf")
-    self.eigenvalues, _, ev = tf.svd(tf.cast(self.matrix_sf, tf.float64), full_matrices=False, compute_uv=True)
-    self.eigenvectors = tf.cast(tf.transpose(tf.conj(ev), perm=[0, 2, 1]), tf.float32)
-
-    self.eigenvectors = tf.check_numerics(
-                            self.eigenvectors,
-                            "NaN in eigenvectors",
-                            name=None
-                          )
-
-    self.eigenvectors_placeholders = tf.placeholder_with_default(self.eigenvectors, shape=self.eigenvectors.shape)
-
-    super(AttentionNetwork, self).build_network()
-
   """Add additional placeholders for losses and such"""
   def build_placeholders(self, next_frame_channel_size):
     super(AttentionNetwork, self).build_placeholders(next_frame_channel_size)
     self.target_fi_horiz = tf.placeholder(shape=[None, self.config.sf_layers[-1]], dtype=tf.float32, name="target_fi_horiz")
+
+
+  def init_clustering(self):
+    if self.scope == 'global':
+      l = "0"
+      if self.config.resume:
+        checkpoint = self.config.load_from
+        ckpt = tf.train.get_checkpoint_state(os.path.join(checkpoint, "models"))
+        model_checkpoint_path = ckpt.model_checkpoint_path
+        episode_checkpoint = os.path.basename(model_checkpoint_path).split(".")[0].split("-")[1]
+        l = episode_checkpoint
+
+      self.direction_clusters_path = os.path.join(self.config.logdir, "direction_clusters_{}.npy".format(l))
+
+      """If the path exists, load them. Otherwise initialize all directions with zeros"""
+      if os.path.exists(self.direction_clusters_path):
+        self.direction_clusters = np.load(self.direction_clusters_path)
+        self.directions_init = True
+      else:
+        self.direction_clusters = OnlineCluster(self.config.nb_options, self.goal_embedding_size)#np.zeros((self.config.nb_options, self.config.sf_layers[-1]))
+        self.directions_init = False
+
+  def build_network(self):
+    with tf.variable_scope(self.scope):
+      self.observation = tf.placeholder(
+        shape=[None, self.config.input_size[0], self.config.input_size[1], self.config.history_size],
+        dtype=tf.float32, name="Inputs")
+      out = self.observation
+      out = layers.flatten(out, scope="flatten")
+
+      self.direction_clusters = tf.placeholder(shape=[self.config.nb_options, self.goal_embedding_size],
+                                               dtype=tf.float32,
+                                               name="direction_clusters")
+      """Build the encoder for the latent representation space"""
+      self.build_feature_net(out)
+
+      """Build the branch for next frame prediction that trains the latent state representation"""
+      self.build_next_frame_prediction_net()
+
+      """Build the option termination stochastic conditions"""
+      self.build_option_term_net()
+
+      """Build the option action-value functions"""
+      self.build_option_q_val_net()
+
+      """If we use eigendirections we need another critic for the intra-option policies that uses the mixture of pseudo internal rewards and external rewards"""
+      if self.config.use_clustering:
+        """Build the intra-option policies critics"""
+        self.build_eigen_option_q_val_net()
+
+      """Build the intra-option policies"""
+      self.build_intraoption_policies_nets()
+
+      """Build the branch for constructing the successor representation latent space"""
+      self.build_SF_net(layer_norm=False)
+
+      """Add additional placeholders for losses and such"""
+      self.build_placeholders(self.config.history_size)
+
+      if self.scope != 'global':
+        self.build_losses()
+        self.gradients_and_summaries()

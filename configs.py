@@ -403,10 +403,15 @@ def attention():
 	locals().update(eigenoc_dyn())
 	num_agents = 8
 	test_random_action = False
+	sr_matrix = None
+	use_eigendirections = False
+	use_clustering = True
 	summary_interval = 1
 	checkpoint_interval = 1
 	"""The kind of agent to use in the environment"""
 	target_agent = AttentionAgent
+	"""The number test episodes to execute, over which to average results"""
+	nb_test_ep = 1
 
 	"""The kind of network to use for function approximation"""
 	network = AttentionNetwork

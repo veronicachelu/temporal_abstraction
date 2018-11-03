@@ -1,7 +1,7 @@
 import numpy as np
 import tensorflow as tf
 from tools.agent_utils import get_mode, update_target_graph_aux, update_target_graph_sf, \
-  update_target_graph_option, discount, reward_discount, set_image, make_gif
+  update_target_graph_option, discount, reward_discount, set_image, make_gif, set_image_plain
 import os
 
 import matplotlib.patches as patches
@@ -139,30 +139,36 @@ class AttentionAgent(EigenOCAgentDyn):
     self.o_tracker_len[self.option].append(self.crt_op_length)
 
   """Sample an action from the current option's policy"""
-  def policy_evaluation(self, s, compute_svd):
-
+  def policy_evaluation(self, s, compute_svd, test=False, direction=None):
     feed_dict = {self.local_network.observation: [s],
+                 self.local_network.direction_clusters: self.global_network.direction_clusters.get_clusters()
                  }
-    if compute_svd:
-      feed_dict[self.local_network.matrix_sf] = [self.global_network.sf_matrix_buffer]
-    else:
-      feed_dict[self.local_network.eigenvectors] = self.global_network.eigenvectors
+    # if compute_svd:
+    #   feed_dict[self.local_network.matrix_sf] = [self.global_network.sf_matrix_buffer]
+    # else:
+    #   feed_dict[self.local_network.eigenvectors] = self.global_network.eigenvectors
 
     tensor_results = {"fi": self.local_network.fi,
                    "sf": self.local_network.sf,
                    "option_direction": self.local_network.current_option_direction,
                    "eigen_value": self.local_network.eigen_val,
                    "option_policy": self.local_network.option_policy,
-                   "value": self.local_network.value}
-    if compute_svd:
-      tensor_results["eigenvectors"] = self.local_network.eigenvectors
+                   "value": self.local_network.value,
+                   "attention_weights": self.local_network.attention_weights}
+    # if compute_svd:
+    #   tensor_results["eigenvectors"] = self.local_network.eigenvectors
 
-    try:
-      results = self.sess.run(tensor_results, feed_dict=feed_dict)
-    except:
-      print("pam pam")
+    if test:
+      feed_dict[self.local_network.current_option_direction] = np.random.randn(1, 128)
+    if direction is not None:
+      feed_dict[self.local_network.current_option_direction] = [direction]
+    # try:
+    results = self.sess.run(tensor_results, feed_dict=feed_dict)
+    # except:
+    #   print("pam pam")
 
     self.fi = results["fi"][0]
+    # print("option chosen {} ->> confidence {}".format(np.argmax(results["attention_weights"][0]), np.max(results["attention_weights"][0])))
     sf = results["sf"][0]
     """Add the eigen option-value function to the buffer in order to add stats to tensorboad at the end of the episode"""
     self.add_SF(sf)
@@ -172,8 +178,8 @@ class AttentionAgent(EigenOCAgentDyn):
     self.value = results["value"][0]
     pi = results["option_policy"][0]
 
-    if compute_svd:
-      self.global_network.eigenvectors = results["eigenvectors"]
+    # if compute_svd:
+    #   self.global_network.eigenvectors = results["eigenvectors"]
 
     self.episode_eigen_values.append(self.eigen_value)
 
@@ -216,14 +222,16 @@ class AttentionAgent(EigenOCAgentDyn):
         bootstrap_eigen_V = 0
         bootstrap_V = 0
       else:
-        try:
-          feed_dict = {self.local_network.observation: [s1],
-                       # self.local_network.matrix_sf: [self.global_network.sf_matrix_buffer],
-                       self.local_network.eigenvectors: self.global_network.eigenvectors}
+        # try:
+        feed_dict = {self.local_network.observation: [s1],
+                     self.local_network.direction_clusters: self.global_network.direction_clusters.get_clusters()
+                     }
+                     # self.local_network.matrix_sf: [self.global_network.sf_matrix_buffer],
+                     # self.local_network.eigenvectors: self.global_network.eigenvectors}
 
-          v, eigen_v = self.sess.run([self.local_network.value, self.local_network.eigen_val], feed_dict=feed_dict)
-        except:
-          print("stop exec")
+        v, eigen_v = self.sess.run([self.local_network.value, self.local_network.eigen_val], feed_dict=feed_dict)
+        # except:
+        #   print("stop exec")
         bootstrap_V = v[0]
         bootstrap_eigen_V = eigen_v[0]
 
@@ -274,6 +282,9 @@ class AttentionAgent(EigenOCAgentDyn):
                      ],
                     feed_dict=feed_dict)
 
+  def add_SF(self, sf):
+    self.global_network.direction_clusters.cluster(sf)
+
   """Do one minibatch update over the next frame prediction network"""
   def train_aux(self):
     minibatch = random.sample(self.aux_episode_buffer, self.config.batch_size)
@@ -314,17 +325,18 @@ class AttentionAgent(EigenOCAgentDyn):
                  self.local_network.observation: np.stack(observations, axis=0),
                  self.local_network.actions_placeholder: actions,
                  # self.local_network.matrix_sf: [self.global_network.sf_matrix_buffer],
-                 self.local_network.eigenvectors: self.global_network.eigenvectors,
+                 self.local_network.direction_clusters: self.global_network.direction_clusters.get_clusters()
+                 # self.local_network.eigenvectors: self.global_network.eigenvectors,
                  # self.local_network.current_option_direction: option_directions,
                  }
 
     """Do an update on the intra-option policies"""
-    try:
-      _, _, self.summaries_option, self.summaries_critic = self.sess.run([self.local_network.apply_grads_option,
-                                                                          self.local_network.apply_grads_critic,
-                                                                          self.local_network.merged_summary_option,
-                                                                          self.local_network.merged_summary_critic,
-                                                                          ], feed_dict=feed_dict)
+    # try:
+    _, _, self.summaries_option, self.summaries_critic = self.sess.run([self.local_network.apply_grads_option,
+                                                                        self.local_network.apply_grads_critic,
+                                                                        self.local_network.merged_summary_option,
+                                                                        self.local_network.merged_summary_critic,
+                                                                        ], feed_dict=feed_dict)
       # _, _, _, \
       # self.summaries_option,\
       # self.summaries_critic,\
@@ -336,8 +348,8 @@ class AttentionAgent(EigenOCAgentDyn):
       #                  self.local_network.merged_summary_critic,
       #                  self.local_network.merged_summary_direction
       #                  ], feed_dict=feed_dict)
-    except:
-      print("eerrere")
+    # except:
+    #   print("eerrere")
 
     """Store the bootstrap target returns at the end of the trajectory"""
     self.eigen_R = discounted_eigen_returns[-1]
@@ -393,6 +405,14 @@ class AttentionAgent(EigenOCAgentDyn):
 
       for i in range(self.config.nb_test_ep):
         episode_reward = 0
+
+        """update local network parameters from global network"""
+        self.sync_threads()
+
+        self.init_episode()
+        self.episode_mixed_reward = 0
+        self.episode_eigen_values = []
+
         """Reset the environment and get the initial state"""
         s = self.env.reset()
 
@@ -401,42 +421,242 @@ class AttentionAgent(EigenOCAgentDyn):
         """While the episode does not terminate"""
         while not self.done:
           """Choose an action from the current intra-option policy"""
-          self.policy_evaluation(s, self.episode_length == 0)
+          self.policy_evaluation(s, compute_svd=(episode_length == 0), test=True)
 
-          feed_dict = {self.local_network.observation: np.stack([s])}
-          options, o_term = self.sess.run([self.local_network.options, self.local_network.termination],
-                                          feed_dict=feed_dict)
-
-          if primitive_action:
-            action = option - self.nb_options
-            o_term = True
-          else:
-            pi = options[0, option]
-            action = np.random.choice(pi, p=pi)
-            action = np.argmax(pi == action)
-            o_term = o_term[0, option] > np.random.uniform()
-
-          # episode_frames.append(set_image(s, option, action, episode_length, primitive_action))
-          s1, r, d, _ = self.env.step(action)
+          episode_frames.append(set_image_plain(s, episode_length))
+          s1, r, self.done, self.s1_idx = self.env.step(self.action)
 
           r = np.clip(r, -1, 1)
           episode_reward += r
           episode_length += 1
 
-          if not d and (o_term or primitive_action):
-            feed_dict = {self.local_network.observation: np.stack([s1])}
-            option, primitive_action = self.sess.run(
-              [self.local_network.max_options, self.local_network.primitive_action], feed_dict=feed_dict)
-            option, primitive_action = option[0], primitive_action[0]
-            primitive_action = option >= self.config.nb_options
+          if self.done:
+            s1 = s
+            self.s1_idx = self.s_idx
+
           s = s1
+          self.s_idx = self.s1_idx
+
           if episode_length > self.config.max_length_eval:
             break
 
         ep_rewards.append(episode_reward)
         ep_lengths.append(episode_length)
         tf.logging.info("Ep {} finished in {} steps with reward {}".format(i, episode_length, episode_reward))
+      images = np.array(episode_frames)
+      make_gif(images, os.path.join(self.test_path, 'test_episodes.gif'),
+               duration=len(images) * 1.0, true_image=True)
+      tf.logging.info("Won {} episodes of {}".format(ep_rewards.count(1), self.config.nb_test_ep))
+
+  def plot_options(self, coord, saver):
+    with self.sess.as_default(), self.sess.graph.as_default():
+      self.init_agent()
+      tf.logging.info("Starting eval agent")
+      ep_rewards = []
+      ep_lengths = []
+      episode_frames = []
+      map_of_directions = [[] for _ in range(169)]
+      map_of_actions = [[] for _ in range(169)]
+
+      for k in range(self.config.nb_test_ep):
+        episode_reward = 0
+        """update local network parameters from global network"""
+        self.sync_threads()
+
+        self.init_episode()
+        self.episode_mixed_reward = 0
+        self.episode_eigen_values = []
+
+        self.env.set_goal(1, self.config.move_goal_nb_of_ep)
+
+        """Reset the environment and get the initial state"""
+        s = self.env.reset()
+        self.done = False
+        episode_length = 0
+        """While the episode does not terminate"""
+        while not self.done:
+          """Choose an action from the current intra-option policy"""
+          self.policy_evaluation(s, compute_svd=(episode_length == 0), test=False)
+
+          episode_frames.append(set_image_plain(s, episode_length))
+
+          if self.s_idx is not None:
+            s, i, j = self.env.get_state(self.s_idx)
+            feed_dict = {self.local_network.observation: np.stack([s])}
+            fi = self.sess.run(self.local_network.fi,
+                          feed_dict=feed_dict)[0]
+
+            transitions = []
+            for a in range(self.action_size):
+              s1_fake, r_fake, d_fake, _ = self.env.fake_step(a)
+              feed_dict = {self.local_network.observation: np.stack([s1_fake])}
+              fi1 = self.sess.run(self.local_network.fi,
+                             feed_dict=feed_dict)[0]
+              transitions.append(self.cosine_similarity((fi1 - fi), self.current_option_direction))
+
+            a = np.argmax(transitions)
+
+            map_of_directions[self.s_idx].append(a)
+
+            map_of_actions[self.s_idx].append(self.action)
+
+          s1, r, self.done, self.s1_idx = self.env.step(self.action)
+
+          r = np.clip(r, -1, 1)
+          episode_reward += r
+          episode_length += 1
+
+          if self.done:
+            s1 = s
+            self.s1_idx = self.s_idx
+
+          s = s1
+          self.s_idx = self.s1_idx
+
+          if episode_length > self.config.max_length_eval:
+            break
+
+        for idx in range(169):
+          s, i, j = self.env.get_state(idx)
+          if not self.env.not_wall(i, j):
+            plt.gca().add_patch(
+              patches.Rectangle(
+                (j, self.config.input_size[0] - i - 1),  # (x,y)
+                1.0,  # width
+                1.0,  # height
+                facecolor="gray"
+              )
+            )
+            continue
+          if len(map_of_directions[idx]) == 0:
+            plt.gca().add_patch(
+              patches.Rectangle(
+                (j, self.config.input_size[0] - i - 1),  # (x,y)
+                1.0,  # width
+                1.0,  # height
+                facecolor="lightgray"
+              )
+            )
+            continue
+          dx = 0
+          dy = 0
+          a = np.argmax(np.bincount(map_of_directions[idx]))
+          if a == 0:  # up
+            dy = 0.35
+          elif a == 1:  # right
+            dx = 0.35
+          elif a == 2:  # down
+            dy = -0.35
+          elif a == 3:  # left
+            dx = -0.35
+          plt.arrow(j + 0.4, self.config.input_size[0] - i + 0.4 - 1, dx, dy,
+                    head_width=0.05, head_length=0.05, fc='k', ec='k')
+
+
+          a = np.argmax(np.bincount(map_of_actions[idx]))
+          dx = 0
+          dy = 0
+          if a == 0:  # up
+            dy = 0.35
+          elif a == 1:  # right
+            dx = 0.35
+          elif a == 2:  # down
+            dy = -0.35
+          elif a == 3:  # left
+            dx = -0.35
+          plt.arrow(j + 0.5, self.config.input_size[0] - i + 0.5 - 1, dx, dy,
+                    head_width=0.05, head_length=0.05, fc='g', ec='g')
+
+        plt.xlim([0, self.config.input_size[1]])
+        plt.ylim([0, self.config.input_size[0]])
+
+        for i in range(self.config.input_size[1]):
+          plt.axvline(i, color='k', linestyle=':')
+        plt.axvline(self.config.input_size[1], color='k', linestyle=':')
+
+        for j in range(self.config.input_size[0]):
+          plt.axhline(j, color='k', linestyle=':')
+        plt.axhline(self.config.input_size[0], color='k', linestyle=':')
+        tf.gfile.MakeDirs(os.path.join(self.summary_path, "directions_vs_policy"))
+        plt.savefig(os.path.join(self.summary_path, "directions_vs_policy/plot_{}.png".format(k)))
+        plt.close()
+
+        ep_rewards.append(episode_reward)
+        ep_lengths.append(episode_length)
+        tf.logging.info("Ep {} finished in {} steps with reward {}".format(k, episode_length, episode_reward))
       # images = np.array(episode_frames)
       # make_gif(images, os.path.join(self.test_path, 'test_episodes.gif'),
       #          duration=len(images) * 1.0, true_image=True)
       tf.logging.info("Won {} episodes of {}".format(ep_rewards.count(1), self.config.nb_test_ep))
+
+  def plot_high_level_directions(self, coord, saver):
+    with self.sess.as_default(), self.sess.graph.as_default():
+      self.init_agent()
+      tf.logging.info("Starting eval agent")
+      """update local network parameters from global network"""
+      self.sync_threads()
+      self.init_episode()
+      self.episode_mixed_reward = 0
+      self.episode_eigen_values = []
+
+      self.env.set_goal(1, self.config.move_goal_nb_of_ep)
+
+      self.global_network.eigenvectors = self.sess.run(self.local_network.eigenvectors, {self.local_network.matrix_sf: [self.global_network.sf_matrix_buffer]})
+
+      for dir in range(128):
+        for idx in range(169):
+          s, i, j = self.env.get_state(idx)
+          if not self.env.not_wall(i, j):
+            plt.gca().add_patch(
+              patches.Rectangle(
+                (j, self.config.input_size[0] - i - 1),  # (x,y)
+                1.0,  # width
+                1.0,  # height
+                facecolor="gray"
+              )
+            )
+            continue
+					#
+          # self.policy_evaluation(s, compute_svd=False, test=False, direction=self.global_network.eigenvectors[0][dir])
+
+          transitions = []
+          for a in range(self.action_size):
+            s1_fake, r_fake, d_fake, _ = self.env.fake_step(a)
+            feed_dict = {self.local_network.observation: np.stack([s, s1_fake])}
+            fi, fi1 = self.sess.run(self.local_network.fi,
+                                feed_dict=feed_dict)
+            transitions.append(self.cosine_similarity((fi1 - fi), self.global_network.eigenvectors[0][dir]))
+
+          a = np.argmax(transitions)
+
+          dx = 0
+          dy = 0
+
+          if a == 0:  # up
+            dy = 0.35
+          elif a == 1:  # right
+            dx = 0.35
+          elif a == 2:  # down
+            dy = -0.35
+          elif a == 3:  # left
+            dx = -0.35
+
+          plt.arrow(j + 0.5, self.config.input_size[0] - i + 0.5 - 1, dx, dy,
+                    head_width=0.05, head_length=0.05, fc='k', ec='k')
+
+        plt.xlim([0, self.config.input_size[1]])
+        plt.ylim([0, self.config.input_size[0]])
+
+        for i in range(self.config.input_size[1]):
+          plt.axvline(i, color='k', linestyle=':')
+        plt.axvline(self.config.input_size[1], color='k', linestyle=':')
+
+        for j in range(self.config.input_size[0]):
+          plt.axhline(j, color='k', linestyle=':')
+        plt.axhline(self.config.input_size[0], color='k', linestyle=':')
+
+        tf.gfile.MakeDirs(os.path.join(self.summary_path, "directions_vs_policy"))
+        plt.savefig(os.path.join(self.summary_path, "directions_vs_policy/direction_policy_{}.png".format(dir)))
+        plt.close()
+
+

@@ -101,6 +101,14 @@ def set_image(s, option, action, episode_length, primitive):
   draw.text((0, 0), "O: {} >> A: {} >> Len: {} >> Primitive >> {}".format(option, action, episode_length, primitive), font=font)
   return np.asarray(frame)
 
+def set_image_plain(s, episode_length):
+  s_big = scipy.misc.imresize(85 * np.squeeze(s, 2), [200, 200], interp='nearest')
+  frame = Image.fromarray(np.asarray(s_big, np.uint8))
+  draw = ImageDraw.Draw(frame)
+  font = ImageFont.truetype("./resources/FreeSans.ttf", 10)
+  draw.text((0, 0), "time: {} ".format(episode_length), font=font)
+  return np.asarray(frame)
+
 def get_mode(arr):
   if len(arr) != 0:
     u, indices = np.unique(arr, return_inverse=True)
