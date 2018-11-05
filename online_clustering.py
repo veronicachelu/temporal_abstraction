@@ -202,16 +202,16 @@ class OnlineCluster(object):
 	def get_clusters(self):
 		global lock
 
-		if not lock.acquire(False):
-			clusters = [np.zeros(shape=self.dim) for _ in range(self.N)]
-		else:
-			cls, len_cls = self.clusters, len(self.clusters)
-			clusters = [normaliz(c.center) for c in cls]
+		lock.acquire()
+		cls = self.clusters[:]
+		len_cls = len(cls)
+		lock.release()
 
-			if len_cls < self.N:
-				clusters += [np.zeros(shape=self.dim) for _ in range(self.N - len_cls)]
+		clusters = [normaliz(np.copy(c.center)) for c in cls]
 
-			lock.release()
+		for _ in range(self.N - len_cls):
+			clusters.append(np.zeros(shape=self.dim))
+
 		return clusters
 
 
