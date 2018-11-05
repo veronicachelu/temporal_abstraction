@@ -278,7 +278,7 @@ def eigenoc():
 	"""The nuber of options to use"""
 	nb_options = 8
 
-	"""If the history size is 1 than it uses grayscale images. Otherwise, if  > 1 it stacks the last number of grayscale frames"""
+	"""If the history size is 1 than it uses grayscale images. Otherwise, if  > 1 it stacks the last number of grayscale framefs"""
 	history_size = 1
 
 	"""The kind of agent to use in the environment"""
@@ -401,6 +401,9 @@ def embedding():
 def attention():
 	"""Load configuration options from eigenoc_dyn and override or add new ones"""
 	locals().update(eigenoc_dyn())
+	fc_layers = 169,  # the number of layers and units in each layer mapping from input space to latent state representation
+	sf_layers = 169,
+
 	num_agents = 8
 	test_random_action = False
 	sr_matrix = None
@@ -408,11 +411,13 @@ def attention():
 	use_clustering = True
 	summary_interval = 1
 	checkpoint_interval = 1
+	cluster_interval = 10
 	"""The kind of agent to use in the environment"""
 	target_agent = AttentionAgent
 	"""The number test episodes to execute, over which to average results"""
 	nb_test_ep = 1
-
+	"""Move to the next task specified in the goal_locations after the specfied number of episodes"""
+	move_goal_nb_of_ep = 100
 	"""The kind of network to use for function approximation"""
 	network = AttentionNetwork
 
