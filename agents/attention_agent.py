@@ -77,7 +77,7 @@ class AttentionAgent(EigenOCAgentDyn):
             """Choose an action from the current intra-option policy"""
             self.policy_evaluation(s, self.episode_length == 0)
 
-            if self.global_episode_np % self.config.cluster_interval == 0 and self.episode_length == 0:
+            if self.global_episode_np % self.config.cluster_interval == 0 and self.episode_length == 0 and self.name == "worker_0":
                 print("Printing directions clusters")
                 self.print_current_option_direction()
 
