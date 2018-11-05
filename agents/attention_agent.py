@@ -77,6 +77,10 @@ class AttentionAgent(EigenOCAgentDyn):
             """Choose an action from the current intra-option policy"""
             self.policy_evaluation(s, self.episode_length == 0)
 
+            if self.global_episode_np % self.config.cluster_interval == 0 and self.episode_length == 0:
+                print("Printing directions clusters")
+                self.print_current_option_direction()
+
             # s1, r, self.done, self.s1_idx = self.env.step(self.action)
             _, r, self.done, s1 = self.env.special_step(self.action, s)
 
@@ -119,6 +123,8 @@ class AttentionAgent(EigenOCAgentDyn):
 
             if self.global_episode_np % self.config.cluster_interval == 0:
                 print("Printing directions clusters")
+                self.print_current_option_direction()
+
                 c = self.global_network.direction_clusters
                 clusters = c.get_clusters()
                 """Where to save the eigenvectors, the policies and the value functions"""
@@ -155,8 +161,6 @@ class AttentionAgent(EigenOCAgentDyn):
 
     self.current_option_direction = results["option_direction"][0]
 
-    if self.name == "worker_0":
-      self.print_current_option_direction()
     self.value_mix = results["value_mix"][0]
     pi = results["option_policy"][0]
 
