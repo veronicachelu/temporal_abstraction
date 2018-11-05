@@ -136,7 +136,7 @@ class AttentionAgent(EigenOCAgentDyn):
           """If it's time to change the task - move the goal, wait for all other threads to finish the current task"""
           if self.total_episodes % self.config.move_goal_nb_of_ep == 0 and \
                   self.total_episodes != 0:
-            tf.logging.info("Moving GOAL....")
+            tf.logging.info(f"Moving GOAL....{total_episodes}")
             self.barrier.wait()
             self.goal_position = self.env.set_goal(self.total_episodes, self.config.move_goal_nb_of_ep)
 
