@@ -155,6 +155,7 @@ class AttentionAgent(EigenOCAgentDyn):
                    "value_mix": self.local_network.value_mix,
                    "option_policy": self.local_network.option_policy,
                    "attention_weights": self.local_network.attention_weights,
+                   "content_query_match": self.local_network.content_query_match,
                    "query_direction": self.local_network.query_direction}
     results = self.sess.run(tensor_results, feed_dict=feed_dict)
 
@@ -163,6 +164,7 @@ class AttentionAgent(EigenOCAgentDyn):
 
     self.current_option_direction = results["option_direction"][0]
     self.attention_weights = results["attention_weights"][0]
+    self.content_query_match = results["content_query_match"][0]
     self.query_direction = results["query_direction"][0]
     self.value_mix = results["value_mix"][0]
     pi = results["option_policy"][0]
@@ -511,7 +513,7 @@ class AttentionAgent(EigenOCAgentDyn):
       axn = plt.Subplot(f, gs02[indx[k][0], indx[k][1]])
       axn.set_aspect(1.0)
       axn.axis('off')
-      axn.set_title("%.3f" % self.attention_weights[k])
+      axn.set_title("%.3f/%.3f" % self.attention_weights[k], self.content_query_match[k])
       sns.heatmap(reproj_cluster, cmap="Blues", ax=axn)
 
       """Adding borders"""
