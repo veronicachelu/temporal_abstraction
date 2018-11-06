@@ -513,7 +513,7 @@ class AttentionAgent(EigenOCAgentDyn):
       axn = plt.Subplot(f, gs02[indx[k][0], indx[k][1]])
       axn.set_aspect(1.0)
       axn.axis('off')
-      axn.set_title("%.3f/%.3f" % self.attention_weights[k], self.query_content_match[k])
+      axn.set_title("%.3f/%.3f" % (self.attention_weights[k], self.query_content_match[k]))
       sns.heatmap(reproj_cluster, cmap="Blues", ax=axn)
 
       """Adding borders"""
