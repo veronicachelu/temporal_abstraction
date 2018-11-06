@@ -146,9 +146,10 @@ class AttentionNetwork(EignOCNetwork):
                                                     outputs_collections="activations", scope="direction_features")
         self.query_direction = self.l2_normalize(query_direction, 1)
         self.summaries_option.append(tf.contrib.layers.summarize_activation(self.query_direction))
+        self.direction_clusters = self.l2_normalize(self.direction_clusters, 1)
         self.query_content_match = tf.tensordot(query_direction, self.direction_clusters, axes=[[1], [1]], name="query_content_match")
         self.summaries_option.append(tf.contrib.layers.summarize_activation(self.query_content_match))
-        self.attention_weights = tf.nn.softmax(self.query_content_match, axis=1)
+        self.attention_weights = tf.nn.softmax(self.query_content_match, axis=1, name="attention_weights")
         self.summaries_option.append(tf.contrib.layers.summarize_activation(self.attention_weights))
 
         self.current_unnormalized_direction = tf.tensordot(self.attention_weights, self.direction_clusters, axes=[[1], [0]]) / tf.reduce_sum(self.attention_weights, axis=1)[..., None]
