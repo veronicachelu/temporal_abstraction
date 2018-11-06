@@ -155,7 +155,7 @@ class AttentionAgent(EigenOCAgentDyn):
                    "value_mix": self.local_network.value_mix,
                    "option_policy": self.local_network.option_policy,
                    "attention_weights": self.local_network.attention_weights,
-                   "query_content_match": self.local_network.content_query_match,
+                   "query_content_match": self.local_network.query_content_match,
                    "query_direction": self.local_network.query_direction}
     results = self.sess.run(tensor_results, feed_dict=feed_dict)
 
