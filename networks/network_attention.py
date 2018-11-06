@@ -55,13 +55,13 @@ class AttentionNetwork(EignOCNetwork):
 
     self.option_loss = self.policy_loss - self.entropy_loss + self.mix_critic_loss
 
-  def l2_normalize(self, x, axis):
-      norm = tf.sqrt(tf.reduce_sum(tf.square(x), axis=axis, keepdims=True))
-      return tf.maximum(x, 1e-8) / tf.maximum(norm, 1e-8)
+  # def l2_normalize(self, x, axis):
+  #     norm = tf.sqrt(tf.reduce_sum(tf.square(x), axis=axis, keepdims=True))
+  #     return tf.maximum(x, 1e-8) / tf.maximum(norm, 1e-8)
 
   def cosine_similarity(self, v1, v2, axis):
-    v1_norm = self.l2_normalize(v1, axis)
-    v2_norm = self.l2_normalize(v2, axis)
+    v1_norm = tf.nn.l2_normalize(v1, axis)
+    v2_norm = tf.nn.l2_normalize(v2, axis)
     sim = tf.matmul(
       v1_norm, v2_norm, transpose_b=True)
 
@@ -123,10 +123,12 @@ class AttentionNetwork(EignOCNetwork):
                                      biases_initializer=None,
                                      variables_collections=tf.get_collection("variables"),
                                      outputs_collections="activations", scope="sf")
-      self.direction_clusters = tf.placeholder(shape=[self.config.nb_options,
+      direction_clusters = tf.placeholder(shape=[self.config.nb_options,
                                                       self.goal_embedding_size],
                                                dtype=tf.float32,
                                                name="direction_clusters")
+      self.direction_clusters = tf.nn.l2_normalize(direction_clusters, 1)
+
       with tf.variable_scope("option_features"):
         intra_features = layers.fully_connected(self.observation,
                                                 num_outputs=self.action_size * self.goal_embedding_size,
@@ -144,16 +146,18 @@ class AttentionNetwork(EignOCNetwork):
                                                     activation_fn=None,
                                                     variables_collections=tf.get_collection("variables"),
                                                     outputs_collections="activations", scope="direction_features")
-        self.query_direction = self.l2_normalize(query_direction, 1)
+        self.query_direction = tf.nn.l2_normalize(query_direction, 1)
         self.summaries_option.append(tf.contrib.layers.summarize_activation(self.query_direction))
-        self.direction_clusters = self.l2_normalize(self.direction_clusters, 1)
+
         self.query_content_match = tf.tensordot(query_direction, self.direction_clusters, axes=[[1], [1]], name="query_content_match")
         self.summaries_option.append(tf.contrib.layers.summarize_activation(self.query_content_match))
+
         self.attention_weights = tf.nn.softmax(self.query_content_match, axis=1, name="attention_weights")
         self.summaries_option.append(tf.contrib.layers.summarize_activation(self.attention_weights))
 
-        self.current_unnormalized_direction = tf.tensordot(self.attention_weights, self.direction_clusters, axes=[[1], [0]]) / tf.reduce_sum(self.attention_weights, axis=1)[..., None]
-        self.current_option_direction = tf.identity(self.l2_normalize(self.current_unnormalized_direction, 1), name="current_option_direction")
+        self.current_unnormalized_direction = tf.tensordot(self.attention_weights, self.direction_clusters, axes=[[1], [0]])
+
+        self.current_option_direction = tf.nn.l2_normalize(self.current_unnormalized_direction, 1, name="current_option_direction")
         self.summaries_option.append(tf.contrib.layers.summarize_activation(self.current_option_direction))
 
       with tf.variable_scope("eigen_option_q_val"):
