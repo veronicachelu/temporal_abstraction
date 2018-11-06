@@ -154,7 +154,8 @@ class AttentionAgent(EigenOCAgentDyn):
                    "option_direction": self.local_network.current_option_direction,
                    "value_mix": self.local_network.value_mix,
                    "option_policy": self.local_network.option_policy,
-                   "attention_weights": self.local_network.attention_weights}
+                   "attention_weights": self.local_network.attention_weights,
+                   "query_direction": self.local_network.query_direction}
     results = self.sess.run(tensor_results, feed_dict=feed_dict)
 
     sf = results["sf"][0]
@@ -162,6 +163,7 @@ class AttentionAgent(EigenOCAgentDyn):
 
     self.current_option_direction = results["option_direction"][0]
     self.attention_weights = results["attention_weights"][0]
+    self.query_direction = results["query_direction"][0]
     self.value_mix = results["value_mix"][0]
     pi = results["option_policy"][0]
 
@@ -427,6 +429,10 @@ class AttentionAgent(EigenOCAgentDyn):
     reproj_direction = self.current_option_direction.reshape(
       self.config.input_size[0],
       self.config.input_size[1])
+    reproj_query = self.query_direction.reshape(
+      self.config.input_size[0],
+      self.config.input_size[1])
+
     params = {'figure.figsize': (20, 5),
               'axes.titlesize': 'x-large',
               }
@@ -443,17 +449,17 @@ class AttentionAgent(EigenOCAgentDyn):
     plt.axis('off')
     f.patch.set_visible(False)
 
-    gs0 = gridspec.GridSpec(1, 2)
+    gs0 = gridspec.GridSpec(1, 3)
 
     gs00 = gridspec.GridSpecFromSubplotSpec(2, 2, subplot_spec=gs0[0])
+    gs01 = gridspec.GridSpecFromSubplotSpec(2, 2, subplot_spec=gs0[1])
+    gs02 = gridspec.GridSpecFromSubplotSpec(2, 4, subplot_spec=gs0[2])
+
     ax1 = plt.Subplot(f, gs00[:, :])
     ax1.set_aspect(1.0)
     ax1.axis('off')
-    gs01 = gridspec.GridSpecFromSubplotSpec(2, 4, subplot_spec=gs0[1])
-
     ax1.set_title('Context direction embedding', fontsize=20)
     sns.heatmap(reproj_direction, cmap="Blues", ax=ax1)
-    f.add_subplot(ax1)
 
     """Adding borders"""
     for idx in range(self.nb_states):
@@ -469,6 +475,29 @@ class AttentionAgent(EigenOCAgentDyn):
             facecolor="gray"
           )
         )
+    f.add_subplot(ax1)
+
+    ax2 = plt.Subplot(f, gs01[:, :])
+    ax2.set_aspect(1.0)
+    ax2.axis('off')
+    ax2.set_title('Query direction embedding', fontsize=20)
+    sns.heatmap(reproj_query, cmap="Blues", ax=ax2)
+
+    """Adding borders"""
+    for idx in range(self.nb_states):
+      ii, jj = self.env.get_state_xy(idx)
+      if self.env.not_wall(ii, jj):
+        continue
+      else:
+        ax1.add_patch(
+          patches.Rectangle(
+            (jj, self.config.input_size[0] - ii - 1),  # (x,y)
+            1.0,  # width
+            1.0,  # height
+            facecolor="gray"
+          )
+        )
+    f.add_subplot(ax2)
 
     indx = [[0, 0], [0, 1], [0, 2], [0, 3],
             [1, 0], [1, 1], [1, 2], [1, 3]]
@@ -479,12 +508,11 @@ class AttentionAgent(EigenOCAgentDyn):
         self.config.input_size[1])
 
       """Plot of the eigenvector"""
-      axn = plt.Subplot(f, gs01[indx[k][0], indx[k][1]])
+      axn = plt.Subplot(f, gs02[indx[k][0], indx[k][1]])
       axn.set_aspect(1.0)
       axn.axis('off')
       axn.set_title("%.3f" % self.attention_weights[k])
       sns.heatmap(reproj_cluster, cmap="Blues", ax=axn)
-
 
       """Adding borders"""
       for idx in range(self.nb_states):

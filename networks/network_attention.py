@@ -139,18 +139,21 @@ class AttentionNetwork(EignOCNetwork):
         self.value_features = tf.identity(intra_features, name="value_features")
 
       with tf.variable_scope("option_policy"):
-        direction_features = layers.fully_connected(self.observation,
+        query_direction = layers.fully_connected(self.observation,
                                                     num_outputs=self.goal_embedding_size,
                                                     activation_fn=None,
                                                     variables_collections=tf.get_collection("variables"),
                                                     outputs_collections="activations", scope="direction_features")
-        direction_features = self.l2_normalize(direction_features, 1)
+        self.query_direction = self.l2_normalize(query_direction, 1)
+        self.summaries_option.append(tf.contrib.layers.summarize_activation(self.query_direction))
+        self.query_content_match = tf.tensordot(query_direction, self.direction_clusters, axes=[[1], [1]], name="query_content_match")
+        self.summaries_option.append(tf.contrib.layers.summarize_activation(self.query_content_match))
+        self.attention_weights = tf.nn.softmax(self.query_content_match, axis=1)
+        self.summaries_option.append(tf.contrib.layers.summarize_activation(self.attention_weights))
 
-        self.content_match = tf.tensordot(direction_features, self.direction_clusters, axes=[[1], [1]])
-        self.attention_weights = tf.nn.softmax(self.content_match)
-
-        self.current_unnormalized_direction = tf.tensordot(self.attention_weights, self.direction_clusters, axes=[[1], [0]])
-        self.current_option_direction = self.l2_normalize(self.current_unnormalized_direction, 1)
+        self.current_unnormalized_direction = tf.tensordot(self.attention_weights, self.direction_clusters, axes=[[1], [0]]) / tf.reduce_sum(self.attention_weights, axis=1)[..., None]
+        self.current_option_direction = tf.identity(self.l2_normalize(self.current_unnormalized_direction, 1), name="current_option_direction")
+        self.summaries_option.append(tf.contrib.layers.summarize_activation(self.current_option_direction))
 
       with tf.variable_scope("eigen_option_q_val"):
         value_embedding = tf.get_variable("value_embedding",
