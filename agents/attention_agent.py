@@ -433,7 +433,7 @@ class AttentionAgent(EigenOCAgentDyn):
       self.config.input_size[0],
       self.config.input_size[1])
 
-    params = {'figure.figsize': (20, 5),
+    params = {'figure.figsize': (25, 5),
               'axes.titlesize': 'x-large',
               }
     # 'legend.fontsize': 'x-large',
@@ -445,7 +445,7 @@ class AttentionAgent(EigenOCAgentDyn):
     plt.rcParams.update(params)
     plt.subplots_adjust(left=0.1, right=0.9, top=0.9, bottom=0.1)
 
-    f = plt.figure(figsize=(20, 5), frameon=False)
+    f = plt.figure(figsize=(25, 5), frameon=False)
     plt.axis('off')
     f.patch.set_visible(False)
 
@@ -489,7 +489,7 @@ class AttentionAgent(EigenOCAgentDyn):
       if self.env.not_wall(ii, jj):
         continue
       else:
-        ax1.add_patch(
+        ax2.add_patch(
           patches.Rectangle(
             (jj, self.config.input_size[0] - ii - 1),  # (x,y)
             1.0,  # width
