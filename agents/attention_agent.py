@@ -427,10 +427,10 @@ class AttentionAgent(EigenOCAgentDyn):
 
   def print_current_option_direction(self):
     plt.clf()
-    clusters = self.global_network.direction_clusters.get_clusters()
     reproj_direction = self.current_option_direction.reshape(
       self.config.input_size[0],
       self.config.input_size[1])
+    clusters = self.global_network.direction_clusters.get_clusters()
     reproj_query = self.query_direction.reshape(
       self.config.input_size[0],
       self.config.input_size[1])
