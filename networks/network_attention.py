@@ -87,7 +87,6 @@ class AttentionNetwork(EignOCNetwork):
 
     self.merged_summary_option = tf.summary.merge(options_to_merge)
 
-
   def init_clustering(self):
     if self.scope == 'global':
       l = "0"
