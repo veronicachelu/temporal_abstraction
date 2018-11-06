@@ -14,6 +14,7 @@ from matplotlib import cm
 sns.set()
 import random
 import matplotlib.pyplot as plt
+import matplotlib.gridspec as gridspec
 from agents.eigenoc_agent_dynamic import EigenOCAgentDyn
 import copy
 from threading import Barrier, Thread
@@ -160,7 +161,7 @@ class AttentionAgent(EigenOCAgentDyn):
     self.add_SF(sf)
 
     self.current_option_direction = results["option_direction"][0]
-
+    self.attention_weights = results["attention_weights"][0]
     self.value_mix = results["value_mix"][0]
     pi = results["option_policy"][0]
 
@@ -249,16 +250,12 @@ class AttentionAgent(EigenOCAgentDyn):
     rewards_mix_plus = np.asarray(rewards_mix.tolist() + [bootstrap_value_mix])
     discounted_returns_mix = reward_discount(rewards_mix_plus, self.config.discount)[:-1]
 
-    try:
-      feed_dict = {
-                   self.local_network.target_mix_return: discounted_returns_mix,
-                   self.local_network.observation: np.identity(self.nb_states)[observations],
-                   self.local_network.actions_placeholder: actions,
-                   self.local_network.direction_clusters: self.global_network.direction_clusters.get_clusters()
-                   }
-    except:
-      print(observations)
-      print("error")
+    feed_dict = {
+                 self.local_network.target_mix_return: discounted_returns_mix,
+                 self.local_network.observation: np.identity(self.nb_states)[observations],
+                 self.local_network.actions_placeholder: actions,
+                 self.local_network.direction_clusters: self.global_network.direction_clusters.get_clusters()
+                 }
 
     """Do an update on the intra-option policies"""
     _, self.summaries_option = self.sess.run([self.local_network.apply_grads_option,
@@ -426,8 +423,37 @@ class AttentionAgent(EigenOCAgentDyn):
 
   def print_current_option_direction(self):
     plt.clf()
-    reproj_eigenvector = self.current_option_direction.reshape(self.config.input_size[0], self.config.input_size[1])
-    ax = sns.heatmap(reproj_eigenvector, cmap="Blues")
+    clusters = self.global_network.direction_clusters.get_clusters()
+    reproj_direction = self.current_option_direction.reshape(
+      self.config.input_size[0],
+      self.config.input_size[1])
+    params = {'figure.figsize': (20, 5),
+              'axes.titlesize': 'x-large',
+              }
+    # 'legend.fontsize': 'x-large',
+    # 'axes.labelsize': 'x-large',
+
+    # 'xtick.labelsize': 'x-large',
+    # 'ytick.labelsize': 'x-large'
+    #
+    plt.rcParams.update(params)
+    plt.subplots_adjust(left=0.1, right=0.9, top=0.9, bottom=0.1)
+
+    f = plt.figure(figsize=(20, 5), frameon=False)
+    plt.axis('off')
+    f.patch.set_visible(False)
+
+    gs0 = gridspec.GridSpec(1, 2)
+
+    gs00 = gridspec.GridSpecFromSubplotSpec(2, 2, subplot_spec=gs0[0])
+    ax1 = plt.Subplot(f, gs00[:, :])
+    ax1.set_aspect(1.0)
+    ax1.axis('off')
+    gs01 = gridspec.GridSpecFromSubplotSpec(2, 4, subplot_spec=gs0[1])
+
+    ax1.set_title('Context direction embedding', fontsize=20)
+    sns.heatmap(reproj_direction, cmap="Blues", ax=ax1)
+    f.add_subplot(ax1)
 
     """Adding borders"""
     for idx in range(self.nb_states):
@@ -435,7 +461,7 @@ class AttentionAgent(EigenOCAgentDyn):
       if self.env.not_wall(ii, jj):
         continue
       else:
-        plt.gca().add_patch(
+        ax1.add_patch(
           patches.Rectangle(
             (jj, self.config.input_size[0] - ii - 1),  # (x,y)
             1.0,  # width
@@ -443,6 +469,41 @@ class AttentionAgent(EigenOCAgentDyn):
             facecolor="gray"
           )
         )
+
+    indx = [[0, 0], [0, 1], [0, 2], [0, 3],
+            [1, 0], [1, 1], [1, 2], [1, 3]]
+
+    for k in range(len(clusters)):
+      reproj_cluster = clusters[k].reshape(
+        self.config.input_size[0],
+        self.config.input_size[1])
+
+      """Plot of the eigenvector"""
+      axn = plt.Subplot(f, gs01[indx[k][0], indx[k][1]])
+      axn.set_aspect(1.0)
+      axn.axis('off')
+      axn.set_title("%.3f" % self.attention_weights[k])
+      sns.heatmap(reproj_cluster, cmap="Blues", ax=axn)
+
+
+      """Adding borders"""
+      for idx in range(self.nb_states):
+        ii, jj = self.env.get_state_xy(idx)
+        if self.env.not_wall(ii, jj):
+          continue
+        else:
+          # new_coords = axn.transData.transform()
+          axn.add_patch(
+            patches.Rectangle(
+              (jj, self.config.input_size[0] - ii - 1),  # (x,y)
+              1.0,  # width
+              1.0,  # height
+              facecolor="gray"
+              # transform=axn.transAxes,
+            )
+          )
+      f.add_subplot(axn)
+
     """Saving plots"""
     plt.savefig(os.path.join(self.policy_folder, f'Current_option_direction_{self.global_step_np}_{self.global_episode_np}.png'))
     plt.close()
