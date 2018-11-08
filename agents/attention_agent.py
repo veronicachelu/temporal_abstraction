@@ -105,8 +105,8 @@ class AttentionAgent(EigenOCAgentDyn):
 
             self.episode_mixed_reward += self.reward_mix
 
-            if self.total_steps % self.config.step_summary_interval == 0 and self.name == 'worker_0':
-              self.write_step_summary()
+            # if self.total_steps % self.config.step_summary_interval == 0 and self.name == 'worker_0':
+            #   self.write_step_summary()
 
             s = s1
             self.episode_length += 1
@@ -122,21 +122,21 @@ class AttentionAgent(EigenOCAgentDyn):
             self.sess.run(self.increment_global_episode)
             self.global_episode_np = self.global_episode.eval()
 
-            if self.global_episode_np % self.config.checkpoint_interval == 0:
-              self.save_model()
+            # if self.global_episode_np % self.config.checkpoint_interval == 0:
+            #   self.save_model()
 
-            if self.global_episode_np % self.config.summary_interval == 0:
-              self.write_summaries()
+            # if self.global_episode_np % self.config.summary_interval == 0:
+            #   self.write_summaries()
 
             if self.global_episode_np % self.config.cluster_interval == 0:
-                print("Printing directions clusters")
+                # print("Printing directions clusters")
                 self.print_current_option_direction()
 
-                c = self.global_network.direction_clusters
-                clusters = c.get_clusters()
-                """Where to save the eigenvectors, the policies and the value functions"""
-
-                self.plot_clusters(clusters)
+                # c = self.global_network.direction_clusters
+                # clusters = c.get_clusters()
+                # """Where to save the eigenvectors, the policies and the value functions"""
+								#
+                # self.plot_clusters(clusters)
                 # """Plot policies and value functions"""
                 # self.plot_policy_and_value_function(clusters)
 
@@ -439,6 +439,7 @@ class AttentionAgent(EigenOCAgentDyn):
     reproj_direction = self.current_option_direction.reshape(
       self.config.input_size[0],
       self.config.input_size[1])
+    reproj_obs = self.env.build_screen()
     clusters = self.global_network.direction_clusters.get_clusters()
     reproj_query = self.query_direction.reshape(
       self.config.input_size[0],
@@ -463,7 +464,7 @@ class AttentionAgent(EigenOCAgentDyn):
     gs0 = gridspec.GridSpec(1, 3)
 
     gs00 = gridspec.GridSpecFromSubplotSpec(2, 2, subplot_spec=gs0[0])
-    gs01 = gridspec.GridSpecFromSubplotSpec(2, 2, subplot_spec=gs0[1])
+    gs01 = gridspec.GridSpecFromSubplotSpec(2, 1, subplot_spec=gs0[1])
     gs02 = gridspec.GridSpecFromSubplotSpec(2, 4, subplot_spec=gs0[2])
 
     ax1 = plt.Subplot(f, gs00[:, :])
@@ -488,11 +489,11 @@ class AttentionAgent(EigenOCAgentDyn):
         )
     f.add_subplot(ax1)
 
-    ax2 = plt.Subplot(f, gs01[:, :])
+    ax2 = plt.Subplot(f, gs01[0, :])
     ax2.set_aspect(1.0)
     ax2.axis('off')
-    ax2.set_title('Query direction embedding', fontsize=20)
-    sns.heatmap(reproj_query, cmap="Blues", ax=ax2)
+    ax2.set_title('Last observation', fontsize=20)
+    sns.heatmap(reproj_obs, cmap="Blues", ax=ax2)
 
     """Adding borders"""
     for idx in range(self.nb_states):
@@ -509,6 +510,28 @@ class AttentionAgent(EigenOCAgentDyn):
           )
         )
     f.add_subplot(ax2)
+
+    ax3 = plt.Subplot(f, gs01[1, :])
+    ax3.set_aspect(1.0)
+    ax3.axis('off')
+    ax3.set_title('Query direction embedding', fontsize=20)
+    sns.heatmap(reproj_query, cmap="Blues", ax=ax3)
+
+    """Adding borders"""
+    for idx in range(self.nb_states):
+      ii, jj = self.env.get_state_xy(idx)
+      if self.env.not_wall(ii, jj):
+        continue
+      else:
+        ax3.add_patch(
+          patches.Rectangle(
+            (jj, self.config.input_size[0] - ii - 1),  # (x,y)
+            1.0,  # width
+            1.0,  # height
+            facecolor="gray"
+          )
+        )
+    f.add_subplot(ax3)
 
     indx = [[0, 0], [0, 1], [0, 2], [0, 3],
             [1, 0], [1, 1], [1, 2], [1, 3]]
