@@ -95,11 +95,14 @@ class AttentionAgent(EigenOCAgentDyn):
             if self.done:
               s1 = s
 
-            self.episode_buffer_sf.append([s])
-            self.sf_prediction(s1)
+            self.reward_mix = self.reward
 
-            """Do n-step prediction for the returns"""
-            self.option_prediction(s, s1)
+            if self.name != "worker_0":
+              self.episode_buffer_sf.append([s])
+              self.sf_prediction(s1)
+              """Do n-step prediction for the returns"""
+              self.option_prediction(s, s1)
+
             self.episode_mixed_reward += self.reward_mix
 
             if self.total_steps % self.config.step_summary_interval == 0 and self.name == 'worker_0':
@@ -186,7 +189,7 @@ class AttentionAgent(EigenOCAgentDyn):
 
   """Do n-step prediction for the returns and update the option policies and critics"""
   def option_prediction(self, s, s1):
-    self.reward_mix = self.reward
+
     """Adding to the transition buffer for doing n-step prediction on critics and policies"""
     # self.episode_buffer_option.append(
     #   [s, self.current_option_direction, self.action, self.reward, self.reward_mix, s1])
