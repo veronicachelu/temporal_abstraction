@@ -44,8 +44,9 @@ class AttentionAgent(EigenOCAgentDyn):
     self.policy_folder = os.path.join(self.summary_path, "policies_clusters")
     tf.gfile.MakeDirs(self.policy_folder)
 
-    self.v_folder = os.path.join(self.summary_path, "value_functions_clusters")
-    tf.gfile.MakeDirs(self.v_folder)
+    self.learning_progress_folder = os.path.join(self.summary_path, "learning_progress")
+    tf.gfile.MakeDirs(self.learning_progress_folder)
+
 
   """Starting point of the agent acting in the environment"""
   def play(self, coord, saver):
@@ -105,8 +106,8 @@ class AttentionAgent(EigenOCAgentDyn):
 
             self.episode_mixed_reward += self.reward_mix
 
-            # if self.total_steps % self.config.step_summary_interval == 0 and self.name == 'worker_0':
-            #   self.write_step_summary()
+            if self.total_steps % self.config.step_summary_interval == 0 and self.name == 'worker_0':
+              self.write_step_summary()
 
             s = s1
             self.episode_length += 1
@@ -122,11 +123,12 @@ class AttentionAgent(EigenOCAgentDyn):
             self.sess.run(self.increment_global_episode)
             self.global_episode_np = self.global_episode.eval()
 
-            # if self.global_episode_np % self.config.checkpoint_interval == 0:
-            #   self.save_model()
-
-            # if self.global_episode_np % self.config.summary_interval == 0:
-            #   self.write_summaries()
+            if self.global_episode_np % self.config.checkpoint_interval == 0:
+              self.save_model()
+            if self.global_episode_np % self.config.summary_interval == 0:
+              self.write_summaries()
+              # self.perf_length.append(self.episode_length)
+              # self.print_perf_length()
 
             if self.global_episode_np % self.config.cluster_interval == 0:
                 # print("Printing directions clusters")
@@ -568,4 +570,59 @@ class AttentionAgent(EigenOCAgentDyn):
 
     """Saving plots"""
     plt.savefig(os.path.join(self.policy_folder, f'Current_option_direction_{self.global_step_np}_{self.global_episode_np}.png'))
+    plt.close()
+
+  def evaluate(self, coord, saver):
+    self.saver = saver
+
+    with self.sess.as_default(), self.sess.graph.as_default():
+      self.init_agent()
+      self.sync_threads()
+
+      task_perf = []
+      for goal_location in self.config.goal_locations:
+        perf_length = []
+        self.env.move_goal_to(goal_location)
+
+        for _ in range(self.config.nb_test_ep):
+          """update local network parameters from global network"""
+
+          self.init_episode()
+
+          """Reset the environment and get the initial state"""
+          s = self.env.get_initial_state()
+
+          """While the episode does not terminate"""
+          while not self.done:
+            """update local network parameters from global network"""
+            self.sync_threads()
+
+            """Choose an action from the current intra-option policy"""
+            self.policy_evaluation(s, self.episode_length == 0)
+
+            _, r, self.done, s1 = self.env.special_step(self.action, s)
+
+            self.reward = r
+            self.episode_reward += self.reward
+
+            """If the episode ended make the last state absorbing"""
+            if self.done:
+              s1 = s
+
+            self.reward_mix = self.reward
+
+            self.episode_mixed_reward += self.reward_mix
+
+            s = s1
+            self.episode_length += 1
+            self.total_steps += 1
+
+          perf_length.append(self.episode_length)
+
+        task_performance = np.mean(perf_length)
+        task_perf.append(task_performance)
+
+    plt.clf()
+    plt.bar(self.config.goal_locations, task_perf, 1/1.5, color="blue")
+    plt.savefig(os.path.join(self.learning_progress_folder, f'Learning_progress.png'))
     plt.close()

@@ -70,7 +70,7 @@ def run(config, logdir):
       elif FLAGS.task == "eigenoption":
         with tf.device("/cpu:0"):
           agent = config.target_agent(sess, envs[0], 0, global_step, global_episode, config, global_network, b)
-      elif FLAGS.task == "eval":
+      elif FLAGS.task == "evaluate":
         with tf.device("/cpu:0"):
           agent = config.target_agent(sess, envs[0], 0, global_step, global_episode, config, global_network, b)
       elif FLAGS.task == "train":
@@ -108,8 +108,8 @@ def run(config, logdir):
       thread = threading.Thread(target=(lambda: agent.viz_options2(sess, coord, saver)))
       thread.start()
       agent_threads.append(thread)
-    elif FLAGS.task == "eval":
-      thread = threading.Thread(target=(lambda: agent.eval(coord, saver)))
+    elif FLAGS.task == "evaluate":
+      thread = threading.Thread(target=(lambda: agent.evaluate(coord, saver)))
       thread.start()
       agent_threads.append(thread)
     elif FLAGS.task == "train":
