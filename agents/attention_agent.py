@@ -16,6 +16,7 @@ import random
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 from agents.eigenoc_agent_dynamic import EigenOCAgentDyn
+import pickle
 import copy
 from threading import Barrier, Thread
 
@@ -47,6 +48,8 @@ class AttentionAgent(EigenOCAgentDyn):
     self.learning_progress_folder = os.path.join(self.summary_path, "learning_progress")
     tf.gfile.MakeDirs(self.learning_progress_folder)
 
+    self.cluster_model_path = os.path.join(self.config.logdir, "cluster_models")
+    tf.gfile.MakeDirs(self.cluster_model_path)
 
   """Starting point of the agent acting in the environment"""
   def play(self, coord, saver):
@@ -626,3 +629,13 @@ class AttentionAgent(EigenOCAgentDyn):
     plt.bar(self.config.goal_locations, task_perf, 1/1.5, color="blue")
     plt.savefig(os.path.join(self.learning_progress_folder, f'Learning_progress.png'))
     plt.close()
+
+  def save_model(self):
+    self.saver.save(self.sess, self.model_path + '/model-{}.cptk'.format(self.global_episode_np),
+                    global_step=self.global_episode)
+    tf.logging.info(
+      "Saved Model at {}".format(self.model_path + '/model-{}.cptk'.format(self.global_episode_np)))
+
+    direction_clusters_path = os.path.join(self.cluster_model_path, "direction_clusters_{}.pkl".format(self.global_episode_np))
+    with open(direction_clusters_path, 'w') as f:
+      pickle.dump(self.global_network.direction_clusters, f)

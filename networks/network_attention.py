@@ -98,7 +98,8 @@ class AttentionNetwork(EignOCNetwork):
         episode_checkpoint = os.path.basename(model_checkpoint_path).split(".")[0].split("-")[1]
         l = episode_checkpoint
 
-      self.direction_clusters_path = os.path.join(self.config.logdir, "direction_clusters_{}.npy".format(l))
+      cluster_model_path = os.path.join(self.config.logdir, "cluster_models")
+      self.direction_clusters_path = os.path.join(cluster_model_path, "direction_clusters_{}.pkl".format(l))
 
       """If the path exists, load them. Otherwise initialize all directions with zeros"""
       if os.path.exists(self.direction_clusters_path):
