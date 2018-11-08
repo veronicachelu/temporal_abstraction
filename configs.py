@@ -403,8 +403,9 @@ def attention():
 	locals().update(eigenoc_dyn())
 	fc_layers = 169,  # the number of layers and units in each layer mapping from input space to latent state representation
 	sf_layers = 169,
-
+	nb_options = 4
 	num_agents = 8
+
 	test_random_action = False
 	sr_matrix = None
 	use_eigendirections = False
@@ -420,7 +421,7 @@ def attention():
 	move_goal_nb_of_ep = 50
 	"""The kind of network to use for function approximation"""
 	network = AttentionNetwork
-	# goal_locations = [(11, 7), (5, 2), (1, 10), (2, 2), (6, 2), (9, 11), (2, 7)]
+	goal_locations = [(11, 7), (5, 2), (1, 10), (2, 2), (6, 2), (9, 11), (2, 7)]
 
 	return locals()
 
