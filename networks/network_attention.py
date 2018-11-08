@@ -87,6 +87,7 @@ class AttentionNetwork(EignOCNetwork):
 
     self.merged_summary_option = tf.summary.merge(options_to_merge)
 
+
   def init_clustering(self):
     if self.scope == 'global':
       l = "0"
@@ -146,9 +147,9 @@ class AttentionNetwork(EignOCNetwork):
                                                     activation_fn=None,
                                                     variables_collections=tf.get_collection("variables"),
                                                     outputs_collections="activations", scope="direction_features")
-        direction_features = self.l2_normalize(direction_features, 1)
+        self.query_direction = self.l2_normalize(direction_features, 1)
 
-        self.query_content_match = tf.tensordot(direction_features, self.direction_clusters, axes=[[1], [1]], name="query_content_match")
+        self.query_content_match = tf.tensordot(self.query_direction, self.direction_clusters, axes=[[1], [1]], name="query_content_match")
         self.summaries_option.append(tf.contrib.layers.summarize_activation(self.query_content_match))
 
         self.attention_weights = tf.nn.softmax(self.query_content_match, name="attention_weights")
@@ -156,7 +157,7 @@ class AttentionNetwork(EignOCNetwork):
 
         self.current_unnormalized_direction = tf.tensordot(self.attention_weights, self.direction_clusters, axes=[[1], [0]])
 
-        self.current_option_direction = self.l2_normalize(self.current_unnormalized_direction, 1, name="current_option_direction")
+        self.current_option_direction = tf.identity(self.l2_normalize(self.current_unnormalized_direction, 1), name="current_option_direction")
         self.summaries_option.append(tf.contrib.layers.summarize_activation(self.current_option_direction))
 
       with tf.variable_scope("eigen_option_q_val"):

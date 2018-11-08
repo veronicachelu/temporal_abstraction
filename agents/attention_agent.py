@@ -34,6 +34,7 @@ class AttentionAgent(EigenOCAgentDyn):
     self.episode_buffer_option = []
     self.reward_mix = 0
     self.R_mix = 0
+    # self.first_direction_episode = None
 
   def init_agent(self):
     super(AttentionAgent, self).init_agent()
@@ -79,9 +80,11 @@ class AttentionAgent(EigenOCAgentDyn):
             self.policy_evaluation(s, self.episode_length == 0)
 
             if self.global_episode_np % self.config.cluster_interval == 0 and self.episode_length == 0 and self.name == "worker_0":
-                print("Printing directions clusters")
-                self.print_current_option_direction()
+              print("Printing directions clusters")
+              self.print_current_option_direction()
 
+            # if self.episode_length == 0:
+            #   self.first_direction_episode = self.current_option_direction
             # s1, r, self.done, self.s1_idx = self.env.step(self.action)
             _, r, self.done, s1 = self.env.special_step(self.action, s)
 
@@ -138,6 +141,9 @@ class AttentionAgent(EigenOCAgentDyn):
           if self.total_episodes % self.config.move_goal_nb_of_ep == 0 and \
                   self.total_episodes != 0:
             tf.logging.info(f"Moving GOAL....{self.total_episodes}")
+            # if self.name == "worker_0":
+            #   self.print_current_option_direction()
+
             self.barrier.wait()
             self.goal_position = self.env.set_goal(self.total_episodes, self.config.move_goal_nb_of_ep)
 
@@ -435,7 +441,7 @@ class AttentionAgent(EigenOCAgentDyn):
       self.config.input_size[0],
       self.config.input_size[1])
 
-    params = {'figure.figsize': (25, 5),
+    params = {'figure.figsize': (60, 10),
               'axes.titlesize': 'x-large',
               }
     # 'legend.fontsize': 'x-large',

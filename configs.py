@@ -420,7 +420,7 @@ def attention():
 	move_goal_nb_of_ep = 50
 	"""The kind of network to use for function approximation"""
 	network = AttentionNetwork
-	goal_locations = [(11, 7), (5, 2), (1, 10), (2, 2), (6, 2), (9, 11), (2, 7)]
+	# goal_locations = [(11, 7), (5, 2), (1, 10), (2, 2), (6, 2), (9, 11), (2, 7)]
 
 	return locals()
 
