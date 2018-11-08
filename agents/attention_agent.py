@@ -446,7 +446,7 @@ class AttentionAgent(EigenOCAgentDyn):
       self.config.input_size[1])
 
     params = {'figure.figsize': (60, 10),
-              'axes.titlesize': 'x-large',
+              'axes.titlesize': 'medium',
               }
     # 'legend.fontsize': 'x-large',
     # 'axes.labelsize': 'x-large',
@@ -455,7 +455,7 @@ class AttentionAgent(EigenOCAgentDyn):
     # 'ytick.labelsize': 'x-large'
     #
     plt.rcParams.update(params)
-    plt.subplots_adjust(left=0.1, right=0.9, top=0.9, bottom=0.1)
+    # plt.subplots_adjust(left=0.1, right=0.9, top=0.9, bottom=0.1)
 
     f = plt.figure(figsize=(25, 5), frameon=False)
     plt.axis('off')
