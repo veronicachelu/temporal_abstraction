@@ -405,6 +405,8 @@ def attention():
 	sf_layers = 169,
 	nb_options = 4
 	num_agents = 8
+	"""The maximum length of episodes in the environment"""
+	max_length = 1000
 
 	test_random_action = False
 	sr_matrix = None

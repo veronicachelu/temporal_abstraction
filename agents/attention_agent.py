@@ -35,6 +35,7 @@ class AttentionAgent(EigenOCAgentDyn):
     self.episode_buffer_option = []
     self.reward_mix = 0
     self.R_mix = 0
+    self.episode_length = 0
     # self.first_direction_episode = None
 
   def init_agent(self):
@@ -588,7 +589,7 @@ class AttentionAgent(EigenOCAgentDyn):
 
             """Choose an action from the current intra-option policy"""
             self.policy_evaluation(s, self.episode_length == 0)
-
+            print(f"Timestep {self.episode_length}")
             _, r, self.done, s1 = self.env.special_step(self.action, s)
 
             self.reward = r
@@ -606,13 +607,14 @@ class AttentionAgent(EigenOCAgentDyn):
             self.episode_length += 1
             self.total_steps += 1
 
+          print(f"Episode length {self.episode_length} for goal location {goal_location}")
           perf_length.append(self.episode_length)
 
         task_performance = np.mean(perf_length)
         task_perf.append(task_performance)
 
     plt.clf()
-    plt.bar(self.config.goal_locations, task_perf, 1/1.5, color="blue")
+    plt.bar(f"{self.config.goal_locations[0]}, {self.config.goal_locations[1]}", task_perf, 1/1.5, color="blue")
     plt.savefig(os.path.join(self.learning_progress_folder, f'Learning_progress.png'))
     plt.close()
 

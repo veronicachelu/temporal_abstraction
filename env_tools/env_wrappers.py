@@ -283,9 +283,23 @@ class LimitDuration(object):
       self._step = None
     return observ, reward, done, info
 
+  def special_step(self, action, s):
+    if self._step is None:
+      self._step = 0
+    observ, reward, done, info = self._env.special_step(action, s)
+    self._step += 1
+    if self._step >= self._duration:
+      done = True
+      self._step = None
+    return observ, reward, done, info
+
   def reset(self):
     self._step = 0
     return self._env.reset()
+
+  def get_initial_state(self):
+    self._step = 0
+    return self._env.get_initial_state()
 
 
 class ExternalProcess(object):
