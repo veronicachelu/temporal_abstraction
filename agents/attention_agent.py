@@ -91,7 +91,6 @@ class AttentionAgent(EigenOCAgentDyn):
             #   self.first_direction_episode = self.current_option_direction
             # s1, r, self.done, self.s1_idx = self.env.step(self.action)
             _, r, self.done, s1 = self.env.special_step(self.action, s)
-
             self.reward = r
             self.episode_reward += self.reward
 
@@ -130,27 +129,14 @@ class AttentionAgent(EigenOCAgentDyn):
               self.save_model()
             if self.global_episode_np % self.config.summary_interval == 0:
               self.write_summaries()
-              # self.perf_length.append(self.episode_length)
-              # self.print_perf_length()
 
             if self.global_episode_np % self.config.cluster_interval == 0:
-                # print("Printing directions clusters")
                 self.print_current_option_direction()
-
-                # c = self.global_network.direction_clusters
-                # clusters = c.get_clusters()
-                # """Where to save the eigenvectors, the policies and the value functions"""
-								#
-                # self.plot_clusters(clusters)
-                # """Plot policies and value functions"""
-                # self.plot_policy_and_value_function(clusters)
 
           """If it's time to change the task - move the goal, wait for all other threads to finish the current task"""
           if self.total_episodes % self.config.move_goal_nb_of_ep == 0 and \
                   self.total_episodes != 0:
             tf.logging.info(f"Moving GOAL....{self.total_episodes}")
-            # if self.name == "worker_0":
-            #   self.print_current_option_direction()
 
             self.barrier.wait()
             self.goal_position = self.env.set_goal(self.total_episodes, self.config.move_goal_nb_of_ep)
@@ -637,5 +623,7 @@ class AttentionAgent(EigenOCAgentDyn):
       "Saved Model at {}".format(self.model_path + '/model-{}.cptk'.format(self.global_episode_np)))
 
     direction_clusters_path = os.path.join(self.cluster_model_path, "direction_clusters_{}.pkl".format(self.global_episode_np))
-    with open(direction_clusters_path, 'w') as f:
-      pickle.dump(self.global_network.direction_clusters, f)
+    f = open(direction_clusters_path, 'wb')
+    pickle.dump(self.global_network.direction_clusters, f, protocol=pickle.HIGHEST_PROTOCOL)
+    f.close()
+
