@@ -147,8 +147,11 @@ class AttentionAgent(EigenOCAgentDyn):
 
   """Sample an action from the current option's policy"""
   def policy_evaluation(self, s, compute_svd, test=False, direction=None):
+
     feed_dict = {self.local_network.observation: np.identity(self.nb_states)[s:s+1],
-                 self.local_network.direction_clusters: self.global_network.direction_clusters.get_clusters()
+                 self.local_network.direction_clusters: self.global_network.direction_clusters.get_clusters(),
+                 # self.local_network.current_option_direction: [np.random.normal(size=self.local_network.goal_embedding_size)]
+                 # self.local_network.current_option_direction: self.goal_sf
                  }
     tensor_results = {
                    "sf": self.local_network.sf,
@@ -573,6 +576,10 @@ class AttentionAgent(EigenOCAgentDyn):
       for goal_location in self.config.goal_locations:
         perf_length = []
         self.env.move_goal_to(goal_location)
+        goal_index = self.env.get_state_index(goal_location[0], goal_location[1])
+        self.goal_sf = self.sess.run(self.local_network.sf, {self.local_network.observation: np.identity(self.nb_states)[goal_index:goal_index+1],
+                                              self.local_network.direction_clusters: self.global_network.direction_clusters.get_clusters()
+                                              })
 
         for _ in range(self.config.nb_test_ep):
           """update local network parameters from global network"""
@@ -589,7 +596,7 @@ class AttentionAgent(EigenOCAgentDyn):
 
             """Choose an action from the current intra-option policy"""
             self.policy_evaluation(s, self.episode_length == 0)
-            print(f"Timestep {self.episode_length}")
+            # print(f"Timestep {self.episode_length}")
             _, r, self.done, s1 = self.env.special_step(self.action, s)
 
             self.reward = r

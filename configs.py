@@ -407,7 +407,7 @@ def attention():
 	num_agents = 8
 	"""The maximum length of episodes in the environment"""
 	max_length = 1000
-
+	max_clusters = 32
 	test_random_action = False
 	sr_matrix = None
 	use_eigendirections = False

@@ -65,18 +65,21 @@ def cosine_similarity(a, b):
 class Cluster(object):
 	def __init__(self, a):
 		self.center = normaliz(a)
-		self.size = kernel(self.center, a)
+		self.similarity = kernel(self.center, a)
+		self.size = 0
 
 	# def add(self, e):
 	# 	self.size += kernel_dist(self.center, e)
 	# 	self.center += (e - self.center) / self.size
 	def add(self, e):
 		w_n = kernel(self.center, e)
-		self.center = normaliz((self.center * self.size + w_n * e) / (self.size + w_n + 1e-8))
-		self.size += w_n
+		self.center = normaliz((self.center * self.similarity + w_n * e) / (self.similarity + w_n + 1e-8))
+		self.similarity += w_n
+		self.size += 1
 
 	def merge(self, c):
-		self.center = normaliz((self.center * self.size + c.center * c.size) / (self.size + c.size + 1e-8))
+		self.center = normaliz((self.center * self.similarity + c.center * c.similarity) / (self.similarity + c.similarity + 1e-8))
+		self.similarity += c.similarity
 		self.size += c.size
 
 	def resize(self, dim):
@@ -84,7 +87,7 @@ class Cluster(object):
 		self.center = scipy.append(self.center, extra)
 
 	def __str__(self):
-		return "Cluster( %s, %f )" % (self.center, self.size)
+		return "Cluster( %s, %f )" % (self.center, self.similarity)
 
 
 class Dist(object):
@@ -119,14 +122,13 @@ class Dist(object):
 
 
 class OnlineCluster(object):
-	def __init__(self, N, dim):
+	def __init__(self, N, max_N, dim):
 		"""N-1 is the largest number of clusters I can find
 		Higher N makes me slower"""
 
 		self.n = 0
 		self.N = N
-
-
+		self.max_N = max_N
 
 		self.clusters = []
 		# max number of dimensions we've seen so far
@@ -163,10 +165,7 @@ class OnlineCluster(object):
 				m = heapq.heappop(self.dist)
 				m.x.merge(m.y)
 
-				try:
-					self.clusters.remove(m.y)
-				except:
-					print("err")
+				self.clusters.remove(m.y)
 				self.removedist(m.y)
 
 				self.updatedist(m.x)
@@ -207,9 +206,11 @@ class OnlineCluster(object):
 		len_cls = len(cls)
 		lock.release()
 
-		clusters = [normaliz(np.copy(c.center)) for c in cls]
+		sorted_cls = sorted(cls, key=lambda x: x.size, reverse=True)[:self.max_N]
+		clusters = [normaliz(np.copy(c.center)) for c in sorted_cls]
+		len_sorted_cls = len(clusters)
 
-		for _ in range(self.N - len_cls):
+		for _ in range(self.max_N - len_sorted_cls):
 			clusters.append(np.zeros(shape=self.dim))
 
 		return clusters

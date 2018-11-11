@@ -105,7 +105,7 @@ class AttentionNetwork(EignOCNetwork):
         self.direction_clusters = np.load(self.direction_clusters_path)
         self.directions_init = True
       else:
-        self.direction_clusters = OnlineCluster(self.config.nb_options, self.goal_embedding_size)#np.zeros((self.config.nb_options, self.config.sf_layers[-1]))
+        self.direction_clusters = OnlineCluster(self.config.max_clusters, self.config.nb_options, self.goal_embedding_size)#np.zeros((self.config.nb_options, self.config.sf_layers[-1]))
         self.directions_init = False
 
   def build_network(self):
