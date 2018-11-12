@@ -106,11 +106,10 @@ class AttentionWTermAgent(EigenOCAgentDyn):
             if not self.done and self.term:
               self.direction_evaluation(s1)
 
-            if self.name != "worker_0":
-              self.episode_buffer_sf.append([s])
-              self.sf_prediction(s1)
-              """Do n-step prediction for the returns"""
-              self.option_prediction(s, s1)
+            self.episode_buffer_sf.append([s])
+            self.sf_prediction(s1)
+            """Do n-step prediction for the returns"""
+            self.option_prediction(s, s1)
 
             self.episode_mixed_reward += self.reward_mix
 
@@ -162,16 +161,23 @@ class AttentionWTermAgent(EigenOCAgentDyn):
 
   def direction_evaluation(self, s):
     feed_dict = {self.local_network.observation: np.identity(self.nb_states)[s:s+1],
-                 self.local_network.direction_clusters: self.global_network.direction_clusters.get_clusters()}
+                 self.local_network.direction_clusters: self.global_network.direction_clusters.get_clusters(),}
     results = self.sess.run({
       "current_option_direction": self.local_network.current_option_direction,
       "query_direction": self.local_network.query_direction,
       "attention_weights": self.local_network.attention_weights,
-      "query_content_match": self.local_network.query_content_match}, feed_dict=feed_dict)
+      "query_content_match": self.local_network.query_content_match,
+      "value_ext": self.local_network.value_ext,
+      "q_s_dir": self.local_network.q_ext,
+      "adv_s_dir": self.local_network.adv_ext}, feed_dict=feed_dict)
     self.current_option_direction = results["current_option_direction"][0]
     self.query_direction = results["query_direction"][0]
     self.attention_weights = results["attention_weights"][0]
     self.query_content_match = results["query_content_match"][0]
+    self.value_ext = results["value_ext"][0]
+    self.q_s_dir = results["q_s_dir"][0]
+    self.adv_s_dir = results["adv_s_dir"][0]
+
 
   """Sample an action from the current option's policy"""
   def policy_evaluation(self, s):
@@ -182,7 +188,6 @@ class AttentionWTermAgent(EigenOCAgentDyn):
     tensor_results = {
                    "sf": self.local_network.sf,
                    "value_mix": self.local_network.value_mix,
-                   "value_ext": self.local_network.value_ext,
                    "option_policy": self.local_network.option_policy}
     results = self.sess.run(tensor_results, feed_dict=feed_dict)
 
@@ -190,7 +195,7 @@ class AttentionWTermAgent(EigenOCAgentDyn):
     self.add_SF(sf)
 
     self.value_mix = results["value_mix"][0]
-    self.value_ext = results["value_ext"][0]
+
     pi = results["option_policy"][0]
 
     self.episode_values_mix.append(self.value_mix)
@@ -256,12 +261,13 @@ class AttentionWTermAgent(EigenOCAgentDyn):
     feed_dict = {self.local_network.target_sf: np.stack(discounted_sf, axis=0),
                  self.local_network.observation: np.identity(self.nb_states)[observations]}
 
-    _, self.summaries_sf, sf_loss = \
-      self.sess.run([self.local_network.apply_grads_sf,
-                     self.local_network.merged_summary_sf,
-                     self.local_network.sf_loss,
-                     ],
-                    feed_dict=feed_dict)
+    to_run = {"summary_sf": self.local_network.merged_summary_sf,
+              "sf_loss": self.local_network.sf_loss
+    }
+    if self.name != "worker_0":
+      to_run["apply_grads_sf"] = self.local_network.apply_grads_sf
+    results = self.sess.run(to_run, feed_dict=feed_dict)
+    self.summaries_sf = results["summary_sf"]
 
   def add_SF(self, sf):
     self.global_network.direction_clusters.cluster(sf)
@@ -289,15 +295,18 @@ class AttentionWTermAgent(EigenOCAgentDyn):
                  self.local_network.target_current_option_direction: np.stack(option_directions, 0),
                  }
 
+    to_run = {
+             "summary_option": self.local_network.merged_summary_option,
+             "summary_term": self.local_network.merged_summary_term,
+             "summary_critic": self.local_network.merged_summary_critic,
+             "value_ext": self.local_network.value_ext}
+    if self.name != "worker_0":
+      to_run["apply_grads_option"] = self.local_network.apply_grads_option
+      to_run["apply_grads_critic"] = self.local_network.apply_grads_critic
+      to_run["apply_grads_term"] = self.local_network.apply_grads_term
+
     """Do an update on the intra-option policies"""
-    results = self.sess.run({"apply_grads_option": self.local_network.apply_grads_option,
-                             "summary_option": self.local_network.merged_summary_option,
-                             "apply_grads_critic": self.local_network.apply_grads_critic,
-                             "apply_grads_term": self.local_network.apply_grads_term,
-                             "summary_term": self.local_network.merged_summary_term,
-                             "summary_critic": self.local_network.merged_summary_critic,
-                             "value_ext": self.local_network.value_ext},
-                             feed_dict=feed_dict)
+    results = self.sess.run(to_run, feed_dict=feed_dict)
     self.summaries_option = results["summary_option"]
     self.summaries_term = results["summary_term"]
     self.summaries_critic = results["summary_critic"]
@@ -310,11 +319,12 @@ class AttentionWTermAgent(EigenOCAgentDyn):
                  self.local_network.target_direction: [np.identity(self.nb_states)[observations[-1]] - np.identity(self.nb_states)[observations[0]]],
                  self.local_network.value_ext: [value_ext[-1]]
                  }
+    to_run = {"summary_direction": self.local_network.merged_summary_direction}
+    if self.name != "worker_0":
+      to_run["apply_grad_direction"] = self.local_network.apply_grads_direction
 
     """Do an update on the intra-option policies"""
-    results = self.sess.run({"apply_grad_direction": self.local_network.apply_grads_direction,
-                             "summary_direction": self.local_network.merged_summary_direction},
-                             feed_dict=feed_dict)
+    results = self.sess.run(to_run, feed_dict=feed_dict)
     self.summaries_direction = results["summary_direction"]
 
     """Store the bootstrap target returns at the end of the trajectory"""
@@ -328,6 +338,8 @@ class AttentionWTermAgent(EigenOCAgentDyn):
     self.summary.value.add(tag='Step/Reward', simple_value=self.reward)
     self.summary.value.add(tag='Step/V_Mix', simple_value=self.value_mix)
     self.summary.value.add(tag='Step/V_Ext', simple_value=self.value_ext)
+    self.summary.value.add(tag='Step/Q_s_dir', simple_value=self.q_s_dir)
+    self.summary.value.add(tag='Step/A_s_dir', simple_value=self.adv_s_dir)
     self.summary.value.add(tag='Step/Target_Return_Mix', simple_value=self.R_mix)
     self.summary.value.add(tag='Step/Target_Return', simple_value=self.R)
     self.summary.value.add(tag='Step/Term', simple_value=self.term)
