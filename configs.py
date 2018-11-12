@@ -1,5 +1,6 @@
 from agents import EmbeddingAgent
 from agents import AttentionAgent
+from agents import AttentionWTermAgent
 from agents import EigenOCAgent
 from agents import LinearSFAgent
 from agents import EigenOCAgentDyn
@@ -9,6 +10,7 @@ from env_tools import GridWorld
 import functools
 from networks import EmbeddingNetwork
 from networks import AttentionNetwork
+from networks import AttentionWTermNetwork
 from networks import EignOCNetwork
 from networks import LinearSFNetwork
 from networks import DynSRNetwork
@@ -403,7 +405,7 @@ def attention():
 	locals().update(eigenoc_dyn())
 	fc_layers = 169,  # the number of layers and units in each layer mapping from input space to latent state representation
 	sf_layers = 169,
-	nb_options = 4
+	nb_options = 8
 	num_agents = 8
 	"""The maximum length of episodes in the environment"""
 	max_length = 1000
@@ -423,6 +425,35 @@ def attention():
 	move_goal_nb_of_ep = 50
 	"""The kind of network to use for function approximation"""
 	network = AttentionNetwork
+	goal_locations = [(11, 7), (5, 2), (1, 10), (2, 2), (6, 2), (9, 11), (2, 7)]
+
+	return locals()
+
+def attention_w_term():
+	"""Load configuration options from eigenoc_dyn and override or add new ones"""
+	locals().update(attention())
+	fc_layers = 169,  # the number of layers and units in each layer mapping from input space to latent state representation
+	sf_layers = 169,
+	nb_options = 8
+	num_agents = 8
+	"""The maximum length of episodes in the environment"""
+	max_length = 1000
+	max_clusters = 32
+	test_random_action = False
+	sr_matrix = None
+	use_eigendirections = False
+	use_clustering = True
+	summary_interval = 1
+	checkpoint_interval = 1
+	cluster_interval = 10
+	"""The kind of agent to use in the environment"""
+	target_agent = AttentionWTermAgent
+	"""The number test episodes to execute, over which to average results"""
+	nb_test_ep = 1
+	"""Move to the next task specified in the goal_locations after the specfied number of episodes"""
+	move_goal_nb_of_ep = 50
+	"""The kind of network to use for function approximation"""
+	network = AttentionWTermNetwork
 	goal_locations = [(11, 7), (5, 2), (1, 10), (2, 2), (6, 2), (9, 11), (2, 7)]
 
 	return locals()
