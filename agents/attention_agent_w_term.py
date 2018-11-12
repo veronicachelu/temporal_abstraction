@@ -163,8 +163,15 @@ class AttentionWTermAgent(EigenOCAgentDyn):
   def direction_evaluation(self, s):
     feed_dict = {self.local_network.observation: np.identity(self.nb_states)[s:s+1],
                  self.local_network.direction_clusters: self.global_network.direction_clusters.get_clusters()}
-    self.current_option_direction = self.sess.run(
-      self.local_network.current_option_direction, feed_dict=feed_dict)[0]
+    results = self.sess.run({
+      "current_option_direction": self.local_network.current_option_direction,
+      "query_direction": self.local_network.query_direction,
+      "attention_weights": self.local_network.attention_weights,
+      "query_content_match": self.local_network.query_content_match}, feed_dict=feed_dict)
+    self.current_option_direction = results["current_option_direction"]
+    self.query_direction = results["query_direction"]
+    self.attention_weights = results["attention_weights"]
+    self.query_content_match = results["query_content_match"]
 
   """Sample an action from the current option's policy"""
   def policy_evaluation(self, s):
@@ -481,9 +488,9 @@ class AttentionWTermAgent(EigenOCAgentDyn):
       self.config.input_size[1])
     reproj_obs = np.squeeze(self.env.build_screen(), -1)
     clusters = self.global_network.direction_clusters.get_clusters()
-    # reproj_query = self.query_direction.reshape(
-    #   self.config.input_size[0],
-    #   self.config.input_size[1])
+    reproj_query = self.query_direction.reshape(
+      self.config.input_size[0],
+      self.config.input_size[1])
 
     params = {'figure.figsize': (60, 10),
               'axes.titlesize': 'medium',
@@ -535,43 +542,43 @@ class AttentionWTermAgent(EigenOCAgentDyn):
     ax2.set_title('Last observation', fontsize=20)
     sns.heatmap(reproj_obs, cmap="Blues", ax=ax2)
 
-    # """Adding borders"""
-    # for idx in range(self.nb_states):
-    #   ii, jj = self.env.get_state_xy(idx)
-    #   if self.env.not_wall(ii, jj):
-    #     continue
-    #   else:
-    #     ax2.add_patch(
-    #       patches.Rectangle(
-    #         (jj, self.config.input_size[0] - ii - 1),  # (x,y)
-    #         1.0,  # width
-    #         1.0,  # height
-    #         facecolor="gray"
-    #       )
-    #     )
-    # f.add_subplot(ax2)
-		#
-    # ax3 = plt.Subplot(f, gs01[1, :])
-    # ax3.set_aspect(1.0)
-    # ax3.axis('off')
-    # ax3.set_title('Query direction embedding', fontsize=20)
-    # sns.heatmap(reproj_query, cmap="Blues", ax=ax3)
+    """Adding borders"""
+    for idx in range(self.nb_states):
+      ii, jj = self.env.get_state_xy(idx)
+      if self.env.not_wall(ii, jj):
+        continue
+      else:
+        ax2.add_patch(
+          patches.Rectangle(
+            (jj, self.config.input_size[0] - ii - 1),  # (x,y)
+            1.0,  # width
+            1.0,  # height
+            facecolor="gray"
+          )
+        )
+    f.add_subplot(ax2)
 
-    # """Adding borders"""
-    # for idx in range(self.nb_states):
-    #   ii, jj = self.env.get_state_xy(idx)
-    #   if self.env.not_wall(ii, jj):
-    #     continue
-    #   else:
-    #     ax3.add_patch(
-    #       patches.Rectangle(
-    #         (jj, self.config.input_size[0] - ii - 1),  # (x,y)
-    #         1.0,  # width
-    #         1.0,  # height
-    #         facecolor="gray"
-    #       )
-    #     )
-    # f.add_subplot(ax3)
+    ax3 = plt.Subplot(f, gs01[1, :])
+    ax3.set_aspect(1.0)
+    ax3.axis('off')
+    ax3.set_title('Query direction embedding', fontsize=20)
+    sns.heatmap(reproj_query, cmap="Blues", ax=ax3)
+
+    """Adding borders"""
+    for idx in range(self.nb_states):
+      ii, jj = self.env.get_state_xy(idx)
+      if self.env.not_wall(ii, jj):
+        continue
+      else:
+        ax3.add_patch(
+          patches.Rectangle(
+            (jj, self.config.input_size[0] - ii - 1),  # (x,y)
+            1.0,  # width
+            1.0,  # height
+            facecolor="gray"
+          )
+        )
+    f.add_subplot(ax3)
 
     indx = [[0, 0], [0, 1], [0, 2], [0, 3],
             [1, 0], [1, 1], [1, 2], [1, 3]]
