@@ -168,10 +168,10 @@ class AttentionWTermAgent(EigenOCAgentDyn):
       "query_direction": self.local_network.query_direction,
       "attention_weights": self.local_network.attention_weights,
       "query_content_match": self.local_network.query_content_match}, feed_dict=feed_dict)
-    self.current_option_direction = results["current_option_direction"]
-    self.query_direction = results["query_direction"]
-    self.attention_weights = results["attention_weights"]
-    self.query_content_match = results["query_content_match"]
+    self.current_option_direction = results["current_option_direction"][0]
+    self.query_direction = results["query_direction"][0]
+    self.attention_weights = results["attention_weights"][0]
+    self.query_content_match = results["query_content_match"][0]
 
   """Sample an action from the current option's policy"""
   def policy_evaluation(self, s):
