@@ -557,21 +557,21 @@ class AttentionWTermAgent(EigenOCAgentDyn):
     # ax3.set_title('Query direction embedding', fontsize=20)
     # sns.heatmap(reproj_query, cmap="Blues", ax=ax3)
 
-    """Adding borders"""
-    for idx in range(self.nb_states):
-      ii, jj = self.env.get_state_xy(idx)
-      if self.env.not_wall(ii, jj):
-        continue
-      else:
-        ax3.add_patch(
-          patches.Rectangle(
-            (jj, self.config.input_size[0] - ii - 1),  # (x,y)
-            1.0,  # width
-            1.0,  # height
-            facecolor="gray"
-          )
-        )
-    f.add_subplot(ax3)
+    # """Adding borders"""
+    # for idx in range(self.nb_states):
+    #   ii, jj = self.env.get_state_xy(idx)
+    #   if self.env.not_wall(ii, jj):
+    #     continue
+    #   else:
+    #     ax3.add_patch(
+    #       patches.Rectangle(
+    #         (jj, self.config.input_size[0] - ii - 1),  # (x,y)
+    #         1.0,  # width
+    #         1.0,  # height
+    #         facecolor="gray"
+    #       )
+    #     )
+    # f.add_subplot(ax3)
 
     indx = [[0, 0], [0, 1], [0, 2], [0, 3],
             [1, 0], [1, 1], [1, 2], [1, 3]]
