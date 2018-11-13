@@ -168,14 +168,15 @@ class AttentionWTermAgent(EigenOCAgentDyn):
       "attention_weights": self.local_network.attention_weights,
       "query_content_match": self.local_network.query_content_match,
       "value_ext": self.local_network.v_ext,
-      "q_s_dir": self.local_network.q_ext}, feed_dict=feed_dict)
+      "q_s_o": self.local_network.q_ext,
+      "q_mix_s_o": self.local_network.q_mix}, feed_dict=feed_dict)
     self.current_option_direction = results["current_option_direction"][0]
     self.query_direction = results["query_direction"][0]
     self.attention_weights = results["attention_weights"][0]
     self.query_content_match = results["query_content_match"][0]
     self.value_ext = results["value_ext"][0]
-    self.q_s_dir = results["q_s_dir"][0]
-
+    self.q_s_o = results["q_s_o"][0]
+    self.q_mix_s_o = results["q_mix_s_o"][0]
 
 
   """Sample an action from the current option's policy"""
@@ -341,7 +342,8 @@ class AttentionWTermAgent(EigenOCAgentDyn):
     self.summary.value.add(tag='Step/Reward', simple_value=self.reward)
     self.summary.value.add(tag='Step/V_Mix', simple_value=self.value_mix)
     self.summary.value.add(tag='Step/V_Ext', simple_value=self.value_ext)
-    self.summary.value.add(tag='Step/Q_s_dir', simple_value=self.q_s_dir)
+    self.summary.value.add(tag='Step/Q_s_o', simple_value=self.q_s_o)
+    self.summary.value.add(tag='Step/Q_mix_s_o', simple_value=self.q_mix_s_o)
     self.summary.value.add(tag='Step/Target_Return_Mix', simple_value=self.R_mix)
     self.summary.value.add(tag='Step/Target_Return', simple_value=self.R)
     self.summary.value.add(tag='Step/Term', simple_value=self.term)

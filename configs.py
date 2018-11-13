@@ -451,7 +451,7 @@ def attention_w_term():
 	"""The number test episodes to execute, over which to average results"""
 	nb_test_ep = 1
 	"""Move to the next task specified in the goal_locations after the specfied number of episodes"""
-	move_goal_nb_of_ep = 50
+	move_goal_nb_of_ep = 300
 	"""The kind of network to use for function approximation"""
 	network = AttentionWTermNetwork
 	goal_locations = [(11, 7), (5, 2), (1, 10), (2, 2), (6, 2), (9, 11), (2, 7)]

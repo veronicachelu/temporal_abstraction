@@ -34,6 +34,9 @@ class AttentionWTermNetwork(EignOCNetwork):
         shape=[None, self.nb_states],
         dtype=tf.float32, name="observation_placeholder")
 
+      self.image_summaries.append(
+        tf.summary.image('observation', self.observation, max_outputs=30))
+
       with tf.variable_scope("succ_feat"):
         self.sf = layers.fully_connected(self.observation,
                                      num_outputs=self.goal_embedding_size,
@@ -236,7 +239,7 @@ class AttentionWTermNetwork(EignOCNetwork):
     self.grads_direction, self.apply_grads_direction = self.take_gradient(self.direction_loss)
 
     """Summaries"""
-    self.merged_summary_sf = tf.summary.merge(
+    self.merged_summary_sf = tf.summary.merge(self.image_summaries +
       self.summaries_sf + [tf.summary.scalar('SF_loss', self.sf_loss),
         gradient_summaries(zip(self.grads_sf, local_vars))])
 
