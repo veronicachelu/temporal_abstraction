@@ -33,9 +33,12 @@ class AttentionWTermNetwork(EignOCNetwork):
       self.observation = tf.placeholder(
         shape=[None, self.nb_states],
         dtype=tf.float32, name="observation_placeholder")
+      self.observation_image = tf.placeholder(
+        shape=[None, self.config.input_size[0], self.config.input_size[1], 1],
+        dtype=tf.float32, name="observation_image_placeholder")
 
       self.image_summaries.append(
-        tf.summary.image('observation', self.observation, max_outputs=30))
+        tf.summary.image('observation', self.observation_image, max_outputs=30))
 
       with tf.variable_scope("succ_feat"):
         self.sf = layers.fully_connected(self.observation,

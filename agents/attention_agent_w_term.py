@@ -33,6 +33,7 @@ class AttentionWTermAgent(EigenOCAgentDyn):
     self.episode_mixed_reward = 0
     self.episode_values_mix = []
     self.episode_buffer_option = []
+    self.episode_screens = []
     self.episode_directions = []
     self.reward_mix = 0
     self.episode_length = 0
@@ -107,6 +108,7 @@ class AttentionWTermAgent(EigenOCAgentDyn):
               self.direction_evaluation(s1)
 
             self.episode_buffer_sf.append([s])
+            self.episode_screens.append(self.env.build_screen())
             self.sf_prediction(s1)
             """Do n-step prediction for the returns"""
             self.option_prediction(s, s1)
@@ -250,6 +252,7 @@ class AttentionWTermAgent(EigenOCAgentDyn):
       bootstrap_sf = np.zeros_like(next_sf) if self.done else next_sf
       self.train_sf(bootstrap_sf)
       self.episode_buffer_sf = []
+      self.episode_screens = []
 
   """Do one n-step update for training the agent's latent successor representation space and an update for the next frame prediction"""
   def train_sf(self, bootstrap_sf):
@@ -263,6 +266,7 @@ class AttentionWTermAgent(EigenOCAgentDyn):
     discounted_sf = discount(sf_plus, self.config.discount)[:-1]
 
     feed_dict = {self.local_network.target_sf: np.stack(discounted_sf, axis=0),
+                 self.local_network.observation_image: np.stack(self.episode_screens),
                  self.local_network.observation: np.identity(self.nb_states)[observations]}
 
     to_run = {"summary_sf": self.local_network.merged_summary_sf,
