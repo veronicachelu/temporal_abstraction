@@ -35,6 +35,7 @@ class AttentionWTermAgent(EigenOCAgentDyn):
     self.episode_buffer_option = []
     self.episode_screens = []
     self.episode_directions = []
+    self.episode_attention_weights = []
     self.reward_mix = 0
     self.episode_length = 0
     self.summaries_critic = self.summaries_option = self.summaries_term = self.summaries_direction = None
@@ -75,9 +76,8 @@ class AttentionWTermAgent(EigenOCAgentDyn):
           self.init_episode()
 
           """Reset the environment and get the initial state"""
-          # s = self.env.reset()
           s = self.env.get_initial_state()
-
+          s_screen = self.env.build_screen()
           """Choose an option"""
           self.direction_evaluation(s)
           """While the episode does not terminate"""
@@ -88,8 +88,7 @@ class AttentionWTermAgent(EigenOCAgentDyn):
             """Choose an action from the current intra-option policy"""
             self.policy_evaluation(s)
 
-            _, r, self.done, s1 = self.env.special_step(self.action, s)
-            self.reward = r
+            s1_screen, self.reward, self.done, s1 = self.env.special_step(self.action, s)
             self.episode_reward += self.reward
 
             """Check if the option terminates at the next state"""
@@ -97,18 +96,24 @@ class AttentionWTermAgent(EigenOCAgentDyn):
 
             """If the episode ended make the last state absorbing"""
             if self.done:
-              s1 = s
+              s1, s1_screen = s, s_screen
+
+            self.episode_buffer_sf.append([s])
+            self.episode_screens.append(s_screen)
 
             self.compute_intrinsic_reward(s, s1)
 
             self.prev_option_direction = self.current_option_direction
+            self.prev_query_direction = self.query_direction
+            self.prev_attention_weights = self.attention_weights
+            self.prev_query_content_match = self.query_content_match
+            self.prev_q_s_o = self.q_s_o
+            self.prev_q_mix_s_o = self.q_mix_s_o
 
             """If the option terminated or the option was primitive, sample another option"""
             if not self.done and self.term:
               self.direction_evaluation(s1)
 
-            self.episode_buffer_sf.append([s])
-            self.episode_screens.append(self.env.build_screen())
             self.sf_prediction(s1)
             """Do n-step prediction for the returns"""
             self.option_prediction(s, s1)
@@ -118,7 +123,7 @@ class AttentionWTermAgent(EigenOCAgentDyn):
             if self.total_steps % self.config.step_summary_interval == 0 and self.name == 'worker_0':
               self.write_step_summary()
 
-            s = s1
+            s, s_screen = s1, s1_screen
             self.episode_length += 1
             self.total_steps += 1
 
@@ -151,13 +156,12 @@ class AttentionWTermAgent(EigenOCAgentDyn):
           self.total_episodes += 1
 
   def compute_intrinsic_reward(self, s, s1):
-    r_i = self.current_option_direction[s1] - self.current_option_direction[s]
-    self.reward_mix = r_i
+    self.reward_mix = self.current_option_direction[s1] - self.current_option_direction[s]
 
   """Check is the direction terminates at the next state"""
   def direction_terminate(self, s1):
     feed_dict = {self.local_network.observation: np.identity(self.nb_states)[s1:s1+1],
-                 self.local_network.target_current_option_direction: [self.current_option_direction]}
+                 self.local_network.current_option_direction: [self.current_option_direction]}
     term = self.sess.run(self.local_network.termination, feed_dict=feed_dict)[0]
     self.term = term > np.random.uniform()
 
@@ -169,14 +173,13 @@ class AttentionWTermAgent(EigenOCAgentDyn):
       "query_direction": self.local_network.query_direction,
       "attention_weights": self.local_network.attention_weights,
       "query_content_match": self.local_network.query_content_match,
-      "value_ext": self.local_network.v_ext,
       "q_s_o": self.local_network.q_ext,
-      "q_mix_s_o": self.local_network.q_mix}, feed_dict=feed_dict)
+      "q_mix_s_o": self.local_network.q_mix
+      }, feed_dict=feed_dict)
     self.current_option_direction = results["current_option_direction"][0]
     self.query_direction = results["query_direction"][0]
     self.attention_weights = results["attention_weights"][0]
     self.query_content_match = results["query_content_match"][0]
-    self.value_ext = results["value_ext"][0]
     self.q_s_o = results["q_s_o"][0]
     self.q_mix_s_o = results["q_mix_s_o"][0]
 
@@ -186,22 +189,22 @@ class AttentionWTermAgent(EigenOCAgentDyn):
     feed_dict = {self.local_network.observation: np.identity(self.nb_states)[s:s+1],
                  self.local_network.direction_clusters: self.global_network.direction_clusters.get_clusters(),
                  self.local_network.attention_weights: [self.attention_weights],
-                 self.local_network.target_current_option_direction: [self.current_option_direction]
+                 self.local_network.current_option_direction: [self.current_option_direction]
                  }
     tensor_results = {
                    "sf": self.local_network.sf,
-                   "value_mix": self.local_network.v_mix,
+                   # "value_mix": self.local_network.v_mix,
                    "option_policy": self.local_network.option_policy}
     results = self.sess.run(tensor_results, feed_dict=feed_dict)
 
     sf = results["sf"][0]
     self.add_SF(sf)
 
-    self.value_mix = results["value_mix"][0]
+    # self.value_mix = results["value_mix"][0]
 
     pi = results["option_policy"][0]
 
-    self.episode_values_mix.append(self.value_mix)
+    # self.episode_values_mix.append(self.value_mix)
 
     """Sample an action"""
     self.action = np.random.choice(pi, p=pi)
@@ -216,9 +219,10 @@ class AttentionWTermAgent(EigenOCAgentDyn):
     self.episode_buffer_option.append(
       [s, self.action, self.reward, self.reward_mix, s1])
     self.episode_directions.append(self.prev_option_direction)
+    self.episode_attention_weights.append(self.prev_attention_weights)
 
-    if len(self.episode_buffer_option) >= self.config.max_update_freq or self.done or (
-          self.term and len(self.episode_buffer_option) >= self.config.min_update_freq):
+    if len(self.episode_buffer_option) >= self.config.max_update_freq or self.done or \
+          self.term: # and len(self.episode_buffer_option) >= self.config.min_update_freq):
       """Get the bootstrap option-value functions for the next time step"""
       if self.done:
         bootstrap_V_mix = 0
@@ -226,20 +230,25 @@ class AttentionWTermAgent(EigenOCAgentDyn):
       else:
         feed_dict = {self.local_network.observation: np.identity(self.nb_states)[s1:s1+1],
                      self.local_network.direction_clusters: self.global_network.direction_clusters.get_clusters(),
-                     self.local_network.target_current_option_direction: [self.current_option_direction]
+                     self.local_network.current_option_direction: [self.current_option_direction],
+                     self.local_network.attention_weights: [self.attention_weights]
                      }
         to_run = {"q_mix": self.local_network.q_mix,
-                  "v_mix": self.local_network.v_mix,
-                  "v_ext": self.local_network.v_ext,
+                  # "v_mix": self.local_network.v_mix,
+                  # "v_ext": self.local_network.v_ext,
                   "q_ext": self.local_network.q_ext}
         results = self.sess.run(to_run, feed_dict=feed_dict)
-        q_mix, v_mix, v_ext, q_ext = results["q_mix"][0], results["v_mix"][0], results["v_ext"][0], results["q_ext"][0]
-        bootstrap_V_mix = v_mix if self.term else q_mix
-        bootstrap_V_ext = v_ext if self.term else q_ext
+        # q_mix, v_mix, v_ext, q_ext = results["q_mix"][0], results["v_mix"][0], results["v_ext"][0], results["q_ext"][0]
+        q_mix, q_ext = results["q_mix"][0], results["q_ext"][0]
+        # bootstrap_V_mix = v_mix if self.term else q_mix
+        bootstrap_V_mix = q_mix
+        # bootstrap_V_ext = v_ext if self.term else q_ext
+        bootstrap_V_ext = q_ext
 
       self.train_option(bootstrap_V_mix, bootstrap_V_ext)
       self.episode_buffer_option = []
       self.episode_directions = []
+      self.episode_attention_weights = []
 
 
   """Do n-step prediction for the successor representation latent and an update for the representation latent using 1-step next frame prediction"""
@@ -288,6 +297,7 @@ class AttentionWTermAgent(EigenOCAgentDyn):
     rewards = rollout[:, 2]
     rewards_mix = rollout[:, 3]
     option_directions = self.episode_directions
+    attenton_weights = self.episode_attention_weights
 
     """Construct list of discounted returns using mixed reward signals for the entire n-step trajectory"""
     rewards_plus = np.asarray(rewards.tolist() + [bootstrap_value_ext])
@@ -300,27 +310,45 @@ class AttentionWTermAgent(EigenOCAgentDyn):
                  self.local_network.observation: np.identity(self.nb_states)[observations],
                  self.local_network.actions_placeholder: actions,
                  self.local_network.direction_clusters: self.global_network.direction_clusters.get_clusters(),
-                 self.local_network.target_current_option_direction: np.stack(option_directions, 0),
+                 self.local_network.current_option_direction: np.stack(option_directions, 0),
+                 self.local_network.attention_weights: np.stack(attenton_weights, 0),
                  }
 
     to_run = {
              "summary_option": self.local_network.merged_summary_option,
-             "summary_term": self.local_network.merged_summary_term,
+             # "summary_term": self.local_network.merged_summary_term,
              "summary_critic": self.local_network.merged_summary_critic,
+             "q_ext": self.local_network.q_ext,
              # "value_ext": self.local_network.value_ext
             }
     if self.name != "worker_0":
       to_run["apply_grads_option"] = self.local_network.apply_grads_option
       to_run["apply_grads_critic"] = self.local_network.apply_grads_critic
-      to_run["apply_grads_term"] = self.local_network.apply_grads_term
+      # to_run["apply_grads_term"] = self.local_network.apply_grads_term
 
     """Do an update on the intra-option policies"""
     results = self.sess.run(to_run, feed_dict=feed_dict)
     self.summaries_option = results["summary_option"]
-    self.summaries_term = results["summary_term"]
+    q_ext = results["q_ext"]
+    # self.summaries_term = results["summary_term"]
     self.summaries_critic = results["summary_critic"]
 
-    # value_ext = results["value_ext"]
+    q_ext_next = np.asarray(q_ext.tolist()[1:] + [bootstrap_value_ext])
+    feed_dict = {self.local_network.target_return: discounted_returns,
+                 self.local_network.target_mix_return: discounted_returns_mix,
+                 self.local_network.observation: np.identity(self.nb_states)[observations],
+                 self.local_network.actions_placeholder: actions,
+                 self.local_network.direction_clusters: self.global_network.direction_clusters.get_clusters(),
+                 self.local_network.current_option_direction: np.stack(option_directions, 0),
+                 self.local_network.attention_weights: np.stack(attenton_weights, 0),
+                 self.local_network.target_v_ext: q_ext_next
+                 }
+
+    to_run = {
+      "summary_term": self.local_network.merged_summary_term,
+    }
+    if self.name != "worker_0":
+      to_run["apply_grads_term"] = self.local_network.apply_grads_term
 
     feed_dict = {self.local_network.target_return: [discounted_returns[0]],
                  self.local_network.observation: [np.identity(self.nb_states)[observations[0]]],
@@ -344,8 +372,8 @@ class AttentionWTermAgent(EigenOCAgentDyn):
     self.summary.value.add(tag='Step/Action', simple_value=self.action)
     self.summary.value.add(tag='Step/MixedReward', simple_value=self.reward_mix)
     self.summary.value.add(tag='Step/Reward', simple_value=self.reward)
-    self.summary.value.add(tag='Step/V_Mix', simple_value=self.value_mix)
-    self.summary.value.add(tag='Step/V_Ext', simple_value=self.value_ext)
+    # self.summary.value.add(tag='Step/V_Mix', simple_value=self.value_mix)
+    # self.summary.value.add(tag='Step/V_Ext', simple_value=self.value_ext)
     self.summary.value.add(tag='Step/Q_s_o', simple_value=self.q_s_o)
     self.summary.value.add(tag='Step/Q_mix_s_o', simple_value=self.q_mix_s_o)
     self.summary.value.add(tag='Step/Target_Return_Mix', simple_value=self.R_mix)

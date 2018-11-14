@@ -28,6 +28,7 @@ class AttentionWTermNetwork(EignOCNetwork):
       self.target_direction = tf.placeholder(shape=[None, self.goal_embedding_size], dtype=tf.float32, name="target_direction")
 
       self.target_mix_return = tf.placeholder(shape=[None], dtype=tf.float32, name="target_mix_return")
+      self.target_v_ext = tf.placeholder(shape=[None], dtype=tf.float32, name="target_v_ext")
       self.target_return = tf.placeholder(shape=[None], dtype=tf.float32, name="target_return")
       self.actions_placeholder = tf.placeholder(shape=[None], dtype=tf.int32, name="actions_placeholder")
       self.observation = tf.placeholder(
@@ -72,19 +73,19 @@ class AttentionWTermNetwork(EignOCNetwork):
                                                     outputs_collections="activations", scope="direction_features")
         self.query_direction = self.l2_normalize(direction_features, 1)
 
-        self.query_content_match = tf.tensordot(self.query_direction, self.direction_clusters, axes=[[1], [1]], name="query_content_match")
+        self.query_content_match = tf.einsum('bj, ij -> bi', self.query_direction, self.direction_clusters, name="query_content_match")
         self.summaries_option.append(tf.contrib.layers.summarize_activation(self.query_content_match))
 
         self.attention_weights = tf.nn.softmax(self.query_content_match, name="attention_weights")
         self.summaries_option.append(tf.contrib.layers.summarize_activation(self.attention_weights))
 
-        self.current_unnormalized_direction = tf.tensordot(self.attention_weights, self.direction_clusters, axes=[[1], [0]])
+        self.current_unnormalized_direction = tf.einsum('bi, ij -> bj', self.attention_weights, self.direction_clusters, name="unnormalized_current_option_direction")
 
         self.current_option_direction = tf.identity(self.l2_normalize(self.current_unnormalized_direction, 1), name="current_option_direction")
         self.summaries_option.append(tf.contrib.layers.summarize_activation(self.current_option_direction))
 
-      self.target_current_option_direction = tf.placeholder_with_default(self.current_option_direction,
-                                                                         shape=[None, self.goal_embedding_size], name="target_crt_option_direction")
+      # self.target_current_option_direction = tf.placeholder_with_default(self.current_option_direction,
+      #                                                                    shape=[None, self.goal_embedding_size], name="target_crt_option_direction")
 
       with tf.variable_scope("option_value_ext"):
         extrinsic_features = layers.fully_connected(self.observation,
@@ -112,19 +113,19 @@ class AttentionWTermNetwork(EignOCNetwork):
                                             2 * self.goal_embedding_size,
                                             1],
                                           initializer=normalized_columns_initializer(1.0))
-        q_ext = tf.matmul(tf.concat([extrinsic_features, self.target_current_option_direction], 1), q_ext_embedding, name="q_ext")
+        q_ext = tf.matmul(tf.concat([extrinsic_features, self.current_option_direction], 1), q_ext_embedding, name="q_ext")
 
         self.q_ext = tf.squeeze(q_ext, 1)
-
-        value_extrinsic_features = tf.tile(tf.expand_dims(extrinsic_features, 1), [1, self.direction_clusters.shape[0].value, 1])
-        tiled_direction_clusters_ext = tf.tile(self.direction_clusters[None, ...], [tf.shape(extrinsic_features)[0], 1, 1])
-
-        value_extrinsic_features_concat = tf.concat([value_extrinsic_features, tiled_direction_clusters_ext], 2)
-        q_ext_clusters = tf.squeeze(tf.einsum('bij, jk -> bik', value_extrinsic_features_concat, q_ext_embedding, name="q_ext_clusters"), -1)
-        # q_ext_clusters = tf.matmul(value_extrinsic_features_concat, q_ext_embedding,
-        #                   name="q_ext_clusters")
-
-        self.v_ext = tf.reduce_sum(self.attention_weights * q_ext_clusters, 1)
+				#
+        # value_extrinsic_features = tf.tile(tf.expand_dims(extrinsic_features, 1), [1, self.direction_clusters.shape[0].value, 1])
+        # tiled_direction_clusters_ext = tf.tile(self.direction_clusters[None, ...], [tf.shape(extrinsic_features)[0], 1, 1])
+				#
+        # value_extrinsic_features_concat = tf.concat([value_extrinsic_features, tiled_direction_clusters_ext], 2)
+        # q_ext_clusters = tf.squeeze(tf.einsum('bij, jk -> bik', value_extrinsic_features_concat, q_ext_embedding, name="q_ext_clusters"), -1)
+        # # q_ext_clusters = tf.matmul(value_extrinsic_features_concat, q_ext_embedding,
+        # #                   name="q_ext_clusters")
+				#
+        # self.v_ext = tf.reduce_sum(self.attention_weights * q_ext_clusters, 1)
         # q_ext = layers.fully_connected(tf.concat([extrinsic_features,
         #                                           tf.stop_gradient(self.target_current_option_direction)], 1),
         #                                num_outputs=1,
@@ -139,7 +140,7 @@ class AttentionWTermNetwork(EignOCNetwork):
                                                variables_collections=tf.get_collection("variables"),
                                                outputs_collections="activations", scope="term_feat")
         termination = layers.fully_connected(tf.concat([term_features,
-                                                        self.target_current_option_direction], 1),
+                                                        self.current_option_direction], 1),
                                              num_outputs=1,
                                              activation_fn=tf.nn.sigmoid,
                                              variables_collections=tf.get_collection("variables"),
@@ -154,25 +155,25 @@ class AttentionWTermNetwork(EignOCNetwork):
                                             1],
                                           initializer=normalized_columns_initializer(1.0))
         q_mix = tf.matmul(tf.concat([value_features,
-                                              self.target_current_option_direction], 1),q_mix_embedding,
+                                              self.current_option_direction], 1),q_mix_embedding,
                                    name="fc_option_value")
         self.q_mix = tf.squeeze(q_mix, 1)
-
-
-        value_mixed_features = tf.tile(tf.expand_dims(value_features, 1),
-                                           [1, self.direction_clusters.shape[0].value, 1])
-        tiled_direction_clusters_mix = tf.tile(self.direction_clusters[None, ...],
-                                               [tf.shape(value_features)[0], 1, 1])
-
-        value_mixed_features_concat = tf.concat([value_mixed_features, tiled_direction_clusters_mix], 2)
-
-        q_mix_clusters = tf.squeeze(
-          tf.einsum('bij, jk -> bik', value_mixed_features_concat, q_mix_embedding,
-                                   name="q_mix_clusters"), -1)
-        self.v_mix = tf.reduce_sum(self.attention_weights * q_mix_clusters, 1)
+				#
+				#
+        # value_mixed_features = tf.tile(tf.expand_dims(value_features, 1),
+        #                                    [1, self.direction_clusters.shape[0].value, 1])
+        # tiled_direction_clusters_mix = tf.tile(self.direction_clusters[None, ...],
+        #                                        [tf.shape(value_features)[0], 1, 1])
+				#
+        # value_mixed_features_concat = tf.concat([value_mixed_features, tiled_direction_clusters_mix], 2)
+				#
+        # q_mix_clusters = tf.squeeze(
+        #   tf.einsum('bij, jk -> bik', value_mixed_features_concat, q_mix_embedding,
+        #                            name="q_mix_clusters"), -1)
+        # self.v_mix = tf.reduce_sum(self.attention_weights * q_mix_clusters, 1)
 
       with tf.variable_scope("option_pi"):
-        policy = tf.einsum('bj,bij->bi', self.target_current_option_direction, policy_features)
+        policy = tf.einsum('bj,bij->bi', self.current_option_direction, policy_features)
         self.option_policy = tf.nn.softmax(policy, name="policy")
 
         self.summaries_option.append(tf.contrib.layers.summarize_activation(self.option_policy))
@@ -194,17 +195,17 @@ class AttentionWTermNetwork(EignOCNetwork):
 
     with tf.name_scope('mix_critic_loss'):
       mix_td_error = self.target_mix_return - self.q_mix
-      self.mix_critic_loss = tf.reduce_mean(0.5 * self.config.eigen_critic_coef * tf.square(mix_td_error))
+      self.mix_critic_loss = tf.reduce_mean(0.5 * tf.square(mix_td_error))
 
     with tf.name_scope('direction_critic_loss'):
       td_error = self.target_return - self.q_ext
       self.critic_loss = tf.reduce_mean(0.5 * tf.square(td_error))
 
     with tf.name_scope('termination_loss'):
-      self.term_loss = tf.reduce_mean(self.termination * tf.stop_gradient(self.q_ext - self.v_ext))
+      self.term_loss = tf.reduce_mean(self.termination * tf.stop_gradient(self.q_ext - self.target_v_ext))
 
     with tf.name_scope('direction_loss'):
-      self.direction_loss = tf.reduce_mean(self.cosine_similarity(self.target_direction, self.current_option_direction, 1) * tf.stop_gradient(self.q_ext - self.v_ext))
+      self.direction_loss = tf.reduce_mean(self.cosine_similarity(self.target_direction, self.current_option_direction, 1) * self.target_return)
 
     """Add an entropy regularization for each intra-option policy, driving exploration in the action space of intra-option policies"""
     with tf.name_scope('entropy_loss'):
