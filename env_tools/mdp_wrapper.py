@@ -76,6 +76,14 @@ class GridWorld:
     self.win.update_idletasks()
     self.win.update()
 
+  def build_screen_for_state(self, s):
+    x, y = self.get_state_xy(s)
+    mdp_screen = np.zeros_like(self.MDP)
+    mdp_screen[self.MDP == -1] = 1
+    mdp_screen[x, y] = 3
+    mdp_screen[self.goalX, self.goalY] = 2
+    return np.expand_dims(mdp_screen, 2)
+
   def build_screen(self):
     mdp_screen = np.zeros_like(self.MDP)
     mdp_screen[self.MDP == -1] = 1
@@ -359,7 +367,7 @@ class GridWorld:
     reward = self.get_next_reward(nextX, nextY)
     nextStateIdx = self.get_state_index(nextX, nextY)
 
-    screen = self.build_screen()
+    screen = self.build_screen_for_state(nextStateIdx)
 
     return screen, reward, done, nextStateIdx
 

@@ -77,7 +77,7 @@ class AttentionWTermAgent(EigenOCAgentDyn):
 
           """Reset the environment and get the initial state"""
           s = self.env.get_initial_state()
-          s_screen = self.env.build_screen()
+          s_screen = self.env.build_screen_for_state(s)
           """Choose an option"""
           self.direction_evaluation(s)
           """While the episode does not terminate"""
