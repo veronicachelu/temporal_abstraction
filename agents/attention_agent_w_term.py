@@ -158,16 +158,17 @@ class AttentionWTermAgent(EigenOCAgentDyn):
           self.total_episodes += 1
 
   def compute_intrinsic_reward(self, s, s1):
-    # self.reward_mix = self.current_option_direction[s1] - self.current_option_direction[s]
-    self.reward_mix = self.reward
+    reward_i = self.current_option_direction[s1] - self.current_option_direction[s]
+    # self.reward_mix = self.reward
+    self.reward_mix = self.config.alpha_r * reward_i + (1 - self.config.alpha_r) * self.reward
 
   """Check is the direction terminates at the next state"""
   def direction_terminate(self, s1):
-    # feed_dict = {self.local_network.observation: np.identity(self.nb_states)[s1:s1+1],
-    #              self.local_network.current_option_direction: [self.current_option_direction]}
-    # term = self.sess.run(self.local_network.termination, feed_dict=feed_dict)[0]
-    # self.term = term > np.random.uniform()
-    self.term = True
+    feed_dict = {self.local_network.observation: np.identity(self.nb_states)[s1:s1+1],
+                 self.local_network.current_option_direction: [self.current_option_direction]}
+    term = self.sess.run(self.local_network.termination, feed_dict=feed_dict)[0]
+    self.term = term > np.random.uniform()
+    # self.term = True
 
   def direction_evaluation(self, s):
     feed_dict = {self.local_network.observation: np.identity(self.nb_states)[s:s+1],
