@@ -205,7 +205,7 @@ class AttentionWTermNetwork(EignOCNetwork):
       self.term_loss = tf.reduce_mean(self.termination * tf.stop_gradient(self.q_ext - self.target_v_ext))
 
     with tf.name_scope('direction_loss'):
-      self.direction_loss = tf.reduce_mean(self.cosine_similarity(self.target_direction, self.current_option_direction, 1) * self.target_return)
+      self.direction_loss = tf.reduce_mean(self.cosine_similarity(self.target_direction, self.current_option_direction, 1) * td_error)
 
     """Add an entropy regularization for each intra-option policy, driving exploration in the action space of intra-option policies"""
     with tf.name_scope('entropy_loss'):
