@@ -38,6 +38,7 @@ class AttentionWTermAgent(EigenOCAgentDyn):
     self.episode_attention_weights = []
     self.reward_mix = 0
     self.episode_length = 0
+    self.episode_state_occupancy = np.zeros((self.nb_states))
     self.summaries_critic = self.summaries_option = self.summaries_term = self.summaries_direction = None
     self.R = self.R_mix = None
 
@@ -88,6 +89,7 @@ class AttentionWTermAgent(EigenOCAgentDyn):
             """Choose an action from the current intra-option policy"""
             self.policy_evaluation(s)
 
+            self.episode_state_occupancy[s] += 1
             s1_screen, self.reward, self.done, s1 = self.env.special_step(self.action, s)
             self.episode_reward += self.reward
 
@@ -156,14 +158,16 @@ class AttentionWTermAgent(EigenOCAgentDyn):
           self.total_episodes += 1
 
   def compute_intrinsic_reward(self, s, s1):
-    self.reward_mix = self.current_option_direction[s1] - self.current_option_direction[s]
+    # self.reward_mix = self.current_option_direction[s1] - self.current_option_direction[s]
+    self.reward_mix = self.reward
 
   """Check is the direction terminates at the next state"""
   def direction_terminate(self, s1):
-    feed_dict = {self.local_network.observation: np.identity(self.nb_states)[s1:s1+1],
-                 self.local_network.current_option_direction: [self.current_option_direction]}
-    term = self.sess.run(self.local_network.termination, feed_dict=feed_dict)[0]
-    self.term = term > np.random.uniform()
+    # feed_dict = {self.local_network.observation: np.identity(self.nb_states)[s1:s1+1],
+    #              self.local_network.current_option_direction: [self.current_option_direction]}
+    # term = self.sess.run(self.local_network.termination, feed_dict=feed_dict)[0]
+    # self.term = term > np.random.uniform()
+    self.term = True
 
   def direction_evaluation(self, s):
     feed_dict = {self.local_network.observation: np.identity(self.nb_states)[s:s+1],
@@ -536,7 +540,10 @@ class AttentionWTermAgent(EigenOCAgentDyn):
       self.config.input_size[1])
     reproj_obs = np.squeeze(self.env.build_screen(), -1)
     clusters = self.global_network.direction_clusters.get_clusters()
-    reproj_query = self.query_direction.reshape(
+    # reproj_query = self.query_direction.reshape(
+    #   self.config.input_size[0],
+    #   self.config.input_size[1])
+    reproj_query = self.episode_state_occupancy.reshape(
       self.config.input_size[0],
       self.config.input_size[1])
 
