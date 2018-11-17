@@ -31,12 +31,14 @@ class AttentionWTermAgent(EigenOCAgentDyn):
   def init_episode(self):
     super(AttentionWTermAgent, self).init_episode()
     self.episode_mixed_reward = 0
+    self.episode_intrinsic_reward = 0
     self.episode_values_mix = []
     self.episode_buffer_option = []
     self.episode_screens = []
     self.episode_directions = []
     self.episode_attention_weights = []
     self.reward_mix = 0
+    self.reward_i = 0
     self.episode_length = 0
     self.episode_state_occupancy = np.zeros((self.nb_states))
     self.summaries_critic = self.summaries_option = self.summaries_term = self.summaries_direction = None
@@ -121,6 +123,7 @@ class AttentionWTermAgent(EigenOCAgentDyn):
             self.option_prediction(s, s1)
 
             self.episode_mixed_reward += self.reward_mix
+            self.episode_intrinsic_reward += self.reward_i
 
             if self.total_steps % self.config.step_summary_interval == 0 and self.name == 'worker_0':
               self.write_step_summary()
@@ -160,7 +163,7 @@ class AttentionWTermAgent(EigenOCAgentDyn):
   def compute_intrinsic_reward(self, s, s1):
     # reward_i = self.current_option_direction[s1] - self.current_option_direction[s]
     reward_i = self.cosine_similarity(self.current_option_direction, np.identity(self.nb_states)[s1] - np.identity(self.nb_states)[s])
-    # self.reward_mix = self.reward
+    self.reward_i = reward_i
     self.reward_mix = self.config.alpha_r * reward_i + (1 - self.config.alpha_r) * self.reward
 
   """Check is the direction terminates at the next state"""
@@ -380,6 +383,7 @@ class AttentionWTermAgent(EigenOCAgentDyn):
     self.summary = tf.Summary()
     self.summary.value.add(tag='Step/Action', simple_value=self.action)
     self.summary.value.add(tag='Step/MixedReward', simple_value=self.reward_mix)
+    self.summary.value.add(tag='Step/IntrinsicReward', simple_value=self.reward_i)
     self.summary.value.add(tag='Step/Reward', simple_value=self.reward)
     # self.summary.value.add(tag='Step/V_Mix', simple_value=self.value_mix)
     # self.summary.value.add(tag='Step/V_Ext', simple_value=self.value_ext)
@@ -402,6 +406,7 @@ class AttentionWTermAgent(EigenOCAgentDyn):
     self.summary = tf.Summary()
     self.summary.value.add(tag='Perf/UndiscReturn', simple_value=float(self.episode_reward))
     self.summary.value.add(tag='Perf/UndiscMixedReturn', simple_value=float(self.episode_mixed_reward))
+    self.summary.value.add(tag='Perf/UndiscIntrinsicReturn', simple_value=float(self.episode_intrinsic_reward))
     self.summary.value.add(tag='Perf/Length', simple_value=float(self.episode_length))
 
     for sum in [self.summaries_sf, self.summaries_term, self.summaries_critic, self.summaries_option, self.summaries_direction]:
@@ -545,24 +550,17 @@ class AttentionWTermAgent(EigenOCAgentDyn):
       self.config.input_size[1])
     reproj_obs = np.squeeze(self.env.build_screen(), -1)
     clusters = self.global_network.direction_clusters.get_clusters()
-    # reproj_query = self.query_direction.reshape(
-    #   self.config.input_size[0],
-    #   self.config.input_size[1])
-    reproj_query = self.episode_state_occupancy.reshape(
+    reproj_query = self.query_direction.reshape(
+      self.config.input_size[0],
+      self.config.input_size[1])
+    reproj_state_occupancy = self.episode_state_occupancy.reshape(
       self.config.input_size[0],
       self.config.input_size[1])
 
     params = {'figure.figsize': (60, 10),
               'axes.titlesize': 'medium',
               }
-    # 'legend.fontsize': 'x-large',
-    # 'axes.labelsize': 'x-large',
-
-    # 'xtick.labelsize': 'x-large',
-    # 'ytick.labelsize': 'x-large'
-    #
     plt.rcParams.update(params)
-    # plt.subplots_adjust(left=0.1, right=0.9, top=0.9, bottom=0.1)
 
     f = plt.figure(figsize=(25, 5), frameon=False)
     plt.axis('off')
@@ -571,7 +569,7 @@ class AttentionWTermAgent(EigenOCAgentDyn):
     gs0 = gridspec.GridSpec(1, 3)
 
     gs00 = gridspec.GridSpecFromSubplotSpec(2, 2, subplot_spec=gs0[0])
-    gs01 = gridspec.GridSpecFromSubplotSpec(2, 1, subplot_spec=gs0[1])
+    gs01 = gridspec.GridSpecFromSubplotSpec(2, 2, subplot_spec=gs0[1])
     gs02 = gridspec.GridSpecFromSubplotSpec(2, 4, subplot_spec=gs0[2])
 
     ax1 = plt.Subplot(f, gs00[:, :])
@@ -596,7 +594,7 @@ class AttentionWTermAgent(EigenOCAgentDyn):
         )
     f.add_subplot(ax1)
 
-    ax2 = plt.Subplot(f, gs01[0, :])
+    ax2 = plt.Subplot(f, gs01[0, 0])
     ax2.set_aspect(1.0)
     ax2.axis('off')
     ax2.set_title('Last observation', fontsize=20)
@@ -618,11 +616,11 @@ class AttentionWTermAgent(EigenOCAgentDyn):
         )
     f.add_subplot(ax2)
 
-    ax3 = plt.Subplot(f, gs01[1, :])
+    ax3 = plt.Subplot(f, gs01[1, 0])
     ax3.set_aspect(1.0)
     ax3.axis('off')
-    ax3.set_title('Query direction embedding', fontsize=20)
-    sns.heatmap(reproj_query, cmap="Blues", ax=ax3)
+    ax3.set_title('State occupancy', fontsize=20)
+    sns.heatmap(reproj_state_occupancy, cmap="Blues", ax=ax3)
 
     """Adding borders"""
     for idx in range(self.nb_states):
@@ -639,6 +637,28 @@ class AttentionWTermAgent(EigenOCAgentDyn):
           )
         )
     f.add_subplot(ax3)
+
+    ax4 = plt.Subplot(f, gs01[0, 1])
+    ax4.set_aspect(1.0)
+    ax4.axis('off')
+    ax4.set_title('Query direction embedding', fontsize=20)
+    sns.heatmap(reproj_query, cmap="Blues", ax=ax4)
+
+    """Adding borders"""
+    for idx in range(self.nb_states):
+      ii, jj = self.env.get_state_xy(idx)
+      if self.env.not_wall(ii, jj):
+        continue
+      else:
+        ax4.add_patch(
+          patches.Rectangle(
+            (jj, self.config.input_size[0] - ii - 1),  # (x,y)
+            1.0,  # width
+            1.0,  # height
+            facecolor="gray"
+          )
+        )
+    f.add_subplot(ax4)
 
     indx = [[0, 0], [0, 1], [0, 2], [0, 3],
             [1, 0], [1, 1], [1, 2], [1, 3]]

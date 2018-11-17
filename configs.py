@@ -445,7 +445,7 @@ def attention_w_term():
 	use_clustering = True
 	summary_interval = 1
 	checkpoint_interval = 1
-	cluster_interval = 10
+	cluster_interval = 1
 	"""The kind of agent to use in the environment"""
 	target_agent = AttentionWTermAgent
 	"""The number test episodes to execute, over which to average results"""
