@@ -207,8 +207,8 @@ class AttentionWTermAgent(EigenOCAgentDyn):
                    "option_policy": self.local_network.option_policy}
     results = self.sess.run(tensor_results, feed_dict=feed_dict)
 
-    sf = results["sf"][0]
-    self.add_SF(sf)
+    self.sf = results["sf"][0]
+    self.add_SF(self.sf)
 
     # self.value_mix = results["value_mix"][0]
 
@@ -557,6 +557,9 @@ class AttentionWTermAgent(EigenOCAgentDyn):
     reproj_query = self.query_direction.reshape(
       self.config.input_size[0],
       self.config.input_size[1])
+    reproj_sf = self.sf.reshape(
+      self.config.input_size[0],
+      self.config.input_size[1])
     reproj_state_occupancy = self.episode_state_occupancy.reshape(
       self.config.input_size[0],
       self.config.input_size[1])
@@ -663,6 +666,28 @@ class AttentionWTermAgent(EigenOCAgentDyn):
           )
         )
     f.add_subplot(ax4)
+
+    ax5 = plt.Subplot(f, gs01[1, 1])
+    ax5.set_aspect(1.0)
+    ax5.axis('off')
+    ax5.set_title('SR', fontsize=20)
+    sns.heatmap(reproj_sf, cmap="Blues", ax=ax5)
+
+    """Adding borders"""
+    for idx in range(self.nb_states):
+      ii, jj = self.env.get_state_xy(idx)
+      if self.env.not_wall(ii, jj):
+        continue
+      else:
+        ax5.add_patch(
+          patches.Rectangle(
+            (jj, self.config.input_size[0] - ii - 1),  # (x,y)
+            1.0,  # width
+            1.0,  # height
+            facecolor="gray"
+          )
+        )
+    f.add_subplot(ax5)
 
     indx = [[0, 0], [0, 1], [0, 2], [0, 3],
             [1, 0], [1, 1], [1, 2], [1, 3]]
