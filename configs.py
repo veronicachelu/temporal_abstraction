@@ -446,7 +446,7 @@ def attention_w_term():
 	summary_interval = 1
 	checkpoint_interval = 1
 	cluster_interval = 1
-	cold_start_sf_steps = 5000
+	cold_start_sf_episodes = 10
 	"""The kind of agent to use in the environment"""
 	target_agent = AttentionWTermAgent
 	"""The number test episodes to execute, over which to average results"""

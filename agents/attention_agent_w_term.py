@@ -120,7 +120,7 @@ class AttentionWTermAgent(EigenOCAgentDyn):
 
             self.sf_prediction(s1)
 
-            if self.global_step_np >= self.config.cold_start_sf_steps:
+            if self.global_episode_np >= self.config.cold_start_sf_episodes:
               self.option_prediction(s, s1)
 
             self.episode_mixed_reward += self.reward_mix
@@ -220,7 +220,7 @@ class AttentionWTermAgent(EigenOCAgentDyn):
     self.action = np.random.choice(pi, p=pi)
     self.action = np.argmax(pi == self.action)
 
-    if self.global_step_np < self.config.cold_start_sf_steps:
+    if self.global_episode_np < self.config.cold_start_sf_episodes:
       self.action = np.random.choice(range(self.action_size))
 
     """Store information in buffers for stats in tensorboard"""
