@@ -119,8 +119,9 @@ class AttentionWTermAgent(EigenOCAgentDyn):
               self.direction_evaluation(s1)
 
             self.sf_prediction(s1)
-            """Do n-step prediction for the returns"""
-            self.option_prediction(s, s1)
+
+            if self.global_step_np >= self.config.cold_start_sf_steps:
+              self.option_prediction(s, s1)
 
             self.episode_mixed_reward += self.reward_mix
             self.episode_intrinsic_reward += self.reward_i
@@ -218,6 +219,9 @@ class AttentionWTermAgent(EigenOCAgentDyn):
     """Sample an action"""
     self.action = np.random.choice(pi, p=pi)
     self.action = np.argmax(pi == self.action)
+
+    if self.global_step_np < self.config.cold_start_sf_steps:
+      self.action = np.random.choice(range(self.action_size))
 
     """Store information in buffers for stats in tensorboard"""
     self.episode_actions.append(self.action)
@@ -728,7 +732,7 @@ class AttentionWTermAgent(EigenOCAgentDyn):
 
             """Choose an action from the current intra-option policy"""
             self.policy_evaluation(s)
-            # print(f"Timestep {self.episode_length}")
+
             _, r, self.done, s1 = self.env.special_step(self.action, s)
 
             self.reward = r
