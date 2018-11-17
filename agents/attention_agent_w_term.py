@@ -158,7 +158,8 @@ class AttentionWTermAgent(EigenOCAgentDyn):
           self.total_episodes += 1
 
   def compute_intrinsic_reward(self, s, s1):
-    reward_i = self.current_option_direction[s1] - self.current_option_direction[s]
+    # reward_i = self.current_option_direction[s1] - self.current_option_direction[s]
+    reward_i = self.cosine_similarity(self.current_option_direction, np.identity(self.nb_states)[s1] - np.identity(self.nb_states)[s])
     # self.reward_mix = self.reward
     self.reward_mix = self.config.alpha_r * reward_i + (1 - self.config.alpha_r) * self.reward
 
@@ -250,7 +251,7 @@ class AttentionWTermAgent(EigenOCAgentDyn):
         # bootstrap_V_ext = v_ext if self.term else q_ext
         bootstrap_V_ext = q_ext
 
-      self.train_option(bootstrap_V_mix, bootstrap_V_ext)
+      self.train_option(bootstrap_V_mix, bootstrap_V_ext, s1)
       self.episode_buffer_option = []
       self.episode_directions = []
       self.episode_attention_weights = []
@@ -295,7 +296,7 @@ class AttentionWTermAgent(EigenOCAgentDyn):
     self.global_network.direction_clusters.cluster(sf)
 
   """Do n-step prediction on the critics and policies"""
-  def train_option(self, bootstrap_value_mix, bootstrap_value_ext):
+  def train_option(self, bootstrap_value_mix, bootstrap_value_ext, s1):
     rollout = np.array(self.episode_buffer_option)
     observations = np.array(rollout[:, 0], dtype=np.int32)
     actions = rollout[:, 1]
@@ -307,6 +308,7 @@ class AttentionWTermAgent(EigenOCAgentDyn):
     """Construct list of discounted returns using mixed reward signals for the entire n-step trajectory"""
     rewards_plus = np.asarray(rewards.tolist() + [bootstrap_value_ext])
     discounted_returns = reward_discount(rewards_plus, self.config.discount)[:-1]
+
     rewards_mix_plus = np.asarray(rewards_mix.tolist() + [bootstrap_value_mix])
     discounted_returns_mix = reward_discount(rewards_mix_plus, self.config.discount)[:-1]
 
@@ -321,24 +323,20 @@ class AttentionWTermAgent(EigenOCAgentDyn):
 
     to_run = {
              "summary_option": self.local_network.merged_summary_option,
-             # "summary_term": self.local_network.merged_summary_term,
              "summary_critic": self.local_network.merged_summary_critic,
              "q_ext": self.local_network.q_ext,
-             # "value_ext": self.local_network.value_ext
             }
     if self.name != "worker_0":
       to_run["apply_grads_option"] = self.local_network.apply_grads_option
       to_run["apply_grads_critic"] = self.local_network.apply_grads_critic
-      # to_run["apply_grads_term"] = self.local_network.apply_grads_term
 
     """Do an update on the intra-option policies"""
     results = self.sess.run(to_run, feed_dict=feed_dict)
     self.summaries_option = results["summary_option"]
-    q_ext = results["q_ext"]
-    # self.summaries_term = results["summary_term"]
     self.summaries_critic = results["summary_critic"]
-
+    q_ext = results["q_ext"]
     q_ext_next = np.asarray(q_ext.tolist()[1:] + [bootstrap_value_ext])
+
     feed_dict = {self.local_network.target_return: discounted_returns,
                  self.local_network.target_mix_return: discounted_returns_mix,
                  self.local_network.observation: np.identity(self.nb_states)[observations],
@@ -355,10 +353,16 @@ class AttentionWTermAgent(EigenOCAgentDyn):
     if self.name != "worker_0":
       to_run["apply_grads_term"] = self.local_network.apply_grads_term
 
-    feed_dict = {self.local_network.target_return: [discounted_returns[0]],
-                 self.local_network.observation: [np.identity(self.nb_states)[observations[0]]],
+    results = self.sess.run(to_run, feed_dict=feed_dict)
+    self.summaries_term = results["summary_term"]
+
+    next_observations = np.asarray(observations.tolist()[1:] + [s1])
+    target_directions = np.identity(self.nb_states)[next_observations] - np.identity(self.nb_states)[observations]
+
+    feed_dict = {self.local_network.target_return: discounted_returns,
+                 self.local_network.observation: np.identity(self.nb_states)[observations],
                  self.local_network.direction_clusters: self.global_network.direction_clusters.get_clusters(),
-                 self.local_network.target_direction: [np.identity(self.nb_states)[observations[-1]] - np.identity(self.nb_states)[observations[0]]],
+                 self.local_network.target_direction: target_directions
                  }
     to_run = {"summary_direction": self.local_network.merged_summary_direction}
     if self.name != "worker_0":
