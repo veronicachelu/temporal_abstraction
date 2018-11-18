@@ -160,15 +160,20 @@ class OnlineCluster(object):
 				# invalidate dist-cache for this cluster
 				self.updatedist(closest)
 
-			if len(self.clusters) >= self.max_N:
+			if len(self.clusters) >= self.N:
+				sorted_cls = sorted(self.clusters, key=lambda x: x.size)
+				to_be_removed = sorted_cls[0]
+				self.clusters.remove(to_be_removed)
+				self.removedist(to_be_removed)
+
 				# merge closest two clusters
-				m = heapq.heappop(self.dist)
-				m.x.merge(m.y)
+				# m = heapq.heappop(self.dist)
+				# m.x.merge(m.y)
 
-				self.clusters.remove(m.y)
-				self.removedist(m.y)
+				# self.clusters.remove(m.y)
+				# self.removedist(m.y)
 
-				self.updatedist(m.x)
+				# self.updatedist(m.x)
 
 			# make a new cluster for this point
 			newc = Cluster(e)
