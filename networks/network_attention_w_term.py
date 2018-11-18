@@ -148,6 +148,7 @@ class AttentionWTermNetwork(EignOCNetwork):
         self.termination = tf.squeeze(termination, 1, name="termination")
         self.summaries_term.append(tf.contrib.layers.summarize_activation(self.termination))
 
+      self.cut_g = tf.stop_gradient(self.current_option_direction)
       with tf.variable_scope("option_value_int"):
         q_mix_embedding = tf.get_variable("q_mix_embedding",
                                           shape=[
@@ -155,7 +156,7 @@ class AttentionWTermNetwork(EignOCNetwork):
                                             1],
                                           initializer=normalized_columns_initializer(1.0))
         q_mix = tf.matmul(tf.concat([value_features,
-                                              self.current_option_direction], 1),q_mix_embedding,
+                                     self.cut_g], 1),q_mix_embedding,
                                    name="fc_option_value")
         self.q_mix = tf.squeeze(q_mix, 1)
 				#
@@ -173,7 +174,7 @@ class AttentionWTermNetwork(EignOCNetwork):
         # self.v_mix = tf.reduce_sum(self.attention_weights * q_mix_clusters, 1)
 
       with tf.variable_scope("option_pi"):
-        policy = tf.einsum('bj,bij->bi', self.current_option_direction, policy_features)
+        policy = tf.einsum('bj,bij->bi', self.cut_g, policy_features)
         self.option_policy = tf.nn.softmax(policy, name="policy")
 
         self.summaries_option.append(tf.contrib.layers.summarize_activation(self.option_policy))
