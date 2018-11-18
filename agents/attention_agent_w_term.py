@@ -162,8 +162,8 @@ class AttentionWTermAgent(EigenOCAgentDyn):
           self.total_episodes += 1
 
   def compute_intrinsic_reward(self, s, s1):
-    reward_i = self.current_option_direction[s1] - self.current_option_direction[s]
-    #reward_i = self.cosine_similarity(self.current_option_direction, np.identity(self.nb_states)[s1] - np.identity(self.nb_states)[s])
+    # reward_i = self.current_option_direction[s1] - self.current_option_direction[s]
+    reward_i = self.cosine_similarity(self.current_option_direction, np.identity(self.nb_states)[s1] - np.identity(self.nb_states)[s])
     self.reward_i = reward_i
     self.reward_mix = self.config.alpha_r * reward_i + (1 - self.config.alpha_r) * self.reward
 
