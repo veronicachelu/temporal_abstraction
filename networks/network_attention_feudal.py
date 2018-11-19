@@ -84,7 +84,7 @@ class AttentionFeudalNetwork(EignOCNetwork):
         self.random_option_prob = tf.Variable(self.config.initial_random_option_prob, trainable=False, name="prob_of_random_option", dtype=tf.float32)
 
         """Take the random option with probability self.random_option_prob"""
-        self.local_random = tf.random_uniform(shape=[tf.shape(self.g)[0]], minval=0., maxval=1., dtype=tf.float32, name="rand_goals")
+        self.local_random = tf.random_uniform(shape=[tf.shape(self.max_g)[0]], minval=0., maxval=1., dtype=tf.float32, name="rand_goals")
 
         self.random_goal_cond = self.local_random > self.random_option_prob
         self.random_g = tf.random_normal(shape=tf.shape(self.max_g))
