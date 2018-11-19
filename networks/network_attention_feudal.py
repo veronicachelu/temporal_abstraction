@@ -23,7 +23,8 @@ class AttentionFeudalNetwork(EignOCNetwork):
 
   def build_network(self):
     with tf.variable_scope(self.scope):
-
+      self.prob_of_random_goal = tf.Variable(self.config.initial_random_goal_prob, trainable=False,
+                                             name="prob_of_random_goal", dtype=tf.float32)
       ## PLACEHOLDERS ##
       self.target_sf = tf.placeholder(shape=[None, self.config.sf_layers[-1]], dtype=tf.float32, name="target_SF")
       self.target_goal = tf.placeholder(shape=[None, self.goal_embedding_size], dtype=tf.float32, name="target_goal")
@@ -76,8 +77,22 @@ class AttentionFeudalNetwork(EignOCNetwork):
 
         self.current_unnormalized_goal = tf.einsum('bi, ij -> bj', self.attention_weights, self.goal_clusters,name="unnormalized_g")
 
-        self.g = tf.identity(self.l2_normalize(self.current_unnormalized_goal, 1), name="g")
+        self.max_g = tf.identity(self.l2_normalize(self.current_unnormalized_goal, 1), name="g")
         self.summaries_option.append(tf.contrib.layers.summarize_activation(self.g))
+
+        """The probability of taking a random option"""
+        self.random_option_prob = tf.Variable(self.config.initial_random_option_prob, trainable=False, name="prob_of_random_option", dtype=tf.float32)
+
+        """Take the random option with probability self.random_option_prob"""
+        self.local_random = tf.random_uniform(shape=[tf.shape(self.q_val)[0]], minval=0., maxval=1., dtype=tf.float32, name="rand_options")
+
+        self.random_goal_cond = self.local_random > self.random_option_prob
+        self.random_g = tf.random_normal(shape=tf.shape(self.max_g))
+        """The option taken"""
+        self.g = tf.where(self.random_goal_cond, self.max_g, self.random_g, name="current_goal")
+
+        """The option taken"""
+        self.current_option = tf.where(self.condition, self.max_options, self.exp_options, name="current_option")
 
       with tf.variable_scope("option_manager_value_ext"):
         extrinsic_features = layers.fully_connected(self.observation,
