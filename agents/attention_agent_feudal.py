@@ -37,7 +37,7 @@ class AttentionFeudalAgent(EigenOCAgentDyn):
     self.episode_state_occupancy = np.zeros((self.nb_states))
     self.summaries_critic = self.summaries_option = self.summaries_term = self.summaries_goal = None
     self.R = self.R_mix = None
-    self.last_c_g = np.zeros((1, 1, self.config.sf_layers[-1]), np.float32)
+    self.last_c_g = np.zeros((1, self.config.c, self.config.sf_layers[-1]), np.float32)
     self.last_batch_done = True
 
   def init_agent(self):
@@ -154,7 +154,7 @@ class AttentionFeudalAgent(EigenOCAgentDyn):
     results = self.sess.run(tensor_results, feed_dict=feed_dict)
 
     self.g = results["g"][0]
-    self.last_c_goals = results["last_c_goals"][0]
+    self.last_c_g = results["last_c_goals"]
     self.query_goal = results["query_goal"][0]
     self.attention_weights = results["attention_weights"][0]
     self.query_content_match = results["query_content_match"][0]
