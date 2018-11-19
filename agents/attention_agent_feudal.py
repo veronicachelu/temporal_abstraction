@@ -146,7 +146,7 @@ class AttentionFeudalAgent(EigenOCAgentDyn):
       "query_goal": self.local_network.query_goal,
       "attention_weights": self.local_network.attention_weights,
       "query_content_match": self.local_network.query_content_match,
-      "q_s_o": self.local_network.q_ext,
+      "v": self.local_network.v_ext,
       "q_mix_s_o": self.local_network.q_mix,
       "sf": self.local_network.sf,
       "g_policy": self.local_network.g_policy,
@@ -160,7 +160,7 @@ class AttentionFeudalAgent(EigenOCAgentDyn):
     self.query_goal = results["query_goal"][0]
     self.attention_weights = results["attention_weights"][0]
     self.query_content_match = results["query_content_match"][0]
-    self.q_s_o = results["q_s_o"][0]
+    self.v = results["v"][0]
     self.q_mix_s_o = results["q_mix_s_o"][0]
     self.sf = results["sf"][0]
     self.add_SF(self.sf)
@@ -192,11 +192,11 @@ class AttentionFeudalAgent(EigenOCAgentDyn):
                      self.local_network.prev_goals: self.last_c_g
                      }
         to_run = {"q_mix": self.local_network.q_mix,
-                  "q_ext": self.local_network.q_ext}
+                  "v_ext": self.local_network.v_ext}
         results = self.sess.run(to_run, feed_dict=feed_dict)
-        q_mix, q_ext = results["q_mix"][0], results["q_ext"][0]
+        q_mix, v = results["q_mix"][0], results["v_ext"][0]
         bootstrap_V_mix = q_mix
-        bootstrap_V_ext = q_ext
+        bootstrap_V_ext = v
 
       self.train_option(bootstrap_V_mix, bootstrap_V_ext, s1)
       if self.done:
@@ -349,7 +349,7 @@ class AttentionFeudalAgent(EigenOCAgentDyn):
     self.summary = tf.Summary()
     self.summary.value.add(tag='Step/Action', simple_value=self.action)
     self.summary.value.add(tag='Step/Reward', simple_value=self.reward)
-    self.summary.value.add(tag='Step/Q_s_o', simple_value=self.q_s_o)
+    self.summary.value.add(tag='Step/V', simple_value=self.v)
     self.summary.value.add(tag='Step/Q_mix_s_o', simple_value=self.q_mix_s_o)
     self.summary.value.add(tag='Step/Target_Return_Mix', simple_value=self.R_mix)
     self.summary.value.add(tag='Step/Target_Return', simple_value=self.R)
