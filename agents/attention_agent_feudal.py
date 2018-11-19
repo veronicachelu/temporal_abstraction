@@ -149,10 +149,12 @@ class AttentionFeudalAgent(EigenOCAgentDyn):
       "q_s_o": self.local_network.q_ext,
       "q_mix_s_o": self.local_network.q_mix,
       "sf": self.local_network.sf,
-      "g_policy": self.local_network.g_policy}
+      "g_policy": self.local_network.g_policy,
+      "random_goal": self.local_network.random_goal_cond}
 
     results = self.sess.run(tensor_results, feed_dict=feed_dict)
 
+    self.random_goal = results["random_goal"][0]
     self.g = results["g"][0]
     self.last_c_g = results["last_c_goals"]
     self.query_goal = results["query_goal"][0]
@@ -537,7 +539,7 @@ class AttentionFeudalAgent(EigenOCAgentDyn):
     ax1 = plt.Subplot(f, gs00[:, :])
     ax1.set_aspect(1.0)
     ax1.axis('off')
-    ax1.set_title('Context goal embedding', fontsize=20)
+    ax1.set_title(f'Goal {self.random_goal}', fontsize=20)
     sns.heatmap(reproj_goal, cmap="Blues", ax=ax1)
 
     """Adding borders"""
