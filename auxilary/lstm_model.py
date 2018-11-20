@@ -4,8 +4,8 @@ import tensorflow.contrib.rnn as rnn
 
 class SingleStepLSTM(object):
 
-    def __init__(self,x,size,step_size):
-        lstm = rnn.BasicLSTMCell(size, state_is_tuple=True)
+    def __init__(self, x, size, step_size):
+        lstm = rnn.LayerNormBasicLSTMCell(size)#, state_is_tuple=True)
 
         c_init = np.zeros((1, lstm.state_size.c), np.float32)
         h_init = np.zeros((1, lstm.state_size.h), np.float32)

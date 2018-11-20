@@ -80,8 +80,8 @@ class AttentionFeudalNetwork(EignOCNetwork):
         self.manager_lstm = SingleStepLSTM(tf.expand_dims(hidden, [0]),
                                            self.goal_embedding_size,
                                            step_size=tf.shape(self.observation)[:1])
-        # goal_features = self.manager_lstm.output
-        goal_features = layers.fully_connected(hidden2,
+        goal_features = self.manager_lstm.output
+        goal_features = layers.fully_connected(goal_features,
                                                     num_outputs=self.goal_embedding_size,
                                                     activation_fn=None,
                                                     scope="goal_features")
@@ -113,11 +113,11 @@ class AttentionFeudalNetwork(EignOCNetwork):
         self.prev_goals_rand = tf.where(self.random_goal_cond, self.prev_goals, tf.tile(tf.expand_dims(self.g, 1), [1, self.config.c, 1]))
 
       with tf.variable_scope("option_manager_value_ext"):
-        extrinsic_features = layers.fully_connected(hidden2,
-                                               num_outputs=self.goal_embedding_size,
-                                               activation_fn=None,
-                                               scope="extrinsic_features")
-        v_ext = layers.fully_connected(extrinsic_features,
+        # extrinsic_features = layers.fully_connected(goal_features,
+        #                                        num_outputs=self.goal_embedding_size,
+        #                                        activation_fn=None,
+        #                                        scope="extrinsic_features")
+        v_ext = layers.fully_connected(goal_features,
                                                num_outputs=1,
                                                activation_fn=None,
                                                scope="v_ext")
@@ -127,9 +127,9 @@ class AttentionFeudalNetwork(EignOCNetwork):
         self.worker_lstm = SingleStepLSTM(tf.expand_dims(hidden, [0]),
                                           size=self.action_size * self.goal_embedding_size,
                                           step_size=tf.shape(self.observation)[:1])
-        # intrinsic_features = self.worker_lstm.output
+        intrinsic_features = self.worker_lstm.output
 
-        intrinsic_features = layers.fully_connected(hidden2,
+        intrinsic_features = layers.fully_connected(intrinsic_features,
                                                 num_outputs=self.action_size * self.goal_embedding_size,
                                                 activation_fn=None,
                                                 scope="intrinsic_features")
