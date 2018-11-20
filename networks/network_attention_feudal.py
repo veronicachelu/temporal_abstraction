@@ -111,8 +111,12 @@ class AttentionFeudalNetwork(EignOCNetwork):
         """Take the random option with probability self.random_option_prob"""
         self.local_random = tf.random_uniform(shape=[tf.shape(self.max_g)[0]], minval=0., maxval=1., dtype=tf.float32, name="rand_goals")
 
-        self.random_g = tf.squeeze(tf.gather(self.goal_clusters, tf.multinomial(tf.log(tf.random_uniform(shape=tf.shape(self.query_content_match), minval=0., maxval=1.)), 1)), 1)
-				#
+        goal_clusters_plus = tf.concat([self.goal_clusters, tf.random_normal(shape=(tf.shape(self.max_g)[0]))[None, ...]], 0)
+
+        self.random_g = tf.squeeze(tf.gather(goal_clusters_plus, tf.multinomial(tf.log(tf.random_uniform(shape=tf.shape(self.query_content_match) + 1, minval=0., maxval=1.)), 1)), 1)
+
+        # self.random_g_exploration = tf.random_normal(shape=tf.shape(self.max_g))
+
         self.random_goal_cond = self.local_random > self.random_option_prob
         # self.random_g = tf.random_normal(shape=tf.shape(self.max_g))
         """The goal taken"""
