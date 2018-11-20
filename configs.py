@@ -478,9 +478,9 @@ def attention_feudal():
 	summary_interval = 1
 	checkpoint_interval = 1
 	cluster_interval = 1
-	initial_random_goal_prob = 0.5
+	initial_random_goal_prob = 0.1
 	final_random_goal_prob = 0
-	c = 2
+	c = 4
 	"""The kind of agent to use in the environment"""
 	target_agent = AttentionFeudalAgent
 	"""The number test episodes to execute, over which to average results"""

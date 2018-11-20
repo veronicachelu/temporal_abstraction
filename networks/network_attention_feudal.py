@@ -92,6 +92,8 @@ class AttentionFeudalNetwork(EignOCNetwork):
         self.g = tf.where(self.random_goal_cond, self.max_g, self.random_g, name="current_goal")
         self.summaries_option.append(tf.contrib.layers.summarize_activation(self.g))
 
+        self.prev_goals_rand = tf.where(self.random_goal_cond, self.prev_goals, tf.random_normal(shape=tf.shape(self.prev_goals)))
+
       with tf.variable_scope("option_manager_value_ext"):
         extrinsic_features = layers.fully_connected(self.observation,
                                                num_outputs=self.goal_embedding_size,
@@ -121,7 +123,7 @@ class AttentionFeudalNetwork(EignOCNetwork):
 
       cut_g = tf.stop_gradient(self.g)
       cut_g = tf.expand_dims(cut_g, 1)
-      g_stack = tf.concat([self.prev_goals, cut_g], 1)
+      g_stack = tf.concat([self.prev_goals_rand, cut_g], 1)
       self.last_c_g = g_stack[:, 1:]
       self.g_sum = tf.reduce_sum(g_stack, 1)
 
