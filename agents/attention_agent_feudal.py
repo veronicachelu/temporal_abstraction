@@ -34,6 +34,8 @@ class AttentionFeudalAgent(EigenOCAgentDyn):
     self.episode_screens = []
     self.episode_goals = []
     self.episode_length = 0
+    self.reward = 0
+    self.action = 0
     self.episode_state_occupancy = np.zeros((self.nb_states))
     self.summaries_critic = self.summaries_option = self.summaries_term = self.summaries_goal = None
     self.R = self.R_mix = None
@@ -144,6 +146,8 @@ class AttentionFeudalAgent(EigenOCAgentDyn):
                  self.local_network.state_in[1]: self.state[1],
                  self.local_network.state_in[2]: self.state[2],
                  self.local_network.state_in[3]: self.state[3],
+                 self.local_network.prev_rewards: [self.reward],
+                 self.local_network.prev_actions: [self.action],
                  }
     tensor_results = {
       "state_out": self.local_network.state_out,
@@ -170,7 +174,7 @@ class AttentionFeudalAgent(EigenOCAgentDyn):
     self.q_mix_s_o = results["q_mix_s_o"][0]
     self.sf = results["sf"][0]
     self.add_SF(self.sf)
-    self.state = results["state_out"][0]
+    self.state = results["state_out"]
 
     pi = results["g_policy"][0]
 
@@ -201,6 +205,8 @@ class AttentionFeudalAgent(EigenOCAgentDyn):
                      self.local_network.state_in[1]: self.state[1],
                      self.local_network.state_in[2]: self.state[2],
                      self.local_network.state_in[3]: self.state[3],
+                     self.local_network.prev_rewards: [self.reward],
+                     self.local_network.prev_actions: [self.action],
                      }
         to_run = {"q_mix": self.local_network.q_mix,
                   "v_ext": self.local_network.v_ext}
@@ -264,6 +270,9 @@ class AttentionFeudalAgent(EigenOCAgentDyn):
     rewards = rollout[:, 2]
     option_goals = self.episode_goals
 
+    prev_rewards = [0] + rewards[:-1].tolist()
+    prev_actions = [0] + actions[:-1].tolist()
+
     """Construct list of discounted returns using mixed reward signals for the entire n-step trajectory"""
     rewards_plus = np.asarray(rewards.tolist() + [bootstrap_value_ext])
     discounted_returns = reward_discount(rewards_plus, self.config.discount)[:-1]
@@ -274,6 +283,8 @@ class AttentionFeudalAgent(EigenOCAgentDyn):
     extended_actions = []
     extended_rewards = []
     extended_discounted_returns = []
+    extended_prev_rewards = []
+    extended_prev_actions = []
 
     if self.last_batch_done:
       extended_observations = [observations[0] for _ in range(c)]
@@ -281,11 +292,15 @@ class AttentionFeudalAgent(EigenOCAgentDyn):
       extended_actions = [None for _ in range(c)]
       extended_rewards = [None for _ in range(c)]
       extended_discounted_returns = [None for _ in range(c)]
+      extended_prev_rewards = [None for _ in range(c)]
+      extended_prev_actions = [None for _ in range(c)]
     extended_observations.extend(observations)
     extended_option_goals.extend(option_goals)
     extended_actions.extend(actions)
     extended_rewards.extend(rewards)
     extended_discounted_returns.extend(discounted_returns)
+    extended_prev_rewards.extend(prev_rewards)
+    extended_prev_actions.extend(prev_actions)
 
     if self.done:
       extended_observations.extend([observations[-1] for _ in range(c)])
@@ -301,6 +316,8 @@ class AttentionFeudalAgent(EigenOCAgentDyn):
     rewards = []
     discounted_returns = []
     observations = []
+    prev_rewards = []
+    prev_actions = []
 
     for t in range(c, end):
       s_diff = np.identity(self.nb_states)[extended_observations[t + c]] - np.identity(self.nb_states)[extended_observations[t]]
@@ -319,6 +336,8 @@ class AttentionFeudalAgent(EigenOCAgentDyn):
       rewards.append(extended_rewards[t])
       discounted_returns.append(extended_discounted_returns[t])
       observations.append(extended_observations[t])
+      prev_rewards.append(extended_prev_rewards[t])
+      prev_actions.append(extended_prev_actions[t])
 
     rewards_mix = [r_i * self.config.alpha_r + (1 - self.config.alpha_r) * r_e for (r_i, r_e) in zip(ris, rewards)]
     rewards_mix_plus = np.asarray(rewards_mix + [bootstrap_value_mix])
@@ -335,6 +354,9 @@ class AttentionFeudalAgent(EigenOCAgentDyn):
                  self.local_network.state_in[1]: self.state[1],
                  self.local_network.state_in[2]: self.state[2],
                  self.local_network.state_in[3]: self.state[3],
+                 self.local_network.prev_rewards: prev_rewards,
+                 self.local_network.prev_actions: prev_actions,
+
                  }
 
     to_run = {
