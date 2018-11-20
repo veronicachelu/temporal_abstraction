@@ -5,6 +5,7 @@ import numpy as np
 from networks.network_eigenoc import EignOCNetwork
 import os
 from online_clustering import OnlineCluster
+from auxilary.lstm_model import SingleStepLSTM
 
 def normalized_columns_initializer(std=1.0):
     def _initializer(shape, dtype=None, partition_info=None):
@@ -34,12 +35,22 @@ class AttentionFeudalNetwork(EignOCNetwork):
       self.target_v_ext = tf.placeholder(shape=[None], dtype=tf.float32, name="target_v_ext")
       self.target_return = tf.placeholder(shape=[None], dtype=tf.float32, name="target_return")
       self.actions_placeholder = tf.placeholder(shape=[None], dtype=tf.int32, name="actions_placeholder")
+      """Placeholder for the previous rewards"""
+      self.prev_rewards = tf.placeholder(shape=[None], dtype=tf.float32, name="Prev_Rewards")
+      self.prev_rewards_expanded = tf.expand_dims(self.prev_rewards, 1)
+      """Placeholder for the previous actions"""
+      self.prev_actions = tf.placeholder(shape=[None], dtype=tf.int32, name="Prev_Actions")
+      self.prev_actions_onehot = tf.one_hot(self.prev_actions, self.action_size, dtype=tf.float32, name="Prev_Actions_OneHot")
+
       self.observation = tf.placeholder(
         shape=[None, self.nb_states],
         dtype=tf.float32, name="observation_placeholder")
       self.observation_image = tf.placeholder(
         shape=[None, self.config.input_size[0], self.config.input_size[1], 1],
         dtype=tf.float32, name="observation_image_placeholder")
+
+      hidden = tf.concat([self.observation, self.prev_rewards_expanded, self.prev_actions_onehot], 1,
+                         name="Concatenated_input")
 
       goal_clusters = tf.placeholder(shape=[self.config.nb_options,
                                                  self.goal_embedding_size],
@@ -63,10 +74,17 @@ class AttentionFeudalNetwork(EignOCNetwork):
 
       ## Manager goal ##
       with tf.variable_scope("option_manager_policy"):
-        goal_features = layers.fully_connected(self.observation,
-                                                    num_outputs=self.goal_embedding_size,
-                                                    activation_fn=None,
-                                                    scope="goal_features")
+        """The merged representation of the input"""
+
+        x = tf.expand_dims(hidden, [0])
+        self.manager_lstm = SingleStepLSTM(x,
+                                           self.goal_embedding_size,
+                                           step_size=tf.shape(self.observation)[:1])
+        goal_features = self.manager_lstm.output
+        # goal_features = layers.fully_connected(self.observation,
+        #                                             num_outputs=self.goal_embedding_size,
+        #                                             activation_fn=None,
+        #                                             scope="goal_features")
         self.query_goal = self.l2_normalize(goal_features, 1)
 
         self.query_content_match = tf.einsum('bj, ij -> bi', self.query_goal, self.goal_clusters, name="query_content_match")
@@ -92,20 +110,13 @@ class AttentionFeudalNetwork(EignOCNetwork):
         self.g = tf.where(self.random_goal_cond, self.max_g, self.random_g, name="current_goal")
         self.summaries_option.append(tf.contrib.layers.summarize_activation(self.g))
 
-        self.prev_goals_rand = tf.where(self.random_goal_cond, self.prev_goals, tf.random_normal(shape=tf.shape(self.prev_goals)))
+        self.prev_goals_rand = tf.where(self.random_goal_cond, self.prev_goals, tf.tile(tf.expand_dims(self.g, 1), [1, self.config.c, 1]))
 
       with tf.variable_scope("option_manager_value_ext"):
-        extrinsic_features = layers.fully_connected(self.observation,
+        extrinsic_features = layers.fully_connected(hidden,
                                                num_outputs=self.goal_embedding_size,
                                                activation_fn=None,
                                                scope="extrinsic_features")
-        # q_ext_embedding = tf.get_variable("q_ext_embedding",
-        #                                   shape=[
-        #                                     2 * self.goal_embedding_size,
-        #                                     1],
-        #                                   initializer=normalized_columns_initializer(1.0))
-        # q_ext = tf.matmul(tf.concat([extrinsic_features, self.g], 1), q_ext_embedding, name="q_ext")
-        # self.q_ext = tf.squeeze(q_ext, 1)
         v_ext = layers.fully_connected(extrinsic_features,
                                                num_outputs=1,
                                                activation_fn=None,
@@ -113,10 +124,15 @@ class AttentionFeudalNetwork(EignOCNetwork):
         self.v_ext = tf.squeeze(v_ext, 1)
 
       with tf.variable_scope("option_worker_features"):
-        intrinsic_features = layers.fully_connected(self.observation,
-                                                num_outputs=self.action_size * self.goal_embedding_size,
-                                                activation_fn=None,
-                                                scope="intrinsic_features")
+        self.worker_lstm = SingleStepLSTM(tf.expand_dims(hidden, [0]),
+                                          size=self.action_size * self.goal_embedding_size,
+                                          step_size=tf.shape(self.observation)[:1])
+        intrinsic_features = self.worker_lstm.output
+
+        # intrinsic_features = layers.fully_connected(,
+        #                                         num_outputs=self.action_size * self.goal_embedding_size,
+        #                                         activation_fn=None,
+        #                                         scope="intrinsic_features")
         policy_features = tf.reshape(intrinsic_features, [-1, self.action_size,
                                                            self.goal_embedding_size],
                                           name="policy_features")
@@ -145,6 +161,16 @@ class AttentionFeudalNetwork(EignOCNetwork):
 
         self.summaries_option.append(tf.contrib.layers.summarize_activation(self.g_policy))
 
+      self.state_in = [self.worker_lstm.state_in[0],
+                       self.worker_lstm.state_in[1],
+                       self.manager_lstm.state_in[0],
+                       self.manager_lstm.state_in[1]
+                       ]
+      self.state_out = [self.worker_lstm.state_out[0],
+                        self.worker_lstm.state_out[1],
+                        self.manager_lstm.state_out[0],
+                        self.manager_lstm.state_out[1]
+                        ]
 
       if self.scope != 'global':
         self.build_losses()
