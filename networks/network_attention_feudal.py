@@ -49,8 +49,9 @@ class AttentionFeudalNetwork(EignOCNetwork):
         shape=[None, self.config.input_size[0], self.config.input_size[1], 1],
         dtype=tf.float32, name="observation_image_placeholder")
 
-      hidden = tf.concat([self.observation, self.prev_rewards_expanded, self.prev_actions_onehot], 1,
-                         name="Concatenated_input")
+      # hidden = tf.concat([self.observation, self.prev_rewards_expanded, self.prev_actions_onehot], 1,
+      #                    name="Concatenated_input")
+      hidden = self.observation
 
       goal_clusters = tf.placeholder(shape=[self.config.nb_options,
                                                  self.goal_embedding_size],
@@ -79,11 +80,11 @@ class AttentionFeudalNetwork(EignOCNetwork):
         self.manager_lstm = SingleStepLSTM(tf.expand_dims(hidden, [0]),
                                            self.goal_embedding_size,
                                            step_size=tf.shape(self.observation)[:1])
-        goal_features = self.manager_lstm.output
-        # goal_features = layers.fully_connected(self.observation,
-        #                                             num_outputs=self.goal_embedding_size,
-        #                                             activation_fn=None,
-        #                                             scope="goal_features")
+        # goal_features = self.manager_lstm.output
+        goal_features = layers.fully_connected(self.observation,
+                                                    num_outputs=self.goal_embedding_size,
+                                                    activation_fn=None,
+                                                    scope="goal_features")
         self.query_goal = self.l2_normalize(goal_features, 1)
 
         self.query_content_match = tf.einsum('bj, ij -> bi', self.query_goal, self.goal_clusters, name="query_content_match")
@@ -126,12 +127,12 @@ class AttentionFeudalNetwork(EignOCNetwork):
         self.worker_lstm = SingleStepLSTM(tf.expand_dims(hidden, [0]),
                                           size=self.action_size * self.goal_embedding_size,
                                           step_size=tf.shape(self.observation)[:1])
-        intrinsic_features = self.worker_lstm.output
+        # intrinsic_features = self.worker_lstm.output
 
-        # intrinsic_features = layers.fully_connected(,
-        #                                         num_outputs=self.action_size * self.goal_embedding_size,
-        #                                         activation_fn=None,
-        #                                         scope="intrinsic_features")
+        intrinsic_features = layers.fully_connected(hidden,
+                                                num_outputs=self.action_size * self.goal_embedding_size,
+                                                activation_fn=None,
+                                                scope="intrinsic_features")
         policy_features = tf.reshape(intrinsic_features, [-1, self.action_size,
                                                            self.goal_embedding_size],
                                           name="policy_features")
