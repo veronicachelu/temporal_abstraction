@@ -80,8 +80,8 @@ class AttentionFeudalNetwork(EignOCNetwork):
         self.manager_lstm = SingleStepLSTM(tf.expand_dims(hidden, [0]),
                                            self.goal_embedding_size,
                                            step_size=tf.shape(self.observation)[:1])
-        goal_features = self.manager_lstm.output
-        goal_features = layers.fully_connected(goal_features,
+        # goal_features = self.manager_lstm.output
+        goal_features = layers.fully_connected(hidden2,
                                                     num_outputs=self.goal_embedding_size,
                                                     activation_fn=None,
                                                     scope="goal_features")
@@ -93,9 +93,11 @@ class AttentionFeudalNetwork(EignOCNetwork):
         self.attention_weights = tf.nn.softmax(self.query_content_match, name="attention_weights")
         self.summaries_option.append(tf.contrib.layers.summarize_activation(self.attention_weights))
 
-        self.current_unnormalized_goal = tf.einsum('bi, ij -> bj', self.attention_weights, self.goal_clusters,name="unnormalized_g")
+        self.max_g = tf.gather(self.goal_clusters, tf.multinomial(self.query_content_match, 1))
 
-        self.max_g = tf.identity(self.l2_normalize(self.current_unnormalized_goal, 1), name="g")
+        # self.current_unnormalized_goal = tf.einsum('bi, ij -> bj', self.attention_weights, self.goal_clusters, name="unnormalized_g")
+
+        # self.max_g = tf.identity(self.l2_normalize(self.current_unnormalized_goal, 1), name="g")
         self.summaries_option.append(tf.contrib.layers.summarize_activation(self.max_g))
 
         """The probability of taking a random option"""
@@ -104,8 +106,10 @@ class AttentionFeudalNetwork(EignOCNetwork):
         """Take the random option with probability self.random_option_prob"""
         self.local_random = tf.random_uniform(shape=[tf.shape(self.max_g)[0]], minval=0., maxval=1., dtype=tf.float32, name="rand_goals")
 
+        self.random_g = tf.gather(self.goal_clusters, tf.multinomial(tf.random_uniform(shape=tf.shape(self.query_content_match), minval=0., maxval=1.), 1))
+
         self.random_goal_cond = self.local_random > self.random_option_prob
-        self.random_g = tf.random_normal(shape=tf.shape(self.max_g))
+        # self.random_g = tf.random_normal(shape=tf.shape(self.max_g))
         """The goal taken"""
         self.g = tf.where(self.random_goal_cond, self.max_g, self.random_g, name="current_goal")
         self.summaries_option.append(tf.contrib.layers.summarize_activation(self.g))
@@ -127,9 +131,9 @@ class AttentionFeudalNetwork(EignOCNetwork):
         self.worker_lstm = SingleStepLSTM(tf.expand_dims(hidden, [0]),
                                           size=self.action_size * self.goal_embedding_size,
                                           step_size=tf.shape(self.observation)[:1])
-        intrinsic_features = self.worker_lstm.output
+        # intrinsic_features = self.worker_lstm.output
 
-        intrinsic_features = layers.fully_connected(intrinsic_features,
+        intrinsic_features = layers.fully_connected(hidden2,
                                                 num_outputs=self.action_size * self.goal_embedding_size,
                                                 activation_fn=None,
                                                 scope="intrinsic_features")
