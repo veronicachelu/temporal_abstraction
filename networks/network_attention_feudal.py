@@ -76,8 +76,7 @@ class AttentionFeudalNetwork(EignOCNetwork):
       with tf.variable_scope("option_manager_policy"):
         """The merged representation of the input"""
 
-        x = tf.expand_dims(hidden, [0])
-        self.manager_lstm = SingleStepLSTM(x,
+        self.manager_lstm = SingleStepLSTM(tf.expand_dims(hidden, [0]),
                                            self.goal_embedding_size,
                                            step_size=tf.shape(self.observation)[:1])
         goal_features = self.manager_lstm.output
@@ -110,7 +109,7 @@ class AttentionFeudalNetwork(EignOCNetwork):
         self.g = tf.where(self.random_goal_cond, self.max_g, self.random_g, name="current_goal")
         self.summaries_option.append(tf.contrib.layers.summarize_activation(self.g))
 
-        self.prev_goals_rand = tf.where(self.random_goal_cond, self.prev_goals, tf.tile(tf.expand_dims(self.g, 1), [1, self.config.c, 1]))
+        # self.prev_goals_rand = tf.where(self.random_goal_cond, self.prev_goals, tf.tile(tf.expand_dims(self.g, 1), [1, self.config.c, 1]))
 
       with tf.variable_scope("option_manager_value_ext"):
         extrinsic_features = layers.fully_connected(hidden,
@@ -140,7 +139,7 @@ class AttentionFeudalNetwork(EignOCNetwork):
 
       cut_g = tf.stop_gradient(self.g)
       cut_g = tf.expand_dims(cut_g, 1)
-      g_stack = tf.concat([self.prev_goals_rand, cut_g], 1)
+      g_stack = tf.concat([self.prev_goals, cut_g], 1)
       self.last_c_g = g_stack[:, 1:]
       self.g_sum = tf.reduce_sum(g_stack, 1)
 
