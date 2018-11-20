@@ -80,13 +80,13 @@ class AttentionFeudalNetwork(EignOCNetwork):
         self.manager_lstm = SingleStepLSTM(tf.expand_dims(hidden, [0]),
                                            self.goal_embedding_size,
                                            step_size=tf.shape(self.observation)[:1])
-        # goal_features = self.manager_lstm.output
+        goal_features = self.manager_lstm.output
         # goal_features = layers.fully_connected(self.observation,
         #                                        num_outputs=self.goal_embedding_size,
         #                                        activation_fn=None,
         #                                        scope="goal_features")
 
-        goal_hat = layers.fully_connected(self.observation,
+        goal_hat = layers.fully_connected(goal_features,
                                                     num_outputs=self.goal_embedding_size,
                                                     activation_fn=None,
                                                     scope="goal_hat")
@@ -111,14 +111,12 @@ class AttentionFeudalNetwork(EignOCNetwork):
         """Take the random option with probability self.random_option_prob"""
         self.local_random = tf.random_uniform(shape=[tf.shape(self.max_g)[0]], minval=0., maxval=1., dtype=tf.float32, name="rand_goals")
 
-        goal_clusters_plus = tf.concat([self.goal_clusters, tf.random_normal(shape=(1, tf.shape(self.goal_clusters)[1]))], 0)
+        # goal_clusters_plus = tf.concat([self.goal_clusters, tf.random_normal(shape=(1, tf.shape(self.goal_clusters)[1]))], 0)
 
-        self.random_g = tf.squeeze(tf.gather(goal_clusters_plus, tf.multinomial(tf.log(tf.random_uniform(shape=tf.shape(self.query_content_match) + 1, minval=0., maxval=1.)), 1)), 1)
-
-        # self.random_g_exploration = tf.random_normal(shape=tf.shape(self.max_g))
+        # self.random_g = tf.squeeze(tf.gather(goal_clusters_plus, tf.multinomial(tf.log(tf.random_uniform(shape=tf.shape(self.query_content_match) + 1, minval=0., maxval=1.)), 1)), 1)
 
         self.random_goal_cond = self.local_random > self.random_option_prob
-        # self.random_g = tf.random_normal(shape=tf.shape(self.max_g))
+        self.random_g = tf.random_normal(shape=tf.shape(self.max_g))
         """The goal taken"""
         self.g = tf.where(self.random_goal_cond, self.max_g, self.max_g, name="current_goal")
         self.summaries_option.append(tf.contrib.layers.summarize_activation(self.g))
@@ -130,7 +128,7 @@ class AttentionFeudalNetwork(EignOCNetwork):
         #                                        num_outputs=self.goal_embedding_size,
         #                                        activation_fn=None,
         #                                        scope="extrinsic_features")
-        v_ext = layers.fully_connected(self.observation,
+        v_ext = layers.fully_connected(goal_features,
                                                num_outputs=1,
                                                activation_fn=None,
                                                scope="v_ext")
