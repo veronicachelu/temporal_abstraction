@@ -106,10 +106,11 @@ class AttentionFeudalNetwork(EignOCNetwork):
         #                                   initializer=normalized_columns_initializer(1.0))
         # q_ext = tf.matmul(tf.concat([extrinsic_features, self.g], 1), q_ext_embedding, name="q_ext")
         # self.q_ext = tf.squeeze(q_ext, 1)
-        self.v_ext = layers.fully_connected(extrinsic_features,
+        v_ext = layers.fully_connected(extrinsic_features,
                                                num_outputs=1,
                                                activation_fn=None,
-                                               scope="v_ext")[0]
+                                               scope="v_ext")
+        self.v_ext = tf.squeeze(v_ext, 1)
 
       with tf.variable_scope("option_worker_features"):
         intrinsic_features = layers.fully_connected(self.observation,
