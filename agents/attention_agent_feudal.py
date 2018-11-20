@@ -33,9 +33,10 @@ class AttentionFeudalAgent(EigenOCAgentDyn):
     self.episode_buffer_option = []
     self.episode_screens = []
     self.episode_goals = []
+    self.states = []
     self.episode_length = 0
     self.reward = 0
-    self.action = 0
+    self.action = 1
     self.episode_state_occupancy = np.zeros((self.nb_states))
     self.summaries_critic = self.summaries_option = self.summaries_term = self.summaries_goal = None
     self.R = self.R_mix = None
@@ -157,7 +158,7 @@ class AttentionFeudalAgent(EigenOCAgentDyn):
       "attention_weights": self.local_network.attention_weights,
       "query_content_match": self.local_network.query_content_match,
       "v": self.local_network.v_ext,
-      "q_mix_s_o": self.local_network.q_mix,
+      "v_mix": self.local_network.v_mix,
       "sf": self.local_network.sf,
       "g_policy": self.local_network.g_policy,
       "random_goal": self.local_network.random_goal_cond}
@@ -171,7 +172,7 @@ class AttentionFeudalAgent(EigenOCAgentDyn):
     self.attention_weights = results["attention_weights"][0]
     self.query_content_match = results["query_content_match"][0]
     self.v = results["v"][0]
-    self.q_mix_s_o = results["q_mix_s_o"][0]
+    self.v_mix = results["v_mix"][0]
     self.sf = results["sf"][0]
     self.add_SF(self.sf)
     self.state = results["state_out"]
@@ -191,6 +192,7 @@ class AttentionFeudalAgent(EigenOCAgentDyn):
     self.episode_buffer_option.append(
       [s, self.action, self.reward, s1])
     self.episode_goals.append(self.g)
+    self.states.append(self.state)
 
     if len(self.episode_buffer_option) >= self.config.max_update_freq or self.done:
       """Get the bootstrap option-value functions for the next time step"""
@@ -208,11 +210,11 @@ class AttentionFeudalAgent(EigenOCAgentDyn):
                      self.local_network.prev_rewards: [self.reward],
                      self.local_network.prev_actions: [self.action],
                      }
-        to_run = {"q_mix": self.local_network.q_mix,
+        to_run = {"v_mix": self.local_network.v_mix,
                   "v_ext": self.local_network.v_ext}
         results = self.sess.run(to_run, feed_dict=feed_dict)
-        q_mix, v = results["q_mix"][0], results["v_ext"][0]
-        bootstrap_V_mix = q_mix
+        v_mix, v = results["v_mix"][0], results["v_ext"][0]
+        bootstrap_V_mix = v_mix
         bootstrap_V_ext = v
 
       self.train_option(bootstrap_V_mix, bootstrap_V_ext, s1)
@@ -222,6 +224,7 @@ class AttentionFeudalAgent(EigenOCAgentDyn):
         twoc = 2 * self.config.c
         self.episode_buffer_option = self.episode_buffer_option[-twoc:]
         self.episode_goals = self.episode_goals[-twoc:]
+        self.states = self.states[-twoc:]
 
 
   """Do n-step prediction for the successor representation latent and an update for the representation latent using 1-step next frame prediction"""
@@ -350,10 +353,10 @@ class AttentionFeudalAgent(EigenOCAgentDyn):
                  self.local_network.actions_placeholder: actions,
                  self.local_network.goal_clusters: self.global_network.goal_clusters.get_clusters(),
                  self.local_network.prev_goals: np.stack(prev_gs, 0),
-                 self.local_network.state_in[0]: self.state[0],
-                 self.local_network.state_in[1]: self.state[1],
-                 self.local_network.state_in[2]: self.state[2],
-                 self.local_network.state_in[3]: self.state[3],
+                 self.local_network.state_in[0]: self.states[0][0],
+                 self.local_network.state_in[1]: self.states[0][1],
+                 self.local_network.state_in[2]: self.states[0][2],
+                 self.local_network.state_in[3]: self.states[0][3],
                  self.local_network.prev_rewards: prev_rewards,
                  self.local_network.prev_actions: prev_actions,
 
@@ -387,7 +390,7 @@ class AttentionFeudalAgent(EigenOCAgentDyn):
     self.summary.value.add(tag='Step/Action', simple_value=self.action)
     self.summary.value.add(tag='Step/Reward', simple_value=self.reward)
     self.summary.value.add(tag='Step/V', simple_value=self.v)
-    self.summary.value.add(tag='Step/Q_mix_s_o', simple_value=self.q_mix_s_o)
+    self.summary.value.add(tag='Step/V_mix', simple_value=self.v_mix)
     self.summary.value.add(tag='Step/Target_Return_Mix', simple_value=self.R_mix)
     self.summary.value.add(tag='Step/Target_Return', simple_value=self.R)
 

@@ -144,15 +144,15 @@ class AttentionFeudalNetwork(EignOCNetwork):
       self.g_sum = tf.reduce_sum(g_stack, 1)
 
       with tf.variable_scope("option_worker_value_mix"):
-        q_mix_embedding = tf.get_variable("q_mix_embedding",
+        v_mix_embedding = tf.get_variable("v_mix_embedding",
                                           shape=[
                                             self.action_size * self.goal_embedding_size + self.goal_embedding_size,
                                             1],
                                           initializer=normalized_columns_initializer(1.0))
-        q_mix = tf.matmul(tf.concat([value_features,
-                                     self.g_sum], 1),q_mix_embedding,
+        v_mix = tf.matmul(tf.concat([value_features,
+                                     self.g_sum], 1),v_mix_embedding,
                                    name="fc_option_value")
-        self.q_mix = tf.squeeze(q_mix, 1)
+        self.v_mix = tf.squeeze(v_mix, 1)
 
       with tf.variable_scope("option_worker_pi"):
         policy = tf.einsum('bj,bij->bi', self.g_sum, policy_features)
@@ -185,7 +185,7 @@ class AttentionFeudalNetwork(EignOCNetwork):
       self.sf_loss = tf.reduce_mean(self.config.sf_coef * huber_loss(sf_td_error))
 
     with tf.name_scope('mix_critic_loss'):
-      mix_td_error = self.target_mix_return - self.q_mix
+      mix_td_error = self.target_mix_return - self.v_mix
       self.mix_critic_loss = tf.reduce_mean(0.5 * tf.square(mix_td_error))
 
     with tf.name_scope('goal_critic_loss'):

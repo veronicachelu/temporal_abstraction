@@ -19,6 +19,7 @@ class SingleStepLSTM(object):
                 name='h_in')
         self.state_in = [c_in, h_in]
 
+        # state_in = rnn.LayerNormBasicLSTMCell(c_in, h_in)
         state_in = rnn.LSTMStateTuple(c_in, h_in)
 
         lstm_outputs, lstm_state = tf.nn.dynamic_rnn(
