@@ -49,9 +49,9 @@ class AttentionFeudalNetwork(EignOCNetwork):
         shape=[None, self.config.input_size[0], self.config.input_size[1], 1],
         dtype=tf.float32, name="observation_image_placeholder")
 
-      # hidden = tf.concat([self.observation, self.prev_rewards_expanded, self.prev_actions_onehot], 1,
-      #                    name="Concatenated_input")
-      hidden = self.observation
+      hidden = tf.concat([self.observation, self.prev_rewards_expanded, self.prev_actions_onehot], 1,
+                         name="Concatenated_input")
+      # hidden = self.observation
 
       goal_clusters = tf.placeholder(shape=[self.config.nb_options,
                                                  self.goal_embedding_size],
@@ -113,7 +113,7 @@ class AttentionFeudalNetwork(EignOCNetwork):
         # self.prev_goals_rand = tf.where(self.random_goal_cond, self.prev_goals, tf.tile(tf.expand_dims(self.g, 1), [1, self.config.c, 1]))
 
       with tf.variable_scope("option_manager_value_ext"):
-        extrinsic_features = layers.fully_connected(hidden,
+        extrinsic_features = layers.fully_connected(self.observation,
                                                num_outputs=self.goal_embedding_size,
                                                activation_fn=None,
                                                scope="extrinsic_features")
@@ -129,7 +129,7 @@ class AttentionFeudalNetwork(EignOCNetwork):
                                           step_size=tf.shape(self.observation)[:1])
         # intrinsic_features = self.worker_lstm.output
 
-        intrinsic_features = layers.fully_connected(hidden,
+        intrinsic_features = layers.fully_connected(self.observation,
                                                 num_outputs=self.action_size * self.goal_embedding_size,
                                                 activation_fn=None,
                                                 scope="intrinsic_features")
@@ -151,7 +151,7 @@ class AttentionFeudalNetwork(EignOCNetwork):
                                             1],
                                           initializer=normalized_columns_initializer(1.0))
         v_mix = tf.matmul(tf.concat([value_features,
-                                     self.g_sum], 1),v_mix_embedding,
+                                     self.g_sum], 1), v_mix_embedding,
                                    name="fc_option_value")
         self.v_mix = tf.squeeze(v_mix, 1)
 
