@@ -24,8 +24,7 @@ class AttentionFeudalNetwork(EignOCNetwork):
 
   def build_network(self):
     with tf.variable_scope(self.scope):
-      self.prob_of_random_goal = tf.Variable(self.config.initial_random_goal_prob, trainable=False,
-                                             name="prob_of_random_goal", dtype=tf.float32)
+      self.prob_of_random_goal = tf.Variable(self.config.initial_random_goal_prob, trainable=False, name="prob_of_random_goal", dtype=tf.float32)
       ## PLACEHOLDERS ##
       self.target_sf = tf.placeholder(shape=[None, self.config.sf_layers[-1]], dtype=tf.float32, name="target_SF")
       self.target_goal = tf.placeholder(shape=[None, self.goal_embedding_size], dtype=tf.float32, name="target_goal")
@@ -49,9 +48,9 @@ class AttentionFeudalNetwork(EignOCNetwork):
         shape=[None, self.config.input_size[0], self.config.input_size[1], 1],
         dtype=tf.float32, name="observation_image_placeholder")
 
-      hidden = tf.concat([self.observation, self.prev_rewards_expanded, self.prev_actions_onehot], 1,
-                         name="Concatenated_input")
-
+      hidden = tf.concat([self.observation, self.prev_rewards_expanded], 1, name="Concatenated_input")
+      # hidden = tf.concat([self.observation, self.prev_rewards_expanded, self.prev_actions_onehot], 1, name="Concatenated_input")
+			#
       goal_clusters = tf.placeholder(shape=[self.config.nb_options,
                                                  self.goal_embedding_size],
                                           dtype=tf.float32,
@@ -76,7 +75,7 @@ class AttentionFeudalNetwork(EignOCNetwork):
       with tf.variable_scope("option_manager_policy"):
         """The merged representation of the input"""
 
-        self.manager_lstm = SingleStepLSTM(tf.expand_dims(self.observation, [0]),
+        self.manager_lstm = SingleStepLSTM(tf.expand_dims(hidden, [0]),
                                            self.goal_embedding_size,
                                            step_size=tf.shape(self.observation)[:1])
         goal_features = self.manager_lstm.output
@@ -101,21 +100,17 @@ class AttentionFeudalNetwork(EignOCNetwork):
 
         self.max_g = tf.identity(self.l2_normalize(self.current_unnormalized_goal, 1), name="g")
 
-        """The probability of taking a random option"""
-        self.random_option_prob = tf.Variable(self.config.initial_random_option_prob, trainable=False, name="prob_of_random_option", dtype=tf.float32)
-
         """Take the random option with probability self.random_option_prob"""
         self.local_random = tf.random_uniform(shape=[tf.shape(self.max_g)[0]], minval=0., maxval=1., dtype=tf.float32, name="rand_goals")
 
-        # goal_clusters_plus = tf.concat([self.goal_clusters, tf.random_normal(shape=(1, tf.shape(self.goal_clusters)[1]))], 0)
-        # self.random_g = tf.squeeze(tf.gather(goal_clusters_plus, tf.multinomial(tf.log(tf.random_uniform(shape=tf.shape(self.query_content_match) + 1, minval=0., maxval=1.)), 1)), 1)
         random_goal_sampling = tf.distributions.Categorical(probs=[1/self.config.nb_options for _ in range(self.config.nb_options)])
-        self.random_g = tf.gather(self.goal_clusters, random_goal_sampling.sample(tf.shape(self.observation)[0]))
-        self.random_goal_cond = self.local_random > self.random_option_prob
+        self.which_goal = random_goal_sampling.sample(tf.shape(self.max_g)[0])
+        self.random_g = tf.gather(self.goal_clusters, self.which_goal)
+
+        self.random_goal_cond = self.local_random > self.prob_of_random_goal
         # self.random_g = tf.random_normal(shape=tf.shape(self.max_g))
-        """The goal taken"""
+
         self.g = tf.where(self.random_goal_cond, self.max_g, self.random_g, name="current_goal")
-        # self.summaries_option.append(tf.contrib.layers.summarize_activation(self.g))
 
         self.prev_goals_rand = tf.where(self.random_goal_cond, self.prev_goals, tf.tile(tf.expand_dims(self.g, 1), [1, self.config.c, 1]))
 
@@ -134,9 +129,9 @@ class AttentionFeudalNetwork(EignOCNetwork):
         self.worker_lstm = SingleStepLSTM(tf.expand_dims(hidden, [0]),
                                           size=self.action_size * self.goal_embedding_size,
                                           step_size=tf.shape(self.observation)[:1])
-        # intrinsic_features = self.worker_lstm.output
+        intrinsic_features = self.worker_lstm.output
 
-        intrinsic_features = layers.fully_connected(self.observation,
+        intrinsic_features = layers.fully_connected(intrinsic_features,
                                                 num_outputs=self.action_size * self.goal_embedding_size,
                                                 activation_fn=None,
                                                 scope="intrinsic_features")
@@ -147,9 +142,9 @@ class AttentionFeudalNetwork(EignOCNetwork):
 
       cut_g = tf.stop_gradient(self.g)
       cut_g = tf.expand_dims(cut_g, 1)
-      g_stack = tf.concat([self.prev_goals_rand, cut_g], 1)
-      self.last_c_g = g_stack[:, 1:]
-      self.g_sum = tf.reduce_sum(g_stack, 1)
+      self.g_stack = tf.concat([self.prev_goals_rand, cut_g], 1)
+      self.last_c_g = self.g_stack[:, 1:]
+      self.g_sum = tf.reduce_sum(self.g_stack, 1)
 
       with tf.variable_scope("option_worker_value_mix"):
         v_mix_embedding = tf.get_variable("v_mix_embedding",

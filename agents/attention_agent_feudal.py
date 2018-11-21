@@ -313,7 +313,7 @@ class AttentionFeudalAgent(EigenOCAgentDyn):
     end = batch_len if self.done else batch_len - c
 
     s_diffs = []
-    prev_gs = []
+    g_stacks = []
     ris = []
     actions = []
     rewards = []
@@ -330,10 +330,10 @@ class AttentionFeudalAgent(EigenOCAgentDyn):
         ri += self.cosine_similarity(ri_s_diff, extended_option_goals[t - i])
       ri /= c
 
-      prev_g = extended_option_goals[t - c:t]
+      g_stack = extended_option_goals[t - c:t+1]
 
       s_diffs.append(s_diff)
-      prev_gs.append(prev_g)
+      g_stacks.append(g_stack)
       ris.append(ri)
       actions.append(extended_actions[t])
       rewards.append(extended_rewards[t])
@@ -352,14 +352,14 @@ class AttentionFeudalAgent(EigenOCAgentDyn):
                  self.local_network.target_goal: np.stack(s_diffs, 0),
                  self.local_network.actions_placeholder: actions,
                  self.local_network.goal_clusters: self.global_network.goal_clusters.get_clusters(),
-                 self.local_network.prev_goals: np.stack(prev_gs, 0),
+                 self.local_network.g_stack: np.stack(g_stacks, 0),
                  self.local_network.state_in[0]: self.states[0][0],
                  self.local_network.state_in[1]: self.states[0][1],
                  self.local_network.state_in[2]: self.states[0][2],
                  self.local_network.state_in[3]: self.states[0][3],
                  self.local_network.prev_rewards: prev_rewards,
                  self.local_network.prev_actions: prev_actions,
-
+                 self.local_network.prob_of_random_goal: 0
                  }
 
     to_run = {

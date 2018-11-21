@@ -478,7 +478,7 @@ def attention_feudal():
 	summary_interval = 1
 	checkpoint_interval = 1
 	cluster_interval = 1
-	initial_random_goal_prob = 0.1
+	initial_random_goal_prob = 0.5
 	final_random_goal_prob = 0
 	c = 2
 	"""The kind of agent to use in the environment"""
@@ -486,7 +486,7 @@ def attention_feudal():
 	"""The number test episodes to execute, over which to average results"""
 	nb_test_ep = 1
 	"""Move to the next task specified in the goal_locations after the specfied number of episodes"""
-	move_goal_nb_of_ep = 20
+	move_goal_nb_of_ep = 50
 	"""The kind of network to use for function approximation"""
 	network = AttentionFeudalNetwork
 	goal_locations = [(11, 7), (5, 2), (1, 10), (2, 2), (6, 2), (9, 11), (2, 7)]
