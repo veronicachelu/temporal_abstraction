@@ -105,7 +105,7 @@ class AttentionFeudalNetwork(EignOCNetwork):
         self.local_random = tf.random_uniform(shape=[tf.shape(self.max_g)[0]], minval=0., maxval=1., dtype=tf.float32, name="rand_goals")
 
         random_goal_sampling = tf.distributions.Categorical(probs=[1/(self.config.nb_options + 1) for _ in range(self.config.nb_options + 1)])
-        self.goal_clusters_plus = tf.concat([self.goal_clusters, tf.random_normal(shape=tf.shape(self.max_g))])
+        self.goal_clusters_plus = tf.concat([self.goal_clusters, tf.random_normal(shape=tf.shape(self.max_g))], 0)
         self.which_goal = random_goal_sampling.sample(tf.shape(self.max_g)[0])
         self.random_g = tf.gather(self.goal_clusters_plus, self.which_goal)
 
