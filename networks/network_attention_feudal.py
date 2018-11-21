@@ -112,7 +112,7 @@ class AttentionFeudalNetwork(EignOCNetwork):
 
         self.g = tf.where(self.random_goal_cond, self.max_g, self.random_g, name="current_goal")
 
-        self.prev_goals_rand = tf.where(self.random_goal_cond, self.prev_goals, tf.tile(tf.expand_dims(self.g, 1), [1, self.config.c, 1]))
+        self.prev_goals_rand = tf.stop_gradient(tf.where(self.random_goal_cond, self.prev_goals, tf.tile(tf.expand_dims(self.g, 1), [1, self.config.c, 1])))
 
       with tf.variable_scope("option_manager_value_ext"):
         # extrinsic_features = layers.fully_connected(goal_features,
