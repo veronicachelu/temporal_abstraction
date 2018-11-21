@@ -198,7 +198,7 @@ class AttentionFeudalAgent(EigenOCAgentDyn):
   def option_prediction(self, s, s1):
     """Adding to the transition buffer for doing n-step prediction on critics and policies"""
     self.episode_buffer_option.append(
-      [s, self.action, self.reward, s1])
+      [s, self.action, self.reward, self.random_goal, s1])
     self.episode_goals.append(self.g)
     self.states.append(self.state)
 
@@ -279,6 +279,7 @@ class AttentionFeudalAgent(EigenOCAgentDyn):
     observations = np.array(rollout[:, 0], dtype=np.int32)
     actions = rollout[:, 1]
     rewards = rollout[:, 2]
+    random_goal_conds = rollout[:, 3]
     option_goals = self.episode_goals
 
     prev_rewards = [0] + rewards[:-1].tolist()
@@ -296,6 +297,7 @@ class AttentionFeudalAgent(EigenOCAgentDyn):
     extended_discounted_returns = []
     extended_prev_rewards = []
     extended_prev_actions = []
+    extended_random_goal_conds = []
 
     if self.last_batch_done:
       extended_observations = [observations[0] for _ in range(c)]
@@ -305,6 +307,7 @@ class AttentionFeudalAgent(EigenOCAgentDyn):
       extended_discounted_returns = [None for _ in range(c)]
       extended_prev_rewards = [None for _ in range(c)]
       extended_prev_actions = [None for _ in range(c)]
+      extended_random_goal_conds = [None for _ in range(c)]
     extended_observations.extend(observations)
     extended_option_goals.extend(option_goals)
     extended_actions.extend(actions)
@@ -312,6 +315,7 @@ class AttentionFeudalAgent(EigenOCAgentDyn):
     extended_discounted_returns.extend(discounted_returns)
     extended_prev_rewards.extend(prev_rewards)
     extended_prev_actions.extend(prev_actions)
+    extended_random_goal_conds.extend(random_goal_conds)
 
     if self.done:
       extended_observations.extend([observations[-1] for _ in range(c)])
@@ -329,6 +333,7 @@ class AttentionFeudalAgent(EigenOCAgentDyn):
     observations = []
     prev_rewards = []
     prev_actions = []
+    random_goal_conds = []
 
     for t in range(c, end):
       s_diff = np.identity(self.nb_states)[extended_observations[t + c]] - np.identity(self.nb_states)[extended_observations[t]]
@@ -349,6 +354,7 @@ class AttentionFeudalAgent(EigenOCAgentDyn):
       observations.append(extended_observations[t])
       prev_rewards.append(extended_prev_rewards[t])
       prev_actions.append(extended_prev_actions[t])
+      random_goal_conds.append(extended_random_goal_conds[t])
 
     rewards_mix = [r_i * self.config.alpha_r + (1 - self.config.alpha_r) * r_e for (r_i, r_e) in zip(ris, rewards)]
     rewards_mix_plus = np.asarray(rewards_mix + [bootstrap_value_mix])
@@ -367,7 +373,7 @@ class AttentionFeudalAgent(EigenOCAgentDyn):
                  self.local_network.state_in[3]: self.states[0][3],
                  self.local_network.prev_rewards: prev_rewards,
                  self.local_network.prev_actions: prev_actions,
-                 self.local_network.prob_of_random_goal: 0
+                 self.local_network.random_goal_cond: random_goal_conds
                  }
 
     to_run = {
