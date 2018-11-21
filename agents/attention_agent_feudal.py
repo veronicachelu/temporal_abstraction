@@ -100,7 +100,8 @@ class AttentionFeudalAgent(EigenOCAgentDyn):
             self.episode_screens.append(s_screen)
 
             self.sf_prediction(s1)
-            self.option_prediction(s, s1)
+            if self.global_episode_np >= self.config.cold_start_episodes:
+              self.option_prediction(s, s1)
 
             if self.total_steps % self.config.step_summary_interval == 0 and self.name == 'worker_0':
               self.write_step_summary()
@@ -140,7 +141,10 @@ class AttentionFeudalAgent(EigenOCAgentDyn):
 
   """Sample an action from the current option's policy"""
   def policy_evaluation(self, s):
+    # if self.reward == 1 and not self.done:
+    #   self.perv_achieved_goal = self.sf
     feed_dict = {self.local_network.observation: np.identity(self.nb_states)[s:s+1],
+                 # self.local_network.perv_achieved_goal: self.perv_achieved_goal,
                  self.local_network.goal_clusters: self.global_network.goal_clusters.get_clusters(),
                  self.local_network.prev_goals: self.last_c_g,
                  self.local_network.state_in[0]: self.state[0],
@@ -182,6 +186,8 @@ class AttentionFeudalAgent(EigenOCAgentDyn):
     """Sample an action"""
     self.action = np.random.choice(pi, p=pi)
     self.action = np.argmax(pi == self.action)
+    if self.global_episode_np < self.config.cold_start_episodes:
+      self.action = np.random.choice(range(self.action_size))
 
     """Store information in buffers for stats in tensorboard"""
     self.episode_actions.append(self.action)

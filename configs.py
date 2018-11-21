@@ -481,6 +481,7 @@ def attention_feudal():
 	initial_random_goal_prob = 0.1
 	final_random_goal_prob = 0
 	c = 2
+	cold_start_episodes = 10
 	"""The kind of agent to use in the environment"""
 	target_agent = AttentionFeudalAgent
 	"""The number test episodes to execute, over which to average results"""
