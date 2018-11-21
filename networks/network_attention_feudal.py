@@ -142,7 +142,7 @@ class AttentionFeudalNetwork(EignOCNetwork):
 
       cut_g = tf.stop_gradient(self.g)
       cut_g = tf.expand_dims(cut_g, 1)
-      self.g_stack = tf.concat([self.prev_goals_rand, cut_g], 1)
+      self.g_stack = tf.placeholder_with_default(shape=[None, None, self.goal_embedding_size],input=tf.concat([self.prev_goals_rand, cut_g], 1))
       self.last_c_g = self.g_stack[:, 1:]
       self.g_sum = tf.reduce_sum(self.g_stack, 1)
 
