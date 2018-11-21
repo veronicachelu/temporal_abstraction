@@ -51,7 +51,6 @@ class AttentionFeudalNetwork(EignOCNetwork):
 
       hidden = tf.concat([self.observation, self.prev_rewards_expanded, self.prev_actions_onehot], 1,
                          name="Concatenated_input")
-      hidden2 = tf.concat([self.observation, self.prev_rewards_expanded, self.prev_actions_onehot], 1, name="Concatenated_input2")
 
       goal_clusters = tf.placeholder(shape=[self.config.nb_options,
                                                  self.goal_embedding_size],
@@ -93,17 +92,14 @@ class AttentionFeudalNetwork(EignOCNetwork):
         self.query_goal = self.l2_normalize(goal_hat, 1)
 
         self.query_content_match = tf.einsum('bj, ij -> bi', self.query_goal, self.goal_clusters, name="query_content_match")
-        # self.summaries_option.append(tf.contrib.layers.summarize_activation(self.query_content_match))
 
         self.attention_weights = tf.nn.softmax(self.query_content_match, name="attention_weights")
-        # self.summaries_option.append(tf.contrib.layers.summarize_activation(self.attention_weights))
 
         # self.max_g = tf.gather(self.goal_clusters, tf.squeeze(tf.multinomial(self.query_content_match, 1), 1))
         # self.max_g = tf.tile(self.goal_clusters[0][None, ...], [tf.shape(self.query_content_match)[0], 1])
         self.current_unnormalized_goal = tf.einsum('bi, ij -> bj', self.attention_weights, self.goal_clusters, name="unnormalized_g")
 
         self.max_g = tf.identity(self.l2_normalize(self.current_unnormalized_goal, 1), name="g")
-        # self.summaries_option.append(tf.contrib.layers.summarize_activation(self.max_g))
 
         """The probability of taking a random option"""
         self.random_option_prob = tf.Variable(self.config.initial_random_option_prob, trainable=False, name="prob_of_random_option", dtype=tf.float32)
@@ -113,7 +109,8 @@ class AttentionFeudalNetwork(EignOCNetwork):
 
         # goal_clusters_plus = tf.concat([self.goal_clusters, tf.random_normal(shape=(1, tf.shape(self.goal_clusters)[1]))], 0)
         # self.random_g = tf.squeeze(tf.gather(goal_clusters_plus, tf.multinomial(tf.log(tf.random_uniform(shape=tf.shape(self.query_content_match) + 1, minval=0., maxval=1.)), 1)), 1)
-        self.random_g = tf.squeeze(tf.gather(self.goal_clusters, tf.multinomial(tf.log(tf.random_uniform(shape=tf.shape(self.query_content_match), minval=0., maxval=1.)), 1)), 1)
+        random_goal_sampling = tf.distributions.Categorical(probs=[1/self.config.nb_options for _ in range(self.config.nb_options)])
+        self.random_g = tf.gather(self.goal_clusters, random_goal_sampling.sample(tf.shape(self.observation)[0]))
         self.random_goal_cond = self.local_random > self.random_option_prob
         # self.random_g = tf.random_normal(shape=tf.shape(self.max_g))
         """The goal taken"""
