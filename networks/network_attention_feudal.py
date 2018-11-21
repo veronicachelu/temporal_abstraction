@@ -31,7 +31,6 @@ class AttentionFeudalNetwork(EignOCNetwork):
       self.prev_goals = tf.placeholder(shape=[None, None, self.goal_embedding_size], dtype=tf.float32, name="prev_goals")
 
       self.target_mix_return = tf.placeholder(shape=[None], dtype=tf.float32, name="target_mix_return")
-      self.target_v_ext = tf.placeholder(shape=[None], dtype=tf.float32, name="target_v_ext")
       self.target_return = tf.placeholder(shape=[None], dtype=tf.float32, name="target_return")
       self.actions_placeholder = tf.placeholder(shape=[None], dtype=tf.int32, name="actions_placeholder")
       """Placeholder for the previous rewards"""
@@ -50,14 +49,11 @@ class AttentionFeudalNetwork(EignOCNetwork):
 
       # hidden = tf.concat([self.observation, self.prev_rewards_expanded], 1, name="Concatenated_input")
       hidden = self.observation
-      # hidden = tf.concat([self.observation, self.prev_rewards_expanded, self.prev_actions_onehot], 1, name="Concatenated_input")
-			#
       goal_clusters = tf.placeholder(shape=[self.config.nb_options,
                                                  self.goal_embedding_size],
                                           dtype=tf.float32,
                                           name="goal_clusters")
       self.goal_clusters = tf.nn.l2_normalize(goal_clusters, 1)
-      ## -------------##
 
       self.image_summaries.append(
         tf.summary.image('observation', self.observation_image, max_outputs=30))
@@ -75,7 +71,6 @@ class AttentionFeudalNetwork(EignOCNetwork):
       ## Manager goal ##
       with tf.variable_scope("option_manager_policy"):
         """The merged representation of the input"""
-
         self.manager_lstm = SingleStepLSTM(tf.expand_dims(self.observation, [0]),
                                            self.goal_embedding_size,
                                            step_size=tf.shape(self.observation)[:1])
@@ -95,8 +90,6 @@ class AttentionFeudalNetwork(EignOCNetwork):
 
         self.attention_weights = tf.nn.softmax(self.query_content_match, name="attention_weights")
 
-        # self.max_g = tf.gather(self.goal_clusters, tf.squeeze(tf.multinomial(self.query_content_match, 1), 1))
-        # self.max_g = tf.tile(self.goal_clusters[0][None, ...], [tf.shape(self.query_content_match)[0], 1])
         self.current_unnormalized_goal = tf.einsum('bi, ij -> bj', self.attention_weights, self.goal_clusters, name="unnormalized_g")
 
         self.max_g = tf.identity(self.l2_normalize(self.current_unnormalized_goal, 1), name="g")
@@ -110,7 +103,6 @@ class AttentionFeudalNetwork(EignOCNetwork):
         self.random_g = tf.gather(self.goal_clusters_plus, self.which_goal)
 
         self.random_goal_cond = self.local_random > self.prob_of_random_goal
-        # self.random_g = tf.random_normal(shape=tf.shape(self.max_g))
 
         self.g = tf.where(self.random_goal_cond, self.max_g, self.random_g, name="current_goal")
 

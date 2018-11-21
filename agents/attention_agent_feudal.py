@@ -46,6 +46,7 @@ class AttentionFeudalAgent(EigenOCAgentDyn):
 
   def init_agent(self):
     super(AttentionFeudalAgent, self).init_agent()
+
     self.clusters_folder = os.path.join(self.summary_path, "clusters")
     tf.gfile.MakeDirs(self.clusters_folder)
 
@@ -166,7 +167,8 @@ class AttentionFeudalAgent(EigenOCAgentDyn):
       "sf": self.local_network.sf,
       "g_policy": self.local_network.g_policy,
       "random_goal": self.local_network.random_goal_cond,
-      "which_random_goal": self.local_network.which_goal}
+      "which_random_goal": self.local_network.which_goal,
+      "global_episode": self.global_episode}
 
     results = self.sess.run(tensor_results, feed_dict=feed_dict)
 
@@ -182,7 +184,7 @@ class AttentionFeudalAgent(EigenOCAgentDyn):
     self.add_SF(self.sf)
     self.state = results["state_out"]
     self.which_random_goal = results["which_random_goal"]
-
+    self.global_episode_np = results["global_episode"]
     pi = results["g_policy"][0]
 
     """Sample an action"""
