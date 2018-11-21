@@ -77,7 +77,7 @@ class AttentionFeudalNetwork(EignOCNetwork):
       with tf.variable_scope("option_manager_policy"):
         """The merged representation of the input"""
 
-        self.manager_lstm = SingleStepLSTM(tf.expand_dims(hidden, [0]),
+        self.manager_lstm = SingleStepLSTM(tf.expand_dims(self.observation, [0]),
                                            self.goal_embedding_size,
                                            step_size=tf.shape(self.observation)[:1])
         goal_features = self.manager_lstm.output
