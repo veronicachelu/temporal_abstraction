@@ -121,7 +121,7 @@ class AttentionFeudalNetwork(EignOCNetwork):
         #                                        num_outputs=self.goal_embedding_size,
         #                                        activation_fn=None,
         #                                        scope="extrinsic_features")
-        v_ext = layers.fully_connected(goal_features,
+        v_ext = layers.fully_connected(self.observation,
                                                num_outputs=1,
                                                activation_fn=None,
                                                scope="v_ext")
