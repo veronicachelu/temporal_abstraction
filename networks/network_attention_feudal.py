@@ -48,7 +48,7 @@ class AttentionFeudalNetwork(EignOCNetwork):
         dtype=tf.float32, name="observation_image_placeholder")
 
       # hidden = tf.concat([self.observation, self.prev_rewards_expanded], 1, name="Concatenated_input")
-      hidden = self.observation
+
       goal_clusters = tf.placeholder(shape=[self.config.nb_options,
                                                  self.goal_embedding_size],
                                           dtype=tf.float32,
@@ -71,7 +71,12 @@ class AttentionFeudalNetwork(EignOCNetwork):
       ## Manager goal ##
       with tf.variable_scope("option_manager_policy"):
         """The merged representation of the input"""
-        self.manager_lstm = SingleStepLSTM(tf.expand_dims(self.observation, [0]),
+        input_features = layers.fully_connected(self.observation,
+                                                num_outputs=self.goal_embedding_size,
+                                                activation_fn=None,
+                                                scope="input_features")
+        hidden = tf.concat([input_features, self.prev_rewards_expanded], 1, name="extended_input")
+        self.manager_lstm = SingleStepLSTM(tf.expand_dims(hidden, [0]),
                                            self.goal_embedding_size,
                                            step_size=tf.shape(self.observation)[:1])
         goal_features = self.manager_lstm.output
@@ -113,7 +118,7 @@ class AttentionFeudalNetwork(EignOCNetwork):
         #                                        num_outputs=self.goal_embedding_size,
         #                                        activation_fn=None,
         #                                        scope="extrinsic_features")
-        v_ext = layers.fully_connected(self.observation,
+        v_ext = layers.fully_connected(goal_features,
                                                num_outputs=1,
                                                activation_fn=None,
                                                scope="v_ext")

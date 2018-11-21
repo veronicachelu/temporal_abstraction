@@ -478,7 +478,7 @@ def attention_feudal():
 	summary_interval = 1
 	checkpoint_interval = 1
 	cluster_interval = 1
-	initial_random_goal_prob = 0.1
+	initial_random_goal_prob = 0.5
 	final_random_goal_prob = 0
 	c = 2
 	cold_start_episodes = 10
