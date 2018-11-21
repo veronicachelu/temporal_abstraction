@@ -48,7 +48,8 @@ class AttentionFeudalNetwork(EignOCNetwork):
         shape=[None, self.config.input_size[0], self.config.input_size[1], 1],
         dtype=tf.float32, name="observation_image_placeholder")
 
-      hidden = tf.concat([self.observation, self.prev_rewards_expanded], 1, name="Concatenated_input")
+      # hidden = tf.concat([self.observation, self.prev_rewards_expanded], 1, name="Concatenated_input")
+      hidden = self.observation
       # hidden = tf.concat([self.observation, self.prev_rewards_expanded, self.prev_actions_onehot], 1, name="Concatenated_input")
 			#
       goal_clusters = tf.placeholder(shape=[self.config.nb_options,
