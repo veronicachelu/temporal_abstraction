@@ -223,6 +223,7 @@ class AttentionFeudalAgent(EigenOCAgentDyn):
       else:
         feed_dict = {self.local_network.observation: np.identity(self.nb_states)[s1:s1+1],
                      self.local_network.found_goal: [self.goal_sf],
+                     self.local_network.prev_goals: self.last_c_g,
                      self.local_network.goal_clusters: self.global_network.goal_clusters.get_clusters(),
                      self.local_network.prev_goals: self.last_c_g,
                      self.local_network.state_in[0]: self.state[0],
