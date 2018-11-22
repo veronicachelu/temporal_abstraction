@@ -60,7 +60,10 @@ class AttentionFeudalAgent(EigenOCAgentDyn):
     tf.gfile.MakeDirs(self.cluster_model_path)
 
     self.total_episodes = self.global_episode.eval()
-    self.goal_sf = None
+    goalstateIdx = self.env.get_state_index(self.env.goalX, self.env.goalY)
+    self.goal_sf = self.sess.run(self.local_network.sf, {
+      self.local_network.observation: np.identity(self.nb_states)[goalstateIdx:goalstateIdx + 1]})[0]
+
 
   """Starting point of the agent acting in the environment"""
   def play(self, coord, saver):
@@ -141,17 +144,16 @@ class AttentionFeudalAgent(EigenOCAgentDyn):
             self.goal_position = self.env.set_goal(self.total_episodes, self.config.move_goal_nb_of_ep)
 
             goalstateIdx = self.env.get_state_index(self.env.goalX, self.env.goalY)
-            self.goal_sf = self.sess.run(self.local_network.sf, {self.local_network.observation: np.identity(self.nb_states)[goalstateIdx:goalstateIdx+1]})[0]
+            self.goal_sf = self.sess.run(self.local_network.sf, {
+              self.local_network.observation: np.identity(self.nb_states)[goalstateIdx:goalstateIdx + 1]})[0]
 
           self.total_episodes += 1
 
 
   """Sample an action from the current option's policy"""
   def policy_evaluation(self, s):
-    # if self.reward == 1 and not self.done:
-    #   self.perv_achieved_goal = self.sf
     feed_dict = {self.local_network.observation: np.identity(self.nb_states)[s:s+1],
-                 # self.local_network.perv_achieved_goal: self.perv_achieved_goal,
+                 self.local_network.found_goal: [self.goal_sf],
                  self.local_network.goal_clusters: self.global_network.goal_clusters.get_clusters(),
                  self.local_network.prev_goals: self.last_c_g,
                  self.local_network.state_in[0]: self.state[0],
@@ -161,8 +163,8 @@ class AttentionFeudalAgent(EigenOCAgentDyn):
                  self.local_network.prev_rewards: [self.reward],
                  self.local_network.prev_actions: [self.action],
                  }
-    if self.goal_sf is not None:
-      feed_dict[self.local_network.query_goal] = [self.goal_sf]
+    # if self.goal_sf is not None:
+    #   feed_dict[self.local_network.query_goal] = [self.goal_sf]
 
     tensor_results = {
       "state_out": self.local_network.state_out,
@@ -210,7 +212,7 @@ class AttentionFeudalAgent(EigenOCAgentDyn):
     """Adding to the transition buffer for doing n-step prediction on critics and policies"""
     self.episode_buffer_option.append(
       [s, self.action, self.reward, self.random_goal, s1])
-    self.episode_goals.append(self.g)
+    self.episode_goals.append([self.g, self.goal_sf])
     self.states.append(self.state)
 
     if len(self.episode_buffer_option) >= self.config.max_update_freq or self.done:
@@ -220,6 +222,7 @@ class AttentionFeudalAgent(EigenOCAgentDyn):
         bootstrap_V_ext = 0
       else:
         feed_dict = {self.local_network.observation: np.identity(self.nb_states)[s1:s1+1],
+                     self.local_network.found_goal: [self.goal_sf],
                      self.local_network.goal_clusters: self.global_network.goal_clusters.get_clusters(),
                      self.local_network.prev_goals: self.last_c_g,
                      self.local_network.state_in[0]: self.state[0],
@@ -291,7 +294,9 @@ class AttentionFeudalAgent(EigenOCAgentDyn):
     actions = rollout[:, 1]
     rewards = rollout[:, 2]
     random_goal_conds = rollout[:, 3]
-    option_goals = self.episode_goals
+    rollout_goal = np.array(self.episode_goals)
+    option_goals = rollout_goal[:, 0]
+    option_found_goals = rollout_goal[:, 1]
 
     prev_rewards = [0] + rewards[:-1].tolist()
     prev_actions = [0] + actions[:-1].tolist()
@@ -303,6 +308,7 @@ class AttentionFeudalAgent(EigenOCAgentDyn):
     c = self.config.c
     extended_observations = []
     extended_option_goals = []
+    extended_found_goals = []
     extended_actions = []
     extended_rewards = []
     extended_discounted_returns = []
@@ -313,6 +319,7 @@ class AttentionFeudalAgent(EigenOCAgentDyn):
     if self.last_batch_done:
       extended_observations = [observations[0] for _ in range(c)]
       extended_option_goals = [option_goals[0] for _ in range(c)]
+      extended_found_goals = [option_found_goals[0] for _ in range(c)]
       extended_actions = [None for _ in range(c)]
       extended_rewards = [None for _ in range(c)]
       extended_discounted_returns = [None for _ in range(c)]
@@ -321,6 +328,7 @@ class AttentionFeudalAgent(EigenOCAgentDyn):
       extended_random_goal_conds = [None for _ in range(c)]
     extended_observations.extend(observations)
     extended_option_goals.extend(option_goals)
+    extended_found_goals.extend(option_found_goals)
     extended_actions.extend(actions)
     extended_rewards.extend(rewards)
     extended_discounted_returns.extend(discounted_returns)
@@ -345,6 +353,7 @@ class AttentionFeudalAgent(EigenOCAgentDyn):
     prev_rewards = []
     prev_actions = []
     random_goal_conds = []
+    found_goals = []
 
     for t in range(c, end):
       s_diff = np.identity(self.nb_states)[extended_observations[t + c]] - np.identity(self.nb_states)[extended_observations[t]]
@@ -366,6 +375,7 @@ class AttentionFeudalAgent(EigenOCAgentDyn):
       prev_rewards.append(extended_prev_rewards[t])
       prev_actions.append(extended_prev_actions[t])
       random_goal_conds.append(extended_random_goal_conds[t])
+      found_goals.append(extended_found_goals[t])
 
     rewards_mix = [r_i * self.config.alpha_r + (1 - self.config.alpha_r) * r_e for (r_i, r_e) in zip(ris, rewards)]
     rewards_mix_plus = np.asarray(rewards_mix + [bootstrap_value_mix])
@@ -384,7 +394,8 @@ class AttentionFeudalAgent(EigenOCAgentDyn):
                  self.local_network.state_in[3]: self.states[0][3],
                  self.local_network.prev_rewards: prev_rewards,
                  self.local_network.prev_actions: prev_actions,
-                 self.local_network.random_goal_cond: random_goal_conds
+                 self.local_network.random_goal_cond: random_goal_conds,
+                 self.local_network.found_goal: np.stack(found_goals, 0),
                  }
 
     to_run = {

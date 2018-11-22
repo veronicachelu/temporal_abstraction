@@ -29,7 +29,7 @@ class AttentionFeudalNetwork(EignOCNetwork):
       self.target_sf = tf.placeholder(shape=[None, self.config.sf_layers[-1]], dtype=tf.float32, name="target_SF")
       self.target_goal = tf.placeholder(shape=[None, self.goal_embedding_size], dtype=tf.float32, name="target_goal")
       self.prev_goals = tf.placeholder(shape=[None, None, self.goal_embedding_size], dtype=tf.float32, name="prev_goals")
-
+      self.found_goal = tf.placeholder(shape=[None, self.goal_embedding_size], dtype=tf.float32, name="found_goal")
       self.target_mix_return = tf.placeholder(shape=[None], dtype=tf.float32, name="target_mix_return")
       self.target_return = tf.placeholder(shape=[None], dtype=tf.float32, name="target_return")
       self.actions_placeholder = tf.placeholder(shape=[None], dtype=tf.int32, name="actions_placeholder")
@@ -75,7 +75,11 @@ class AttentionFeudalNetwork(EignOCNetwork):
                                                 num_outputs=self.goal_embedding_size,
                                                 activation_fn=None,
                                                 scope="input_features")
-        hidden = tf.concat([input_features, self.prev_rewards_expanded], 1, name="extended_input")
+        found_goal_features = layers.fully_connected(self.found_goal,
+                                                num_outputs=self.goal_embedding_size,
+                                                activation_fn=None,
+                                                scope="found_goal_features")
+        hidden = tf.concat([input_features, self.prev_rewards_expanded, found_goal_features], 1, name="extended_input")
         self.manager_lstm = SingleStepLSTM(tf.expand_dims(hidden, [0]),
                                            self.goal_embedding_size,
                                            step_size=tf.shape(self.observation)[:1])
@@ -102,10 +106,11 @@ class AttentionFeudalNetwork(EignOCNetwork):
         """Take the random option with probability self.random_option_prob"""
         self.local_random = tf.random_uniform(shape=[tf.shape(self.max_g)[0]], minval=0., maxval=1., dtype=tf.float32, name="rand_goals")
 
-        random_goal_sampling = tf.distributions.Categorical(probs=[1/(self.config.nb_options + 1) for _ in range(self.config.nb_options + 1)])
-        self.goal_clusters_plus = tf.concat([self.goal_clusters, tf.random_normal(shape=tf.shape(self.max_g))], 0)
+        # random_goal_sampling = tf.distributions.Categorical(probs=[1/(self.config.nb_options + 1) for _ in range(self.config.nb_options + 1)])
+        random_goal_sampling = tf.distributions.Categorical(probs=[1/(self.config.nb_options) for _ in range(self.config.nb_options)])
+        # self.goal_clusters_plus = tf.concat([self.goal_clusters, tf.random_normal(shape=tf.shape(self.max_g))], 0)
         self.which_goal = random_goal_sampling.sample(tf.shape(self.max_g)[0])
-        self.random_g = tf.gather(self.goal_clusters_plus, self.which_goal)
+        self.random_g = tf.gather(self.goal_clusters, self.which_goal)
 
         self.random_goal_cond = self.local_random > self.prob_of_random_goal
 
