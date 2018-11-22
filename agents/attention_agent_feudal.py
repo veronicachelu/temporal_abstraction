@@ -387,7 +387,7 @@ class AttentionFeudalAgent(EigenOCAgentDyn):
                  self.local_network.target_goal: np.stack(s_diffs, 0),
                  self.local_network.actions_placeholder: actions,
                  self.local_network.goal_clusters: self.global_network.goal_clusters.get_clusters(),
-                 self.local_network.prev_goals: np.stack(g_stacks[:, :-1], 0),
+                 self.local_network.prev_goals: np.stack(g_stacks, 0)[:, :-1],
                  self.local_network.g_stack: np.stack(g_stacks, 0),
                  self.local_network.state_in[0]: self.states[0][0],
                  self.local_network.state_in[1]: self.states[0][1],
