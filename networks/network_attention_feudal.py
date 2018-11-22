@@ -76,27 +76,21 @@ class AttentionFeudalNetwork(EignOCNetwork):
                                                 activation_fn=None,
                                                 scope="input_features")
         # prev_goal = self.prev_goals[:, -1]
-        hidden_manager = tf.concat([input_features, self.found_goal, self.prev_rewards_expanded, self.prev_actions_onehot], 1, name="extended_input_manager")
+        hidden_manager = tf.concat([input_features, self.found_goal, self.prev_rewards_expanded], 1, name="extended_input_manager")
         self.manager_lstm = SingleStepLSTM(tf.expand_dims(hidden_manager, [0]),
                                            self.goal_embedding_size,
                                            step_size=tf.shape(self.observation)[:1])
         goal_features = self.manager_lstm.output
-        # goal_features = layers.fully_connected(self.observation,
-        #                                        num_outputs=self.goal_embedding_size,
-        #                                        activation_fn=None,
-        #                                        scope="goal_features")
 
         goal_hat = layers.fully_connected(goal_features,
                                                     num_outputs=self.goal_embedding_size,
                                                     activation_fn=None,
                                                     scope="goal_hat")
         self.query_goal = self.l2_normalize(goal_hat, 1)
-        # self.query_goal = goal_hat
 
         self.query_content_match = tf.einsum('bj, ij -> bi', self.query_goal, self.goal_clusters, name="query_content_match")
 
         self.attention_weights = tf.nn.softmax(self.query_content_match, name="attention_weights")
-        # max_g = tf.ar
 
         self.current_unnormalized_goal = tf.einsum('bi, ij -> bj', self.attention_weights, self.goal_clusters, name="unnormalized_g")
 
@@ -130,14 +124,13 @@ class AttentionFeudalNetwork(EignOCNetwork):
 
       with tf.variable_scope("option_worker_features"):
         hidden_worker = tf.concat(
-          [input_features, self.prev_rewards_expanded, self.prev_actions_onehot], 1,
+          [input_features, self.prev_rewards_expanded], 1,
           name="extended_input_manager")
         self.worker_lstm = SingleStepLSTM(tf.expand_dims(hidden_worker, [0]),
                                           size=self.action_size * self.goal_embedding_size,
                                           step_size=tf.shape(self.observation)[:1])
-        intrinsic_features = self.worker_lstm.output
 
-        intrinsic_features = layers.fully_connected(intrinsic_features,
+        intrinsic_features = layers.fully_connected(self.worker_lstm.output,
                                                 num_outputs=self.action_size * self.goal_embedding_size,
                                                 activation_fn=None,
                                                 scope="intrinsic_features")
