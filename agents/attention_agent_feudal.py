@@ -223,7 +223,6 @@ class AttentionFeudalAgent(EigenOCAgentDyn):
       else:
         feed_dict = {self.local_network.observation: np.identity(self.nb_states)[s1:s1+1],
                      self.local_network.found_goal: [self.goal_sf],
-                     self.local_network.prev_goals: self.last_c_g,
                      self.local_network.goal_clusters: self.global_network.goal_clusters.get_clusters(),
                      self.local_network.prev_goals: self.last_c_g,
                      self.local_network.state_in[0]: self.state[0],
@@ -388,6 +387,7 @@ class AttentionFeudalAgent(EigenOCAgentDyn):
                  self.local_network.target_goal: np.stack(s_diffs, 0),
                  self.local_network.actions_placeholder: actions,
                  self.local_network.goal_clusters: self.global_network.goal_clusters.get_clusters(),
+                 self.local_network.prev_goals: np.stack(g_stacks[:, :-1], 0),
                  self.local_network.g_stack: np.stack(g_stacks, 0),
                  self.local_network.state_in[0]: self.states[0][0],
                  self.local_network.state_in[1]: self.states[0][1],
