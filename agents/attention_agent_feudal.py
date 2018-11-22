@@ -59,6 +59,9 @@ class AttentionFeudalAgent(EigenOCAgentDyn):
     self.cluster_model_path = os.path.join(self.config.logdir, "cluster_models")
     tf.gfile.MakeDirs(self.cluster_model_path)
 
+    self.total_episodes = self.global_episode.eval()
+    self.goal_sf = None
+
   """Starting point of the agent acting in the environment"""
   def play(self, coord, saver):
     self.saver = saver
@@ -137,6 +140,9 @@ class AttentionFeudalAgent(EigenOCAgentDyn):
             self.barrier.wait()
             self.goal_position = self.env.set_goal(self.total_episodes, self.config.move_goal_nb_of_ep)
 
+            goalstateIdx = self.env.get_state_index(self.env.goalX, self.env.goalY)
+            self.goal_sf = self.sess.run(self.local_network.sf, {self.local_network.observation: np.identity(self.nb_states)[goalstateIdx:goalstateIdx+1]})[0]
+
           self.total_episodes += 1
 
 
@@ -155,6 +161,9 @@ class AttentionFeudalAgent(EigenOCAgentDyn):
                  self.local_network.prev_rewards: [self.reward],
                  self.local_network.prev_actions: [self.action],
                  }
+    if self.goal_sf is not None:
+      feed_dict[self.local_network.query_goal] = [self.goal_sf]
+
     tensor_results = {
       "state_out": self.local_network.state_out,
       "g": self.local_network.g,
