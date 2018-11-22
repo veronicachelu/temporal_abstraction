@@ -79,7 +79,7 @@ class AttentionFeudalNetwork(EignOCNetwork):
                                                 num_outputs=self.goal_embedding_size,
                                                 activation_fn=None,
                                                 scope="found_goal_features")
-        hidden = tf.concat([input_features, self.prev_rewards_expanded, found_goal_features], 1, name="extended_input")
+        hidden = tf.concat([input_features, found_goal_features, self.prev_rewards_expanded, self.prev_actions_onehot], 1, name="extended_input")
         self.manager_lstm = SingleStepLSTM(tf.expand_dims(hidden, [0]),
                                            self.goal_embedding_size,
                                            step_size=tf.shape(self.observation)[:1])
@@ -93,7 +93,8 @@ class AttentionFeudalNetwork(EignOCNetwork):
                                                     num_outputs=self.goal_embedding_size,
                                                     activation_fn=None,
                                                     scope="goal_hat")
-        self.query_goal = self.l2_normalize(goal_hat, 1)
+        # self.query_goal = self.l2_normalize(goal_hat, 1)
+        self.query_goal = goal_hat
 
         self.query_content_match = tf.einsum('bj, ij -> bi', self.query_goal, self.goal_clusters, name="query_content_match")
 
@@ -133,9 +134,9 @@ class AttentionFeudalNetwork(EignOCNetwork):
         self.worker_lstm = SingleStepLSTM(tf.expand_dims(hidden, [0]),
                                           size=self.action_size * self.goal_embedding_size,
                                           step_size=tf.shape(self.observation)[:1])
-        # intrinsic_features = self.worker_lstm.output
+        intrinsic_features = self.worker_lstm.output
 
-        intrinsic_features = layers.fully_connected(self.observation,
+        intrinsic_features = layers.fully_connected(intrinsic_features,
                                                 num_outputs=self.action_size * self.goal_embedding_size,
                                                 activation_fn=None,
                                                 scope="intrinsic_features")
