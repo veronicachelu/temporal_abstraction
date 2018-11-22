@@ -76,7 +76,7 @@ class AttentionFeudalNetwork(EignOCNetwork):
                                                 activation_fn=None,
                                                 scope="input_features")
         prev_goal = self.prev_goals[:, -1]
-        hidden_manager = tf.concat([input_features, self.found_goal, self.prev_rewards_expanded, self.prev_goal], 1, name="extended_input_manager")
+        hidden_manager = tf.concat([input_features, self.found_goal, self.prev_rewards_expanded, prev_goal], 1, name="extended_input_manager")
         self.manager_lstm = SingleStepLSTM(tf.expand_dims(hidden_manager, [0]),
                                            self.goal_embedding_size,
                                            step_size=tf.shape(self.observation)[:1])
