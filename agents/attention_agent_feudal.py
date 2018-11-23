@@ -354,6 +354,7 @@ class AttentionFeudalAgent(EigenOCAgentDyn):
     prev_actions = []
     random_goal_conds = []
     found_goals = []
+    gs = []
 
     for t in range(c, end):
       s_diff = np.identity(self.nb_states)[extended_observations[t + c]] - np.identity(self.nb_states)[extended_observations[t]]
@@ -363,8 +364,9 @@ class AttentionFeudalAgent(EigenOCAgentDyn):
         ri += self.cosine_similarity(ri_s_diff, extended_option_goals[t - i])
       ri /= c
 
-      g_stack = extended_option_goals[t - c:t+1]
+      g_stack = extended_option_goals[t - c:t]
 
+      gs = extended_option_goals[t]
       s_diffs.append(s_diff)
       g_stacks.append(g_stack)
       ris.append(ri)
@@ -400,20 +402,28 @@ class AttentionFeudalAgent(EigenOCAgentDyn):
                  }
 
     to_run = {
-             "summary_option": self.local_network.merged_summary_option,
-             "summary_critic": self.local_network.merged_summary_critic,
              "summary_goal": self.local_network.merged_summary_goal
             }
     if self.name != "worker_0":
-      to_run["apply_grads_option"] = self.local_network.apply_grads_option
-      to_run["apply_grads_critic"] = self.local_network.apply_grads_critic
       to_run["apply_grad_goal"] = self.local_network.apply_grads_goal
 
     """Do an update on the intra-option policies"""
     results = self.sess.run(to_run, feed_dict=feed_dict)
-    self.summaries_option = results["summary_option"]
-    self.summaries_critic = results["summary_critic"]
     self.summaries_goal = results["summary_goal"]
+
+    to_run = {
+      "summary_option": self.local_network.merged_summary_option,
+      "summary_critic": self.local_network.merged_summary_critic,
+
+    }
+    if self.name != "worker_0":
+      to_run["apply_grads_option"] = self.local_network.apply_grads_option
+      to_run["apply_grads_critic"] = self.local_network.apply_grads_critic
+
+    feed_dict[self.local_network.g] = gs
+    results = self.sess.run(to_run, feed_dict=feed_dict)
+    self.summaries_critic = results["summary_critic"]
+    self.summaries_option = results["summary_option"]
 
     """Store the bootstrap target returns at the end of the trajectory"""
     self.R_mix = discounted_returns_mix[-1]

@@ -71,18 +71,18 @@ class AttentionFeudalNetwork(EignOCNetwork):
       ## Manager goal ##
       with tf.variable_scope("option_manager_policy"):
         """The merged representation of the input"""
-        input_features = layers.fully_connected(self.observation,
-                                                num_outputs=self.goal_embedding_size,
-                                                activation_fn=None,
-                                                scope="input_features")
+        # input_features = layers.fully_connected(self.observation,
+        #                                         num_outputs=self.goal_embedding_size,
+        #                                         activation_fn=None,
+        #                                         scope="input_features")
         # prev_goal = self.prev_goals[:, -1]
-        hidden_manager = tf.concat([input_features, self.found_goal, self.prev_rewards_expanded], 1, name="extended_input_manager")
-        self.manager_lstm = SingleStepLSTM(tf.expand_dims(hidden_manager, [0]),
+        # hidden_manager = tf.concat([input_features, self.found_goal, self.prev_rewards_expanded], 1, name="extended_input_manager")
+        self.manager_lstm = SingleStepLSTM(tf.expand_dims(self.observation, [0]),
                                            self.goal_embedding_size,
                                            step_size=tf.shape(self.observation)[:1])
-        goal_features = self.manager_lstm.output
+        # goal_features = self.manager_lstm.output
 
-        goal_hat = layers.fully_connected(goal_features,
+        goal_hat = layers.fully_connected(self.observation,
                                                     num_outputs=self.goal_embedding_size,
                                                     activation_fn=None,
                                                     scope="goal_hat")
@@ -96,7 +96,8 @@ class AttentionFeudalNetwork(EignOCNetwork):
 
         self.current_unnormalized_goal = tf.einsum('bi, ij -> bj', self.attention_weights, self.goal_clusters, name="unnormalized_g")
         
-        self.max_g = tf.identity(self.l2_normalize(self.current_unnormalized_goal, 1), name="g")
+        # self.max_g = tf.identity(self.l2_normalize(self.current_unnormalized_goal, 1), name="g")
+        self.max_g = self.current_unnormalized_goal
 
         """Take the random option with probability self.random_option_prob"""
         self.local_random = tf.random_uniform(shape=[tf.shape(self.max_g)[0]], minval=0., maxval=1., dtype=tf.float32, name="rand_goals")
@@ -118,17 +119,17 @@ class AttentionFeudalNetwork(EignOCNetwork):
         #                                        num_outputs=self.goal_embedding_size,
         #                                        activation_fn=None,
         #                                        scope="extrinsic_features")
-        v_ext = layers.fully_connected(goal_features,
+        v_ext = layers.fully_connected(self.observation,
                                                num_outputs=1,
                                                activation_fn=None,
                                                scope="v_ext")
         self.v_ext = tf.squeeze(v_ext, 1)
 
       with tf.variable_scope("option_worker_features"):
-        hidden_worker = tf.concat(
-          [input_features, self.prev_rewards_expanded], 1,
-          name="extended_input_manager")
-        self.worker_lstm = SingleStepLSTM(tf.expand_dims(hidden_worker, [0]),
+        # hidden_worker = tf.concat(
+        #   [input_features, self.prev_rewards_expanded], 1,
+        #   name="extended_input_manager")
+        self.worker_lstm = SingleStepLSTM(tf.expand_dims(self.observation, [0]),
                                           size=self.action_size * self.goal_embedding_size,
                                           step_size=tf.shape(self.observation)[:1])
 
