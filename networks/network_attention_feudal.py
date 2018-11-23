@@ -91,10 +91,11 @@ class AttentionFeudalNetwork(EignOCNetwork):
         self.query_content_match = tf.einsum('bj, ij -> bi', self.query_goal, self.goal_clusters, name="query_content_match")
 
         self.attention_weights = tf.nn.softmax(self.query_content_match, name="attention_weights")
+        #self.max_g = tf.gather(self.goal_clusters, tf.argmax(self.query_content_match))
 
         self.current_unnormalized_goal = tf.einsum('bi, ij -> bj', self.attention_weights, self.goal_clusters, name="unnormalized_g")
-
-        self.max_g = tf.identity(self.l2_normalize(self.current_unnormalized_goal, 1), name="g")
+        
+         self.max_g = tf.identity(self.l2_normalize(self.current_unnormalized_goal, 1), name="g")
 
         """Take the random option with probability self.random_option_prob"""
         self.local_random = tf.random_uniform(shape=[tf.shape(self.max_g)[0]], minval=0., maxval=1., dtype=tf.float32, name="rand_goals")
@@ -130,7 +131,7 @@ class AttentionFeudalNetwork(EignOCNetwork):
                                           size=self.action_size * self.goal_embedding_size,
                                           step_size=tf.shape(self.observation)[:1])
 
-        intrinsic_features = layers.fully_connected(self.worker_lstm.output,
+        intrinsic_features = layers.fully_connected(self.observation,
                                                 num_outputs=self.action_size * self.goal_embedding_size,
                                                 activation_fn=None,
                                                 scope="intrinsic_features")
