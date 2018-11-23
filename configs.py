@@ -407,7 +407,7 @@ def attention():
 	locals().update(eigenoc_dyn())
 	fc_layers = 169,  # the number of layers and units in each layer mapping from input space to latent state representation
 	sf_layers = 169,
-	nb_options = 4
+	nb_options = 8
 	num_agents = 8
 	"""The maximum length of episodes in the environment"""
 	max_length = 1000
