@@ -416,7 +416,7 @@ def attention():
 	sr_matrix = None
 	use_eigendirections = False
 	use_clustering = True
-	sharpening_factor = 10
+	temperature = 1e-5
 	summary_interval = 1
 	checkpoint_interval = 1
 	cluster_interval = 1
@@ -482,6 +482,7 @@ def attention_feudal():
 	cluster_interval = 1
 	initial_random_goal_prob = 0.1
 	final_random_goal_prob = 0
+	temperature = 1e-5
 	c = 2
 	cold_start_episodes = 10
 	"""The kind of agent to use in the environment"""

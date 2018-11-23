@@ -89,8 +89,9 @@ class AttentionFeudalNetwork(EignOCNetwork):
         self.query_goal = self.l2_normalize(goal_hat, 1)
 
         self.query_content_match = tf.einsum('bj, ij -> bi', self.query_goal, self.goal_clusters, name="query_content_match")
-
-        self.attention_weights = tf.nn.softmax(self.query_content_match, name="attention_weights")
+        self.attention_weights = tf.contrib.distributions.RelaxedOneHotCategorical(self.config.temperature,
+                                                                                   logits=self.query_content_match).sample()
+        # self.attention_weights = tf.nn.softmax(self.query_content_match, name="attention_weights")
         #self.max_g = tf.gather(self.goal_clusters, tf.argmax(self.query_content_match))
 
         self.current_unnormalized_goal = tf.einsum('bi, ij -> bj', self.attention_weights, self.goal_clusters, name="unnormalized_g")
