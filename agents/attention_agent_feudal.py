@@ -366,7 +366,7 @@ class AttentionFeudalAgent(EigenOCAgentDyn):
 
       g_stack = extended_option_goals[t - c:t]
 
-      gs = extended_option_goals[t]
+      gs.append(extended_option_goals[t])
       s_diffs.append(s_diff)
       g_stacks.append(g_stack)
       ris.append(ri)
