@@ -59,7 +59,9 @@ class AttentionNetwork(EignOCNetwork):
         self.query_goal = self.l2_normalize(goal_hat, 1)
         self.query_content_match = tf.einsum('bj, ij -> bi', self.query_goal, self.goal_clusters,
 																						 name="query_content_match")
-        self.attention_weights = tf.nn.softmax(self.query_content_match, name="attention_weights")
+        sharpening_factor = 5
+        self.query_content_match_sharp = sharpening_factor * self.query_content_match
+        self.attention_weights = tf.nn.softmax(self.query_content_match_sharp, name="attention_weights")
         self.current_unnormalized_goal = tf.einsum('bi, ij -> bj', self.attention_weights, self.goal_clusters,
                                                    name="unnormalized_g")
         self.g = tf.identity(self.l2_normalize(self.current_unnormalized_goal, 1), name="g")
