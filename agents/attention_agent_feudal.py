@@ -33,6 +33,7 @@ class AttentionFeudalAgent(EigenOCAgentDyn):
     self.episode_buffer_option = []
     self.episode_screens = []
     self.episode_goals = []
+    self.episode_g_sums = []
     self.states = []
     self.episode_length = 0
     self.reward = 0
@@ -179,12 +180,14 @@ class AttentionFeudalAgent(EigenOCAgentDyn):
       "g_policy": self.local_network.g_policy,
       "random_goal": self.local_network.random_goal_cond,
       "which_random_goal": self.local_network.which_goal,
+      "g_sum": self.local_network.g_sum,
       "global_episode": self.global_episode}
 
     results = self.sess.run(tensor_results, feed_dict=feed_dict)
 
     self.random_goal = results["random_goal"][0]
     self.g = results["g"][0]
+    self.g_sum = results["g_sum"][0]
     self.last_c_g = results["last_c_goals"]
     self.query_goal = results["query_goal"][0]
     self.attention_weights = results["attention_weights"][0]
@@ -212,8 +215,9 @@ class AttentionFeudalAgent(EigenOCAgentDyn):
     """Adding to the transition buffer for doing n-step prediction on critics and policies"""
     self.episode_buffer_option.append(
       [s, self.action, self.reward, self.random_goal, s1])
-    self.episode_goals.append([self.g, self.goal_sf])
+    self.episode_goals.append(self.g)
     # self.states.append(self.state)
+    self.episode_g_sums.append(self.g_sum)
 
     if len(self.episode_buffer_option) >= self.config.max_update_freq or self.done:
       """Get the bootstrap option-value functions for the next time step"""
@@ -246,6 +250,7 @@ class AttentionFeudalAgent(EigenOCAgentDyn):
         twoc = 2 * self.config.c
         self.episode_buffer_option = self.episode_buffer_option[-twoc:]
         self.episode_goals = self.episode_goals[-twoc:]
+        self.episode_g_sums = self.episode_g_sums[-twoc:]
         # self.states = self.states[-twoc:]
 
 
@@ -287,6 +292,36 @@ class AttentionFeudalAgent(EigenOCAgentDyn):
   def add_SF(self, sf):
     self.global_network.goal_clusters.cluster(sf)
 
+  def extend(self, batch):
+    (observations, actions, rewards, returns, random_goal_conds, goals, g_sums) = batch
+    new_observations, new_actions, new_rewards, new_returns, new_random_goal_conds, new_goals, new_g_sums =\
+      [], [], [], [], [], [], []
+    if self.last_batch_done:
+      new_observations = [observations[0] for _ in range(self.config.c)]
+      new_goals = [goals[0] for _ in range(self.config.c)]
+      new_actions = [None for _ in range(self.config.c)]
+      new_returns = [None for _ in range(self.config.c)]
+      new_rewards = [None for _ in range(self.config.c)]
+      new_random_goal_conds = [None for _ in range(self.config.c)]
+      new_g_sums = [None for _ in range(self.config.c)]
+
+    # extend with the actual values
+    new_observations.extend(observations)
+    new_goals.extend(goals)
+    new_rewards.extend(returns)
+    new_returns.extend(rewards)
+    new_actions.extend(actions)
+    new_random_goal_conds.extend(random_goal_conds)
+    new_g_sums.extend(g_sums)
+
+    # if this is a terminal batch, then append the final s and g c times
+    # note that both this and the above case can occur at the same time
+    if self.done:
+      new_observations.extend([observations[-1] for _ in range(self.config.c)])
+      new_goals.extend([goals[-1] for _ in range(self.config.c)])
+
+    return (new_observations, new_actions, new_rewards, new_returns, new_random_goal_conds, new_goals, new_g_sums)
+
   """Do n-step prediction on the critics and policies"""
   def train_option(self, bootstrap_value_mix, bootstrap_value_ext, s1):
     rollout = np.array(self.episode_buffer_option)
@@ -294,111 +329,50 @@ class AttentionFeudalAgent(EigenOCAgentDyn):
     actions = rollout[:, 1]
     rewards = rollout[:, 2]
     random_goal_conds = rollout[:, 3]
-    rollout_goal = np.array(self.episode_goals)
-    option_goals = rollout_goal[:, 0]
-    option_found_goals = rollout_goal[:, 1]
-
-    prev_rewards = [0] + rewards[:-1].tolist()
-    prev_actions = [0] + actions[:-1].tolist()
-
+    goals = self.episode_goals
+    g_sums = self.episode_g_sums
     """Construct list of discounted returns using mixed reward signals for the entire n-step trajectory"""
     rewards_plus = np.asarray(rewards.tolist() + [bootstrap_value_ext])
     discounted_returns = reward_discount(rewards_plus, self.config.discount)[:-1]
 
+    batch = (observations, actions, rewards, discounted_returns, random_goal_conds, goals, g_sums)
+
+    new_batch = self.extend(batch)
+    (new_observations, new_actions, new_rewards, new_returns, new_random_goal_conds, new_goals, new_g_sums) = new_batch
+
     c = self.config.c
-    extended_observations = []
-    extended_option_goals = []
-    extended_found_goals = []
-    extended_actions = []
-    extended_rewards = []
-    extended_discounted_returns = []
-    extended_prev_rewards = []
-    extended_prev_actions = []
-    extended_random_goal_conds = []
 
-    if self.last_batch_done:
-      extended_observations = [observations[0] for _ in range(c)]
-      extended_option_goals = [option_goals[0] for _ in range(c)]
-      extended_found_goals = [option_found_goals[0] for _ in range(c)]
-      extended_actions = [None for _ in range(c)]
-      extended_rewards = [None for _ in range(c)]
-      extended_discounted_returns = [None for _ in range(c)]
-      extended_prev_rewards = [None for _ in range(c)]
-      extended_prev_actions = [None for _ in range(c)]
-      extended_random_goal_conds = [None for _ in range(c)]
-    extended_observations.extend(observations)
-    extended_option_goals.extend(option_goals)
-    extended_found_goals.extend(option_found_goals)
-    extended_actions.extend(actions)
-    extended_rewards.extend(rewards)
-    extended_discounted_returns.extend(discounted_returns)
-    extended_prev_rewards.extend(prev_rewards)
-    extended_prev_actions.extend(prev_actions)
-    extended_random_goal_conds.extend(random_goal_conds)
-
-    if self.done:
-      extended_observations.extend([observations[-1] for _ in range(c)])
-      extended_option_goals.extend([option_goals[-1] for _ in range(c)])
-
-    batch_len = len(extended_actions)
+    batch_len = len(new_actions)
     end = batch_len if self.done else batch_len - c
 
-    s_diffs = []
-    g_stacks = []
+    target_goals = []
     ris = []
-    actions = []
-    rewards = []
-    discounted_returns = []
-    observations = []
-    prev_rewards = []
-    prev_actions = []
-    random_goal_conds = []
-    found_goals = []
-    gs = []
 
     for t in range(c, end):
-      s_diff = np.identity(self.nb_states)[extended_observations[t + c]] - np.identity(self.nb_states)[extended_observations[t]]
+      target_goal = np.identity(self.nb_states)[new_observations[t + c]] - np.identity(self.nb_states)[new_observations[t]]
+      target_goals.append(target_goal)
+
       ri = 0
       for i in range(1, c + 1):
-        ri_s_diff = np.identity(self.nb_states)[extended_observations[t]] - np.identity(self.nb_states)[extended_observations[t - i]]
-        ri += self.cosine_similarity(ri_s_diff, extended_option_goals[t - i])
+        ri_s_diff = np.identity(self.nb_states)[new_observations[t]] - np.identity(self.nb_states)[new_observations[t - i]]
+        ri += self.cosine_similarity(ri_s_diff, new_goals[t - i])
       ri /= c
 
-      g_stack = extended_option_goals[t - c:t]
-
-      gs.append(extended_option_goals[t])
-      s_diffs.append(s_diff)
-      g_stacks.append(g_stack)
       ris.append(ri)
-      actions.append(extended_actions[t])
-      rewards.append(extended_rewards[t])
-      discounted_returns.append(extended_discounted_returns[t])
-      observations.append(extended_observations[t])
-      prev_rewards.append(extended_prev_rewards[t])
-      prev_actions.append(extended_prev_actions[t])
-      random_goal_conds.append(extended_random_goal_conds[t])
-      found_goals.append(extended_found_goals[t])
 
-    rewards_mix = [r_i * self.config.alpha_r + (1 - self.config.alpha_r) * r_e for (r_i, r_e) in zip(ris, rewards)]
+
+    rewards_mix = [r_i * self.config.alpha_r + (1 - self.config.alpha_r) * r_e for (r_i, r_e) in zip(ris, new_rewards[c:end])]
     rewards_mix_plus = np.asarray(rewards_mix + [bootstrap_value_mix])
     discounted_returns_mix = reward_discount(rewards_mix_plus, self.config.discount)[:-1]
 
-    feed_dict = {self.local_network.target_return: discounted_returns,
+    feed_dict = {self.local_network.target_return: discounted_returns[c:end],
                  self.local_network.target_mix_return: discounted_returns_mix,
-                 self.local_network.observation: np.identity(self.nb_states)[observations],
-                 self.local_network.target_goal: np.stack(s_diffs, 0),
-                 self.local_network.actions_placeholder: actions,
+                 self.local_network.observation: np.identity(self.nb_states)[observations][c:end],
+                 self.local_network.target_goal: np.stack(target_goals, 0),
+                 self.local_network.actions_placeholder: actions[c:end],
                  self.local_network.goal_clusters: self.global_network.goal_clusters.get_clusters(),
-                 # self.local_network.prev_goals: np.stack(g_stacks, 0)[:, :-1],
-                 self.local_network.prev_goals: np.stack(g_stacks, 0),
-                 # self.local_network.state_in[0]: self.states[0][0],
-                 # self.local_network.state_in[1]: self.states[0][1],
-                 # self.local_network.state_in[2]: self.states[0][2],
-                 # self.local_network.state_in[3]: self.states[0][3],
-                 # self.local_network.prev_rewards: prev_rewards,
-                 # self.local_network.prev_actions: prev_actions,
-                 self.local_network.random_goal_cond: random_goal_conds,
-                 # self.local_network.found_goal: np.stack(found_goals, 0),
+                 self.local_network.g_sum: np.stack(g_sums[c:end], 0),
+                 self.local_network.random_goal_cond: random_goal_conds[c:end],
                  }
 
     to_run = {
@@ -420,7 +394,7 @@ class AttentionFeudalAgent(EigenOCAgentDyn):
       to_run["apply_grads_option"] = self.local_network.apply_grads_option
       to_run["apply_grads_critic"] = self.local_network.apply_grads_critic
 
-    feed_dict[self.local_network.g] = np.stack(gs, 0)
+    feed_dict[self.local_network.g] = np.stack(goals[c:end], 0)
     results = self.sess.run(to_run, feed_dict=feed_dict)
     self.summaries_critic = results["summary_critic"]
     self.summaries_option = results["summary_option"]
@@ -431,6 +405,80 @@ class AttentionFeudalAgent(EigenOCAgentDyn):
 
     if self.last_batch_done:
       self.last_batch_done = False
+
+  # """Do n-step prediction on the critics and policies"""
+	#
+  # def train_option(self, bootstrap_value_mix, bootstrap_value_ext, s1):
+  #   rollout = np.array(self.episode_buffer_option)
+  #   observations = np.array(rollout[:, 0], dtype=np.int32)
+  #   actions = rollout[:, 1]
+  #   rewards = rollout[:, 2]
+  #   random_goal_conds = rollout[:, 3]
+  #   goals = self.episode_goals
+  #   g_sums = self.episode_g_sums
+	#
+  #   self.index = 0
+	#
+  #   """Construct list of discounted returns using mixed reward signals for the entire n-step trajectory"""
+  #   rewards_plus = np.asarray(rewards[self.index:].tolist() + [bootstrap_value_ext])
+  #   discounted_returns = reward_discount(rewards_plus, self.config.discount)[:-1]
+	#
+  #   c = self.config.c
+  #   l = len(observations)
+	#
+  #   target_goals = np.identity(self.nb_states)[observations[c:]] - np.identity(self.nb_states)[observations[:l - c]]
+  #   feed_dict = {self.local_network.target_return: discounted_returns[:l - c],
+  #                self.local_network.observation: np.identity(self.nb_states)[observations[:l - c]],
+  #                self.local_network.target_goal: np.stack(target_goals, 0),
+  #                self.local_network.goal_clusters: self.global_network.goal_clusters.get_clusters(),
+  #                self.local_network.random_goal_cond: random_goal_conds[:l - c],
+  #                }
+  #   to_run = {
+  #     "summary_goal": self.local_network.merged_summary_goal,
+  #     "summary_critic": self.local_network.merged_summary_critic,
+  #   }
+  #   if self.name != "worker_0":
+  #     to_run["apply_grad_goal"] = self.local_network.apply_grads_goal
+  #     to_run["apply_grads_critic"] = self.local_network.apply_grads_critic
+	#
+  #   results = self.sess.run(to_run, feed_dict=feed_dict)
+  #   self.summaries_goal = results["summary_goal"]
+  #   self.summaries_critic = results["summary_critic"]
+	#
+  #   ris = []
+  #   for t in range(c, l):
+  #     ri = 0
+  #     for i in range(1, c + 1):
+  #       ri_target_goal = np.identity(self.nb_states)[observations[t]] - np.identity(self.nb_states)[observations[t - i]]
+  #       ri += self.cosine_similarity(ri_target_goal, goals[t - i])
+  #     ri /= c
+	#
+  #     ris.append(ri)
+	#
+  #   rewards_mix = [r_i * self.config.alpha_r + (1 - self.config.alpha_r) * r_e for (r_i, r_e) in zip(ris, rewards[c:])]
+  #   rewards_mix_plus = np.asarray(rewards_mix + [bootstrap_value_mix])
+  #   discounted_returns_mix = reward_discount(rewards_mix_plus, self.config.discount)[:-1]
+	#
+  #   feed_dict = {
+  #     self.local_network.target_mix_return: discounted_returns_mix,
+  #     self.local_network.observation: np.identity(self.nb_states)[observations[c:]],
+  #     self.local_network.actions_placeholder: actions[c:],
+  #     self.local_network.goal_clusters: self.global_network.goal_clusters.get_clusters(),
+  #     self.local_network.g_sum: np.stack(g_sums[c:], 0),
+  #   }
+	#
+  #   to_run = {
+  #     "summary_option": self.local_network.merged_summary_option,
+  #   }
+  #   if self.name != "worker_0":
+  #     to_run["apply_grads_option"] = self.local_network.apply_grads_option
+	#
+  #   results = self.sess.run(to_run, feed_dict=feed_dict)
+  #   self.summaries_option = results["summary_option"]
+	#
+  #   """Store the bootstrap target returns at the end of the trajectory"""
+  #   self.R_mix = discounted_returns_mix[-1]
+  #   self.R = discounted_returns[-1]
 
   def write_step_summary(self):
     self.summary = tf.Summary()
