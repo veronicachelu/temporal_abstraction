@@ -178,14 +178,14 @@ class AttentionFeudalAgent(EigenOCAgentDyn):
       "v_mix": self.local_network.v_mix,
       "sf": self.local_network.sf,
       "g_policy": self.local_network.g_policy,
-      "random_goal": self.local_network.random_goal_cond,
-      "which_random_goal": self.local_network.which_goal,
+      # "random_goal": self.local_network.random_goal_cond,
+      # "which_random_goal": self.local_network.which_goal,
       "g_sum": self.local_network.g_sum,
       "global_episode": self.global_episode}
 
     results = self.sess.run(tensor_results, feed_dict=feed_dict)
 
-    self.random_goal = results["random_goal"][0]
+    # self.random_goal = results["random_goal"][0]
     self.g = results["g"][0]
     self.g_sum = results["g_sum"][0]
     self.last_c_g = results["last_c_goals"]
@@ -197,7 +197,7 @@ class AttentionFeudalAgent(EigenOCAgentDyn):
     self.sf = results["sf"][0]
     self.add_SF(self.sf)
     # self.state = results["state_out"]
-    self.which_random_goal = results["which_random_goal"]
+    # self.which_random_goal = results["which_random_goal"]
     self.global_episode_np = results["global_episode"]
     pi = results["g_policy"][0]
 
@@ -214,7 +214,8 @@ class AttentionFeudalAgent(EigenOCAgentDyn):
   def option_prediction(self, s, s1):
     """Adding to the transition buffer for doing n-step prediction on critics and policies"""
     self.episode_buffer_option.append(
-      [s, self.action, self.reward, self.random_goal, s1])
+      # [s, self.action, self.reward, self.random_goal, s1])
+      [s, self.action, self.reward, s1])
     self.episode_goals.append(self.g)
     # self.states.append(self.state)
     self.episode_g_sums.append(self.g_sum)
@@ -292,16 +293,19 @@ class AttentionFeudalAgent(EigenOCAgentDyn):
     self.global_network.goal_clusters.cluster(sf)
 
   def extend(self, batch):
-    (observations, actions, rewards, discounted_returns, random_goal_conds, goals, g_sums) = batch
-    new_observations, new_actions, new_rewards, new_discounted_returns, new_random_goal_conds, new_goals, new_g_sums =\
-      [], [], [], [], [], [], []
+    # (observations, actions, rewards, discounted_returns, random_goal_conds, goals, g_sums) = batch
+    (observations, actions, rewards, discounted_returns, goals, g_sums) = batch
+    # new_observations, new_actions, new_rewards, new_discounted_returns, new_random_goal_conds, new_goals, new_g_sums =\
+    new_observations, new_actions, new_rewards, new_discounted_returns, new_goals, new_g_sums = \
+      [], [], [], [], [], []
+      # [], [], [], [], [], [], []
     if self.last_batch_done:
       new_observations = [observations[0] for _ in range(self.config.c)]
       new_goals = [goals[0] for _ in range(self.config.c)]
       new_actions = [None for _ in range(self.config.c)]
       new_discounted_returns = [None for _ in range(self.config.c)]
       new_rewards = [None for _ in range(self.config.c)]
-      new_random_goal_conds = [None for _ in range(self.config.c)]
+      # new_random_goal_conds = [None for _ in range(self.config.c)]
       new_g_sums = [None for _ in range(self.config.c)]
 
     # extend with the actual values
@@ -310,7 +314,7 @@ class AttentionFeudalAgent(EigenOCAgentDyn):
     new_rewards.extend(rewards)
     new_discounted_returns.extend(discounted_returns)
     new_actions.extend(actions)
-    new_random_goal_conds.extend(random_goal_conds)
+    # new_random_goal_conds.extend(random_goal_conds)
     new_g_sums.extend(g_sums)
 
     # if this is a terminal batch, then append the final s and g c times
@@ -319,7 +323,8 @@ class AttentionFeudalAgent(EigenOCAgentDyn):
       new_observations.extend([observations[-1] for _ in range(self.config.c)])
       new_goals.extend([goals[-1] for _ in range(self.config.c)])
 
-    return new_observations, new_actions, new_rewards, new_discounted_returns, new_random_goal_conds, new_goals, new_g_sums
+    # return new_observations, new_actions, new_rewards, new_discounted_returns, new_random_goal_conds, new_goals, new_g_sums
+    return new_observations, new_actions, new_rewards, new_discounted_returns, new_goals, new_g_sums
 
   """Do n-step prediction on the critics and policies"""
   def train_goal(self, bootstrap_value_mix, bootstrap_value_ext, s1):
@@ -327,23 +332,26 @@ class AttentionFeudalAgent(EigenOCAgentDyn):
     observations = np.array(rollout[:, 0], dtype=np.int32)
     actions = rollout[:, 1]
     rewards = rollout[:, 2]
-    random_goal_conds = rollout[:, 3]
+    # random_goal_conds = rollout[:, 3]
     goals = self.episode_goals
     g_sums = self.episode_g_sums
     """Construct list of discounted returns using mixed reward signals for the entire n-step trajectory"""
     rewards_plus = np.asarray(rewards.tolist() + [bootstrap_value_ext])
     discounted_returns = reward_discount(rewards_plus, self.config.discount)[:-1]
 
-    batch = (observations, actions, rewards, discounted_returns, random_goal_conds, goals, g_sums)
+    # batch = (observations, actions, rewards, discounted_returns, random_goal_conds, goals, g_sums)
+    batch = (observations, actions, rewards, discounted_returns, goals, g_sums)
 
     new_batch = self.extend(batch)
-    new_observations, new_actions, new_rewards, new_discounted_returns, new_random_goal_conds, new_goals, new_g_sums = new_batch
+    # new_observations, new_actions, new_rewards, new_discounted_returns, new_random_goal_conds, new_goals, new_g_sums = new_batch
+    new_observations, new_actions, new_rewards, new_discounted_returns, new_goals, new_g_sums = new_batch
 
     c = self.config.c
     batch_len = len(new_actions)
     end = batch_len if self.done else batch_len - c
 
-    observations, actions, rewards, discounted_returns, random_goal_conds, goals, g_sums = \
+    # observations, actions, rewards, discounted_returns, random_goal_conds, goals, g_sums = \
+    observations, actions, rewards, discounted_returns, goals, g_sums = \
       [], [], [], [], [], [], []
     target_goals = []
     ris = []
@@ -361,7 +369,7 @@ class AttentionFeudalAgent(EigenOCAgentDyn):
       ris.append(ri)
       rewards.append(new_rewards[t])
       discounted_returns.append(new_discounted_returns[t])
-      random_goal_conds.append(new_random_goal_conds[t])
+      # random_goal_conds.append(new_random_goal_conds[t])
       goals.append(new_goals[t])
       g_sums.append(new_g_sums[t])
       actions.append(new_actions[t])
@@ -378,7 +386,7 @@ class AttentionFeudalAgent(EigenOCAgentDyn):
                  self.local_network.actions_placeholder: actions,
                  self.local_network.goal_clusters: self.global_network.goal_clusters.get_clusters(),
                  self.local_network.g_sum: np.stack(g_sums, 0),
-                 self.local_network.random_goal_cond: random_goal_conds,
+                 # self.local_network.random_goal_cond: random_goal_conds,
                  }
 
     to_run = {
@@ -680,7 +688,8 @@ class AttentionFeudalAgent(EigenOCAgentDyn):
     ax1 = plt.Subplot(f, gs00[:, :])
     ax1.set_aspect(1.0)
     ax1.axis('off')
-    ax1.set_title(f'Goal {self.random_goal} - {self.which_random_goal}', fontsize=20)
+    # ax1.set_title(f'Goal {self.random_goal} - {self.which_random_goal}', fontsize=20)
+    ax1.set_title(f'Goal', fontsize=20)
     sns.heatmap(reproj_goal, cmap="Blues", ax=ax1)
 
     """Adding borders"""

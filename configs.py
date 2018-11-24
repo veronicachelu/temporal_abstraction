@@ -482,7 +482,7 @@ def attention_feudal():
 	cluster_interval = 1
 	initial_random_goal_prob = 0.1
 	final_random_goal_prob = 0
-	temperature = 0.1
+	temperature = 0.01
 	goal_projected_size = 128
 	max_update_freq = 30
 	c = 2
