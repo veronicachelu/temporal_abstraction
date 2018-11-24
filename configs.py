@@ -483,7 +483,7 @@ def attention_feudal():
 	initial_random_goal_prob = 0.1
 	final_random_goal_prob = 0
 	temperature = 0.1
-	goal_projected_size = 64
+	goal_projected_size = 128
 	max_update_freq = 30
 	c = 2
 	cold_start_episodes = 5
