@@ -338,30 +338,30 @@ class AttentionFeudalAgent(EigenOCAgentDyn):
     batch = (observations, actions, rewards, discounted_returns, random_goal_conds, goals, g_sums)
 
     new_batch = self.extend(batch)
-    (new_observations, new_actions, new_rewards, new_returns, new_random_goal_conds, new_goals, new_g_sums) = new_batch
+    (observations, actions, rewards, returns, random_goal_conds, goals, g_sums) = new_batch
 
     c = self.config.c
 
-    batch_len = len(new_actions)
+    batch_len = len(actions)
     end = batch_len if self.done else batch_len - c
 
     target_goals = []
     ris = []
 
     for t in range(c, end):
-      target_goal = np.identity(self.nb_states)[new_observations[t + c]] - np.identity(self.nb_states)[new_observations[t]]
+      target_goal = np.identity(self.nb_states)[observations[t + c]] - np.identity(self.nb_states)[observations[t]]
       target_goals.append(target_goal)
 
       ri = 0
       for i in range(1, c + 1):
-        ri_s_diff = np.identity(self.nb_states)[new_observations[t]] - np.identity(self.nb_states)[new_observations[t - i]]
-        ri += self.cosine_similarity(ri_s_diff, new_goals[t - i])
+        ri_s_diff = np.identity(self.nb_states)[observations[t]] - np.identity(self.nb_states)[observations[t - i]]
+        ri += self.cosine_similarity(ri_s_diff, goals[t - i])
       ri /= c
 
       ris.append(ri)
 
 
-    rewards_mix = [r_i * self.config.alpha_r + (1 - self.config.alpha_r) * r_e for (r_i, r_e) in zip(ris, new_rewards[c:end])]
+    rewards_mix = [r_i * self.config.alpha_r + (1 - self.config.alpha_r) * r_e for (r_i, r_e) in zip(ris, rewards[c:end])]
     rewards_mix_plus = np.asarray(rewards_mix + [bootstrap_value_mix])
     discounted_returns_mix = reward_discount(rewards_mix_plus, self.config.discount)[:-1]
 
