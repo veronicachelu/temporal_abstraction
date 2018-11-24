@@ -243,7 +243,7 @@ class AttentionFeudalAgent(EigenOCAgentDyn):
         bootstrap_V_mix = v_mix
         bootstrap_V_ext = v
 
-      self.train_option(bootstrap_V_mix, bootstrap_V_ext, s1)
+      self.train_goal(bootstrap_V_mix, bootstrap_V_ext, s1)
       if self.done:
         self.last_batch_done = True
       else:
@@ -251,7 +251,6 @@ class AttentionFeudalAgent(EigenOCAgentDyn):
         self.episode_buffer_option = self.episode_buffer_option[-twoc:]
         self.episode_goals = self.episode_goals[-twoc:]
         self.episode_g_sums = self.episode_g_sums[-twoc:]
-        # self.states = self.states[-twoc:]
 
 
   """Do n-step prediction for the successor representation latent and an update for the representation latent using 1-step next frame prediction"""
@@ -293,14 +292,14 @@ class AttentionFeudalAgent(EigenOCAgentDyn):
     self.global_network.goal_clusters.cluster(sf)
 
   def extend(self, batch):
-    (observations, actions, rewards, returns, random_goal_conds, goals, g_sums) = batch
-    new_observations, new_actions, new_rewards, new_returns, new_random_goal_conds, new_goals, new_g_sums =\
+    (observations, actions, rewards, discounted_returns, random_goal_conds, goals, g_sums) = batch
+    new_observations, new_actions, new_rewards, new_discounted_returns, new_random_goal_conds, new_goals, new_g_sums =\
       [], [], [], [], [], [], []
     if self.last_batch_done:
       new_observations = [observations[0] for _ in range(self.config.c)]
       new_goals = [goals[0] for _ in range(self.config.c)]
       new_actions = [None for _ in range(self.config.c)]
-      new_returns = [None for _ in range(self.config.c)]
+      new_discounted_returns = [None for _ in range(self.config.c)]
       new_rewards = [None for _ in range(self.config.c)]
       new_random_goal_conds = [None for _ in range(self.config.c)]
       new_g_sums = [None for _ in range(self.config.c)]
@@ -308,8 +307,8 @@ class AttentionFeudalAgent(EigenOCAgentDyn):
     # extend with the actual values
     new_observations.extend(observations)
     new_goals.extend(goals)
-    new_rewards.extend(returns)
-    new_returns.extend(rewards)
+    new_rewards.extend(rewards)
+    new_discounted_returns.extend(discounted_returns)
     new_actions.extend(actions)
     new_random_goal_conds.extend(random_goal_conds)
     new_g_sums.extend(g_sums)
@@ -320,10 +319,10 @@ class AttentionFeudalAgent(EigenOCAgentDyn):
       new_observations.extend([observations[-1] for _ in range(self.config.c)])
       new_goals.extend([goals[-1] for _ in range(self.config.c)])
 
-    return (new_observations, new_actions, new_rewards, new_returns, new_random_goal_conds, new_goals, new_g_sums)
+    return new_observations, new_actions, new_rewards, new_discounted_returns, new_random_goal_conds, new_goals, new_g_sums
 
   """Do n-step prediction on the critics and policies"""
-  def train_option(self, bootstrap_value_mix, bootstrap_value_ext, s1):
+  def train_goal(self, bootstrap_value_mix, bootstrap_value_ext, s1):
     rollout = np.array(self.episode_buffer_option)
     observations = np.array(rollout[:, 0], dtype=np.int32)
     actions = rollout[:, 1]
