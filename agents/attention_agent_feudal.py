@@ -338,7 +338,7 @@ class AttentionFeudalAgent(EigenOCAgentDyn):
     batch = (observations, actions, rewards, discounted_returns, random_goal_conds, goals, g_sums)
 
     new_batch = self.extend(batch)
-    (observations, actions, rewards, returns, random_goal_conds, goals, g_sums) = new_batch
+    (observations, actions, rewards, discounted_returns, random_goal_conds, goals, g_sums) = new_batch
 
     c = self.config.c
 

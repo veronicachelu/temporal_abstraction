@@ -469,7 +469,7 @@ def attention_feudal():
 	fc_layers = 169,  # the number of layers and units in each layer mapping from input space to latent state representation
 	sf_layers = 169,
 	nb_options = 4
-	num_agents = 8
+	num_agents = 2
 	"""The maximum length of episodes in the environment"""
 	max_length = 1000
 	max_clusters = 32
@@ -484,7 +484,7 @@ def attention_feudal():
 	final_random_goal_prob = 0
 	temperature = 0.1
 	goal_projected_size = 64
-	max_update_freq = 5
+	max_update_freq = 30
 	c = 2
 	cold_start_episodes = 0
 	"""The kind of agent to use in the environment"""
