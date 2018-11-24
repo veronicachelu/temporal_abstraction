@@ -352,7 +352,7 @@ class AttentionFeudalAgent(EigenOCAgentDyn):
 
     # observations, actions, rewards, discounted_returns, random_goal_conds, goals, g_sums = \
     observations, actions, rewards, discounted_returns, goals, g_sums = \
-      [], [], [], [], [], [], []
+      [], [], [], [], [], []
     target_goals = []
     ris = []
 
