@@ -61,9 +61,9 @@ class AttentionFeudalAgent(EigenOCAgentDyn):
     tf.gfile.MakeDirs(self.cluster_model_path)
 
     self.total_episodes = self.global_episode.eval()
-    goalstateIdx = self.env.get_state_index(self.env.goalX, self.env.goalY)
-    self.goal_sf = self.sess.run(self.local_network.sf, {
-      self.local_network.observation: np.identity(self.nb_states)[goalstateIdx:goalstateIdx + 1]})[0]
+    # goalstateIdx = self.env.get_state_index(self.env.goalX, self.env.goalY)
+    # self.goal_sf = self.sess.run(self.local_network.sf, {
+    #   self.local_network.observation: np.identity(self.nb_states)[goalstateIdx:goalstateIdx + 1]})[0]
 
 
   """Starting point of the agent acting in the environment"""

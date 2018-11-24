@@ -486,7 +486,7 @@ def attention_feudal():
 	goal_projected_size = 64
 	max_update_freq = 30
 	c = 2
-	cold_start_episodes = 0
+	cold_start_episodes = 5
 	"""The kind of agent to use in the environment"""
 	target_agent = AttentionFeudalAgent
 	"""The number test episodes to execute, over which to average results"""

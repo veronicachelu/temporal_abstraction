@@ -249,11 +249,14 @@ class AttentionFeudalNetwork(EignOCNetwork):
     self.merged_summary_option = tf.summary.merge(self.summaries_option +\
                        [tf.summary.scalar('Entropy_loss', self.entropy_loss),
                         tf.summary.scalar('Policy_loss', self.policy_loss),
-                        tf.summary.scalar('Mix_critic_loss', self.mix_critic_loss), ])
+                        tf.summary.scalar('Mix_critic_loss', self.mix_critic_loss),
+                        gradient_summaries(zip(self.grads_option, local_vars))])
     self.merged_summary_critic = tf.summary.merge(self.summaries_critic +\
-                                                  [tf.summary.scalar('Critic_loss', self.critic_loss)])
+                                                  [tf.summary.scalar('Critic_loss', self.critic_loss),
+                                                   gradient_summaries(zip(self.grads_critic, local_vars))])
     self.merged_summary_goal = tf.summary.merge(
-                                                [tf.summary.scalar('goal_loss', self.goal_loss)])
+                                                [tf.summary.scalar('goal_loss', self.goal_loss),
+                                                 gradient_summaries(zip(self.grads_goal, local_vars))])
 
   def init_clustering(self):
     if self.scope == 'global':
