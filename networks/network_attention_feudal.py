@@ -77,9 +77,9 @@ class AttentionFeudalNetwork(EignOCNetwork):
         #                                         scope="input_features")
         # prev_goal = self.prev_goals[:, -1]
         # hidden_manager = tf.concat([input_features, self.found_goal, self.prev_rewards_expanded], 1, name="extended_input_manager")
-        self.manager_lstm = SingleStepLSTM(tf.expand_dims(self.observation, [0]),
-                                           self.goal_embedding_size,
-                                           step_size=tf.shape(self.observation)[:1])
+        # self.manager_lstm = SingleStepLSTM(tf.expand_dims(self.observation, [0]),
+        #                                    self.goal_embedding_size,
+        #                                    step_size=tf.shape(self.observation)[:1])
         # goal_features = self.manager_lstm.output
 
         goal_hat = layers.fully_connected(self.observation,
@@ -112,7 +112,7 @@ class AttentionFeudalNetwork(EignOCNetwork):
 
         self.g = tf.where(self.random_goal_cond, self.max_g, self.random_g, name="current_goal")
 
-        self.prev_goals_rand = tf.stop_gradient(tf.where(self.random_goal_cond, self.prev_goals, tf.tile(tf.expand_dims(self.g, 1), [1, self.config.c, 1])))
+        # self.prev_goals_rand = tf.stop_gradient(tf.where(self.random_goal_cond, self.prev_goals, tf.tile(tf.expand_dims(self.g, 1), [1, self.config.c, 1])))
 
       with tf.variable_scope("option_manager_value_ext"):
         # extrinsic_features = layers.fully_connected(goal_features,
@@ -129,9 +129,9 @@ class AttentionFeudalNetwork(EignOCNetwork):
         # hidden_worker = tf.concat(
         #   [input_features, self.prev_rewards_expanded], 1,
         #   name="extended_input_manager")
-        self.worker_lstm = SingleStepLSTM(tf.expand_dims(self.observation, [0]),
-                                          size=self.action_size * self.goal_embedding_size,
-                                          step_size=tf.shape(self.observation)[:1])
+        # self.worker_lstm = SingleStepLSTM(tf.expand_dims(self.observation, [0]),
+        #                                   size=self.action_size * self.goal_embedding_size,
+        #                                   step_size=tf.shape(self.observation)[:1])
 
         intrinsic_features = layers.fully_connected(self.observation,
                                                 num_outputs=self.action_size * self.goal_embedding_size,
@@ -144,7 +144,9 @@ class AttentionFeudalNetwork(EignOCNetwork):
 
       cut_g = tf.stop_gradient(self.g)
       cut_g = tf.expand_dims(cut_g, 1)
-      self.g_stack = tf.placeholder_with_default(shape=[None, None, self.goal_embedding_size],input=tf.concat([self.prev_goals_rand, cut_g], 1))
+      # self.g_stack = tf.placeholder_with_default(shape=[None, None, self.goal_embedding_size],input=tf.concat([self.prev_goals_rand, cut_g], 1))
+      self.g_stack = tf.placeholder_with_default(shape=[None, None, self.goal_embedding_size],
+                                                 input=tf.concat([self.prev_goals, cut_g], 1))
       self.last_c_g = self.g_stack[:, 1:]
       self.g_sum = tf.reduce_sum(self.g_stack, 1)
 
@@ -165,16 +167,16 @@ class AttentionFeudalNetwork(EignOCNetwork):
 
         self.summaries_option.append(tf.contrib.layers.summarize_activation(self.g_policy))
 
-      self.state_in = [self.worker_lstm.state_in[0],
-                       self.worker_lstm.state_in[1],
-                       self.manager_lstm.state_in[0],
-                       self.manager_lstm.state_in[1]
-                       ]
-      self.state_out = [self.worker_lstm.state_out[0],
-                        self.worker_lstm.state_out[1],
-                        self.manager_lstm.state_out[0],
-                        self.manager_lstm.state_out[1]
-                        ]
+      # self.state_in = [self.worker_lstm.state_in[0],
+      #                  self.worker_lstm.state_in[1],
+      #                  self.manager_lstm.state_in[0],
+      #                  self.manager_lstm.state_in[1]
+      #                  ]
+      # self.state_out = [self.worker_lstm.state_out[0],
+      #                   self.worker_lstm.state_out[1],
+      #                   self.manager_lstm.state_out[0],
+      #                   self.manager_lstm.state_out[1]
+      #                   ]
 
       if self.scope != 'global':
         self.build_losses()

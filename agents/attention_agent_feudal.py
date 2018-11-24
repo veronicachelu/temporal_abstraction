@@ -42,7 +42,7 @@ class AttentionFeudalAgent(EigenOCAgentDyn):
     self.R = self.R_mix = None
     self.last_c_g = np.zeros((1, self.config.c, self.config.sf_layers[-1]), np.float32)
     self.last_batch_done = True
-    self.state = self.local_network.worker_lstm.state_init + self.local_network.manager_lstm.state_init
+    # self.state = self.local_network.worker_lstm.state_init + self.local_network.manager_lstm.state_init
 
   def init_agent(self):
     super(AttentionFeudalAgent, self).init_agent()
@@ -153,21 +153,21 @@ class AttentionFeudalAgent(EigenOCAgentDyn):
   """Sample an action from the current option's policy"""
   def policy_evaluation(self, s):
     feed_dict = {self.local_network.observation: np.identity(self.nb_states)[s:s+1],
-                 self.local_network.found_goal: [self.goal_sf],
+                 # self.local_network.found_goal: [self.goal_sf],
                  self.local_network.goal_clusters: self.global_network.goal_clusters.get_clusters(),
                  self.local_network.prev_goals: self.last_c_g,
-                 self.local_network.state_in[0]: self.state[0],
-                 self.local_network.state_in[1]: self.state[1],
-                 self.local_network.state_in[2]: self.state[2],
-                 self.local_network.state_in[3]: self.state[3],
-                 self.local_network.prev_rewards: [self.reward],
-                 self.local_network.prev_actions: [self.action],
+                 # self.local_network.state_in[0]: self.state[0],
+                 # self.local_network.state_in[1]: self.state[1],
+                 # self.local_network.state_in[2]: self.state[2],
+                 # self.local_network.state_in[3]: self.state[3],
+                 # self.local_network.prev_rewards: [self.reward],
+                 # self.local_network.prev_actions: [self.action],
                  }
     # if self.goal_sf is not None:
     #   feed_dict[self.local_network.query_goal] = [self.goal_sf]
 
     tensor_results = {
-      "state_out": self.local_network.state_out,
+      # "state_out": self.local_network.state_out,
       "g": self.local_network.g,
       "last_c_goals": self.local_network.last_c_g,
       "query_goal": self.local_network.query_goal,
@@ -193,7 +193,7 @@ class AttentionFeudalAgent(EigenOCAgentDyn):
     self.v_mix = results["v_mix"][0]
     self.sf = results["sf"][0]
     self.add_SF(self.sf)
-    self.state = results["state_out"]
+    # self.state = results["state_out"]
     self.which_random_goal = results["which_random_goal"]
     self.global_episode_np = results["global_episode"]
     pi = results["g_policy"][0]
@@ -213,7 +213,7 @@ class AttentionFeudalAgent(EigenOCAgentDyn):
     self.episode_buffer_option.append(
       [s, self.action, self.reward, self.random_goal, s1])
     self.episode_goals.append([self.g, self.goal_sf])
-    self.states.append(self.state)
+    # self.states.append(self.state)
 
     if len(self.episode_buffer_option) >= self.config.max_update_freq or self.done:
       """Get the bootstrap option-value functions for the next time step"""
@@ -222,15 +222,15 @@ class AttentionFeudalAgent(EigenOCAgentDyn):
         bootstrap_V_ext = 0
       else:
         feed_dict = {self.local_network.observation: np.identity(self.nb_states)[s1:s1+1],
-                     self.local_network.found_goal: [self.goal_sf],
+                     # self.local_network.found_goal: [self.goal_sf],
                      self.local_network.goal_clusters: self.global_network.goal_clusters.get_clusters(),
                      self.local_network.prev_goals: self.last_c_g,
-                     self.local_network.state_in[0]: self.state[0],
-                     self.local_network.state_in[1]: self.state[1],
-                     self.local_network.state_in[2]: self.state[2],
-                     self.local_network.state_in[3]: self.state[3],
-                     self.local_network.prev_rewards: [self.reward],
-                     self.local_network.prev_actions: [self.action],
+                     # self.local_network.state_in[0]: self.state[0],
+                     # self.local_network.state_in[1]: self.state[1],
+                     # self.local_network.state_in[2]: self.state[2],
+                     # self.local_network.state_in[3]: self.state[3],
+                     # self.local_network.prev_rewards: [self.reward],
+                     # self.local_network.prev_actions: [self.action],
                      }
         to_run = {"v_mix": self.local_network.v_mix,
                   "v_ext": self.local_network.v_ext}
@@ -246,7 +246,7 @@ class AttentionFeudalAgent(EigenOCAgentDyn):
         twoc = 2 * self.config.c
         self.episode_buffer_option = self.episode_buffer_option[-twoc:]
         self.episode_goals = self.episode_goals[-twoc:]
-        self.states = self.states[-twoc:]
+        # self.states = self.states[-twoc:]
 
 
   """Do n-step prediction for the successor representation latent and an update for the representation latent using 1-step next frame prediction"""
@@ -390,15 +390,15 @@ class AttentionFeudalAgent(EigenOCAgentDyn):
                  self.local_network.actions_placeholder: actions,
                  self.local_network.goal_clusters: self.global_network.goal_clusters.get_clusters(),
                  # self.local_network.prev_goals: np.stack(g_stacks, 0)[:, :-1],
-                 self.local_network.g_stack: np.stack(g_stacks, 0),
-                 self.local_network.state_in[0]: self.states[0][0],
-                 self.local_network.state_in[1]: self.states[0][1],
-                 self.local_network.state_in[2]: self.states[0][2],
-                 self.local_network.state_in[3]: self.states[0][3],
-                 self.local_network.prev_rewards: prev_rewards,
-                 self.local_network.prev_actions: prev_actions,
+                 self.local_network.prev_goals: np.stack(g_stacks, 0),
+                 # self.local_network.state_in[0]: self.states[0][0],
+                 # self.local_network.state_in[1]: self.states[0][1],
+                 # self.local_network.state_in[2]: self.states[0][2],
+                 # self.local_network.state_in[3]: self.states[0][3],
+                 # self.local_network.prev_rewards: prev_rewards,
+                 # self.local_network.prev_actions: prev_actions,
                  self.local_network.random_goal_cond: random_goal_conds,
-                 self.local_network.found_goal: np.stack(found_goals, 0),
+                 # self.local_network.found_goal: np.stack(found_goals, 0),
                  }
 
     to_run = {
@@ -420,7 +420,7 @@ class AttentionFeudalAgent(EigenOCAgentDyn):
       to_run["apply_grads_option"] = self.local_network.apply_grads_option
       to_run["apply_grads_critic"] = self.local_network.apply_grads_critic
 
-    feed_dict[self.local_network.g] = gs
+    feed_dict[self.local_network.g] = np.stack(gs, 0)
     results = self.sess.run(to_run, feed_dict=feed_dict)
     self.summaries_critic = results["summary_critic"]
     self.summaries_option = results["summary_option"]
