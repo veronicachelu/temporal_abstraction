@@ -222,7 +222,7 @@ class AttentionFeudalNetwork(EignOCNetwork):
       self.mean_dcos = tf.reduce_mean(dcos)
       self.mean_dcos_mag = tf.reduce_mean(dcos_mag)
       self.goal_loss = -tf.reduce_mean(
-        dcos * tf.stop_gradient(td_error))
+        dcos * self.target_return) #tf.stop_gradient(td_error))
 
     with tf.name_scope('entropy_loss'):
       self.entropy_loss = -self.entropy_coef * tf.reduce_mean(self.g_policy * tf.log(self.g_policy + 1e-7))
