@@ -19,6 +19,16 @@ class AttentionFeudalNetwork(EignOCNetwork):
   def __init__(self, scope, config, action_size):
     self.goal_embedding_size = config.sf_layers[-1]
     super(AttentionFeudalNetwork, self).__init__(scope, config, action_size)
+
+    self.network_optimizer_sr = config.network_optimizer(
+      self.config.lr_sr, name='network_optimizer_sr')
+
+    self.network_optimizer_worker = config.network_optimizer(
+      self.config.lr_worker, name='network_optimizer_worker')
+
+    self.network_optimizer_manager = config.network_optimizer(
+      self.config.lr_manager, name='network_optimizer_manager')
+
     if self.config.use_clustering:
       self.init_clustering()
 
@@ -85,16 +95,15 @@ class AttentionFeudalNetwork(EignOCNetwork):
                                                     num_outputs=self.goal_embedding_size,
                                                     activation_fn=None,
                                                     scope="goal_hat")
-        # self.query_goal = self.l2_normalize(goal_hat, 1)
-        self.query_goal = tf.nn.l2_normalize(goal_hat, 1)
+        self.query_goal = self.l2_normalize(goal_hat, 1)
 
         self.query_content_match = tf.einsum('bj, ij -> bi', self.query_goal, self.goal_clusters, name="query_content_match")
-        self.query_content_match_sharp = self.query_content_match * self.config.sharpening_factor
+        self.query_content_match_sharp = self.query_content_match * self.config.starpening_factor
         self.goal_distribution = tf.contrib.distributions.RelaxedOneHotCategorical(self.config.temperature,
                                                                                    logits=self.query_content_match_sharp)
         self.attention_weights = self.goal_distribution.sample()
-        self.g = tf.einsum('bi, ij -> bj', self.attention_weights, self.goal_clusters, name="unnormalized_g")
-        # self.max_g = tf.identity(self.l2_normalize(self.current_unnormalized_goal, 1), name="g")
+        self.current_unnormalized_goal = tf.einsum('bi, ij -> bj', self.attention_weights, self.goal_clusters, name="unnormalized_g")
+        self.max_g = tf.identity(self.l2_normalize(self.current_unnormalized_goal, 1), name="g")
         # self.max_g = self.current_unnormalized_goal
 
         """Take the random option with probability self.random_option_prob"""
@@ -105,7 +114,7 @@ class AttentionFeudalNetwork(EignOCNetwork):
         # self.random_goal_cond = self.local_random > self.prob_of_random_goal
 
         # self.g = tf.where(self.random_goal_cond, self.max_g, self.random_g, name="current_goal")
-        # self.g = self.max_g
+        self.g = self.max_g
         # self.prev_goals_rand = tf.stop_gradient(tf.where(self.random_goal_cond, self.prev_goals, tf.tile(tf.expand_dims(self.g, 1), [1, self.config.c, 1])))
 
       with tf.variable_scope("option_manager_value_ext"):
@@ -214,9 +223,9 @@ class AttentionFeudalNetwork(EignOCNetwork):
 
     self.option_loss = self.policy_loss - self.entropy_loss + self.mix_critic_loss
 
-  # def l2_normalize(self, x, axis):
-  #     norm = tf.sqrt(tf.reduce_sum(tf.square(x), axis=axis, keepdims=True))
-  #     return tf.maximum(x, 1e-8) / tf.maximum(norm, 1e-8)
+  def l2_normalize(self, x, axis):
+      norm = tf.sqrt(tf.reduce_sum(tf.square(x), axis=axis, keepdims=True))
+      return tf.maximum(x, 1e-8) / tf.maximum(norm, 1e-8)
 
   def cosine_similarity(self, v1, v2, axis):
     norm_v1 = tf.nn.l2_normalize(tf.cast(v1, tf.float64), axis)
@@ -231,7 +240,22 @@ class AttentionFeudalNetwork(EignOCNetwork):
   #   sim = tf.matmul(
   #     v1_norm, v2_norm, transpose_b=True)
 	#
-   #  return sim
+  #   return sim
+
+  def take_gradient(self, loss, type_of_optimizer):
+    if type_of_optimizer == "sr":
+      network_optimizer = self.network_optimizer_sr
+    elif type_of_optimizer == "worker":
+      network_optimizer = self.network_optimizer_worker
+    else:
+      network_optimizer = self.network_optimizer_manager
+    local_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, self.scope)
+    global_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, 'global')
+    gradients = tf.gradients(loss, local_vars)
+    var_norms = tf.global_norm(local_vars)
+    grads, grad_norms = tf.clip_by_global_norm(gradients, self.config.gradient_clip_norm_value)
+    apply_grads = network_optimizer.apply_gradients(zip(grads, global_vars))
+    return grads, apply_grads
 
   """Build gradients for the losses with respect to the network params.
       Build summaries and update ops"""
@@ -239,10 +263,10 @@ class AttentionFeudalNetwork(EignOCNetwork):
     local_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, self.scope)
 
     """Gradients and update ops"""
-    self.grads_sf, self.apply_grads_sf = self.take_gradient(self.sf_loss)
-    self.grads_option, self.apply_grads_option = self.take_gradient(self.option_loss)
-    self.grads_critic, self.apply_grads_critic = self.take_gradient(self.critic_loss)
-    self.grads_goal, self.apply_grads_goal = self.take_gradient(self.goal_loss)
+    self.grads_sf, self.apply_grads_sf = self.take_gradient(self.sf_loss, "sr")
+    self.grads_option, self.apply_grads_option = self.take_gradient(self.option_loss, "worker")
+    self.grads_critic, self.apply_grads_critic = self.take_gradient(self.critic_loss, "manager")
+    self.grads_goal, self.apply_grads_goal = self.take_gradient(self.goal_loss, "manager")
 
     """Summaries"""
     self.merged_summary_sf = tf.summary.merge(self.image_summaries +
