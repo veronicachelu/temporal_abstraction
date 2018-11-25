@@ -63,7 +63,8 @@ class AttentionFeudalNetwork(EignOCNetwork):
                                                  self.goal_embedding_size],
                                           dtype=tf.float32,
                                           name="goal_clusters")
-      self.goal_clusters = tf.nn.l2_normalize(goal_clusters, 1)
+      # self.goal_clusters = tf.nn.l2_normalize(goal_clusters, 1)
+      self.goal_clusters = self.l2_normalize(goal_clusters, 1)
 
       self.image_summaries.append(
         tf.summary.image('observation', self.observation_image, max_outputs=30))
@@ -153,9 +154,13 @@ class AttentionFeudalNetwork(EignOCNetwork):
       self.last_c_g = self.g_stack[:, 1:]
       self.g_sum = tf.reduce_sum(self.g_stack, 1)
 
-      self.goal_projected = tf.contrib.layers.fully_connected(self.g_sum, self.config.goal_projected_size,
-                                                        activation_fn=None,
-                                                        biases_initializer=None, scope="goal_proj")
+      phi = tf.get_variable("phi", (self.goal_embedding_size, self.config.goal_projected_size),
+                            initializer=normalized_columns_initializer(1.))
+
+      # self.goal_projected = tf.contrib.layers.fully_connected(self.g_sum, self.config.goal_projected_size,
+      #                                                   activation_fn=None,
+      #                                                   biases_initializer=None, scope="goal_proj")
+      self.goal_projected = tf.matmul(self.g_sum, phi)
 
       with tf.variable_scope("option_worker_value_mix"):
         # v_mix_embedding = tf.get_variable("v_mix_embedding",
@@ -224,23 +229,25 @@ class AttentionFeudalNetwork(EignOCNetwork):
     self.option_loss = self.policy_loss - self.entropy_loss + self.mix_critic_loss
 
   def l2_normalize(self, x, axis):
-      norm = tf.sqrt(tf.reduce_sum(tf.square(x), axis=axis, keepdims=True))
-      return tf.maximum(x, 1e-8) / tf.maximum(norm, 1e-8)
-
-  def cosine_similarity(self, v1, v2, axis):
-    norm_v1 = tf.nn.l2_normalize(tf.cast(v1, tf.float64), axis)
-    norm_v2 = tf.nn.l2_normalize(tf.cast(v2, tf.float64), axis)
-    sim = tf.matmul(
-      norm_v1, norm_v2, transpose_b=True)
-    return tf.cast(sim, tf.float32)
+      # norm = tf.sqrt(tf.reduce_sum(tf.square(x), axis=axis, keepdims=True))
+      norm = tf.stop_gradient(tf.norm(x, axis=axis, keep_dims=True))
+      # return tf.maximum(x, 1e-8) / tf.maximum(norm, 1e-8)
+      return x / tf.maximum(norm, 1e-8)
 
   # def cosine_similarity(self, v1, v2, axis):
-  #   v1_norm = self.l2_normalize(v1, axis)
-  #   v2_norm = self.l2_normalize(v2, axis)
+  #   norm_v1 = tf.nn.l2_normalize(tf.cast(v1, tf.float64), axis)
+  #   norm_v2 = tf.nn.l2_normalize(tf.cast(v2, tf.float64), axis)
   #   sim = tf.matmul(
-  #     v1_norm, v2_norm, transpose_b=True)
-	#
-  #   return sim
+  #     norm_v1, norm_v2, transpose_b=True)
+  #   return tf.cast(sim, tf.float32)
+
+  def cosine_similarity(self, v1, v2, axis):
+    v1_norm = self.l2_normalize(v1, axis)
+    v2_norm = self.l2_normalize(v2, axis)
+    sim = tf.matmul(
+      v1_norm, v2_norm, transpose_b=True)
+
+    return sim
 
   def take_gradient(self, loss, type_of_optimizer):
     if type_of_optimizer == "sr":
