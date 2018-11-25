@@ -85,10 +85,14 @@ class AttentionFeudalNetwork(EignOCNetwork):
                                                     num_outputs=self.goal_embedding_size,
                                                     activation_fn=None,
                                                     scope="goal_hat")
+        sharpening_factor = layers.fully_connected(self.observation,
+                                          num_outputs=self.goal_embedding_size,
+                                          activation_fn=tf.nn.relu,
+                                          scope="sharpening_factor")
         self.query_goal = self.l2_normalize(goal_hat, 1)
 
         self.query_content_match = tf.einsum('bj, ij -> bi', self.query_goal, self.goal_clusters, name="query_content_match")
-        self.query_content_match_sharp = self.query_content_match * self.config.starpening_factor
+        self.query_content_match_sharp = self.query_content_match * sharpening_factor
         self.goal_distribution = tf.contrib.distributions.RelaxedOneHotCategorical(self.config.temperature,
                                                                                    logits=self.query_content_match_sharp)
         self.attention_weights = self.goal_distribution.sample()
