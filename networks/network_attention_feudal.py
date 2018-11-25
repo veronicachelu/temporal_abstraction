@@ -86,7 +86,7 @@ class AttentionFeudalNetwork(EignOCNetwork):
                                                     activation_fn=None,
                                                     scope="goal_hat")
         sharpening_factor = layers.fully_connected(self.observation,
-                                          num_outputs=self.goal_embedding_size,
+                                          num_outputs=1,
                                           activation_fn=tf.nn.relu,
                                           scope="sharpening_factor")
         self.query_goal = self.l2_normalize(goal_hat, 1)
