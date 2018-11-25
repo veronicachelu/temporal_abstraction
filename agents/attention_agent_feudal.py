@@ -337,7 +337,7 @@ class AttentionFeudalAgent(EigenOCAgentDyn):
     g_sums = self.episode_g_sums
     """Construct list of discounted returns using mixed reward signals for the entire n-step trajectory"""
     rewards_plus = np.asarray(rewards.tolist() + [bootstrap_value_ext])
-    discounted_returns = reward_discount(rewards_plus, self.config.discount)[:-1]
+    discounted_returns = reward_discount(rewards_plus, self.config.discount_reward)[:-1]
 
     # batch = (observations, actions, rewards, discounted_returns, random_goal_conds, goals, g_sums)
     batch = (observations, actions, rewards, discounted_returns, goals, g_sums)
@@ -378,7 +378,7 @@ class AttentionFeudalAgent(EigenOCAgentDyn):
     # rewards_mix = [r_i * self.config.alpha_r + (1 - self.config.alpha_r) * r_e for (r_i, r_e) in zip(ris, rewards)]
     rewards_mix = [r_i * self.config.alpha_r for (r_i, r_e) in zip(ris, rewards)]
     rewards_mix_plus = np.asarray(rewards_mix + [bootstrap_value_mix])
-    discounted_returns_mix = reward_discount(rewards_mix_plus, self.config.discount)[:-1]
+    discounted_returns_mix = reward_discount(rewards_mix_plus, self.config.discount_mix_reward)[:-1]
 
     feed_dict = {self.local_network.target_return: discounted_returns,
                  self.local_network.target_mix_return: discounted_returns_mix,
