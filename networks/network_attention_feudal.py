@@ -18,8 +18,6 @@ def normalized_columns_initializer(std=1.0):
 class AttentionFeudalNetwork(EignOCNetwork):
   def __init__(self, scope, config, action_size):
     self.goal_embedding_size = config.sf_layers[-1]
-    super(AttentionFeudalNetwork, self).__init__(scope, config, action_size)
-
     self.network_optimizer_sr = config.network_optimizer(
       self.config.lr_sr, name='network_optimizer_sr')
 
@@ -28,6 +26,8 @@ class AttentionFeudalNetwork(EignOCNetwork):
 
     self.network_optimizer_manager = config.network_optimizer(
       self.config.lr_manager, name='network_optimizer_manager')
+
+    super(AttentionFeudalNetwork, self).__init__(scope, config, action_size)
 
     if self.config.use_clustering:
       self.init_clustering()
