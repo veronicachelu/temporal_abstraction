@@ -85,11 +85,13 @@ class AttentionFeudalNetwork(EignOCNetwork):
                                                     num_outputs=self.goal_embedding_size,
                                                     activation_fn=None,
                                                     scope="goal_hat")
-        self.sharpening_factor = layers.fully_connected(self.observation,
-                                          num_outputs=1,
-                                          activation_fn=tf.nn.relu,
-                                          scope="sharpening_factor")
+
         self.query_goal = self.l2_normalize(goal_hat, 1)
+        self.sharpening_factor = layers.fully_connected(self.query_goal,
+                                                        num_outputs=1,
+                                                        activation_fn=tf.nn.relu,
+                                                        scope="sharpening_factor")
+        self.summaries_option.append(tf.contrib.layers.summarize_activation(self.sharpening_factor))
 
         self.query_content_match = tf.einsum('bj, ij -> bi', self.query_goal, self.goal_clusters, name="query_content_match")
         self.query_content_match_sharp = self.query_content_match * self.sharpening_factor
