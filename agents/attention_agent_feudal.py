@@ -171,7 +171,7 @@ class AttentionFeudalAgent(EigenOCAgentDyn):
       # "state_out": self.local_network.state_out,
       "g": self.local_network.g,
       "last_c_goals": self.local_network.last_c_g,
-      "sharpening_factor": self.local_network.sharpening_factor,
+      # "sharpening_factor": self.local_network.sharpening_factor,
       "query_goal": self.local_network.query_goal,
       "attention_weights": self.local_network.attention_weights,
       "query_content_match": self.local_network.query_content_match,
@@ -200,7 +200,7 @@ class AttentionFeudalAgent(EigenOCAgentDyn):
     # self.state = results["state_out"]
     # self.which_random_goal = results["which_random_goal"]
     self.global_episode_np = results["global_episode"]
-    self.sharpening_factor = results["sharpening_factor"][0][0]
+    self.sharpening_factor = self.config.sharpening_factor #results["sharpening_factor"][0][0]
     pi = results["g_policy"][0]
 
     """Sample an action"""
