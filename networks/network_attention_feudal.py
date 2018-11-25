@@ -49,12 +49,12 @@ class AttentionFeudalNetwork(EignOCNetwork):
 
       # hidden = tf.concat([self.observation, self.prev_rewards_expanded], 1, name="Concatenated_input")
 
-      goal_clusters = tf.placeholder(shape=[self.config.nb_options,
+      self.goal_clusters = tf.placeholder(shape=[self.config.nb_options,
                                                  self.goal_embedding_size],
                                           dtype=tf.float32,
                                           name="goal_clusters")
       # self.goal_clusters = tf.cast(tf.nn.l2_normalize(tf.cast(goal_clusters, tf.float64), 1), tf.float32)
-      self.goal_clusters = tf.nn.l2_normalize(goal_clusters, 1)
+      # self.goal_clusters = tf.nn.l2_normalize(goal_clusters, 1)
 
       self.image_summaries.append(
         tf.summary.image('observation', self.observation_image, max_outputs=30))
@@ -86,25 +86,21 @@ class AttentionFeudalNetwork(EignOCNetwork):
                                                     num_outputs=self.goal_embedding_size,
                                                     activation_fn=None,
                                                     scope="goal_hat")
-
-        # self.query_goal = tf.cast(tf.nn.l2_normalize(tf.cast(goal_hat, tf.float64), 1), tf.float32)
         self.query_goal = self.l2_normalize(goal_hat, 1)
-        # self.l2_normalize(goal_hat, 1)
-        self.sharpening_factor = layers.fully_connected(self.observation,
-                                                        num_outputs=1,
-                                                        activation_fn=tf.nn.relu,
-                                                        scope="sharpening_factor")
-        self.summaries_option.append(tf.contrib.layers.summarize_activation(self.sharpening_factor))
+        # self.sharpening_factor = layers.fully_connected(self.observation,
+        #                                                 num_outputs=1,
+        #                                                 activation_fn=tf.nn.relu,
+        #                                                 scope="sharpening_factor")
+        # self.summaries_option.append(tf.contrib.layers.summarize_activation(self.sharpening_factor))
 
         self.query_content_match = tf.einsum('bj, ij -> bi', self.query_goal, self.goal_clusters, name="query_content_match")
-        self.query_content_match_sharp = self.query_content_match * self.sharpening_factor
+        self.query_content_match_sharp = self.query_content_match * self.config.sharpening_factor
         self.goal_distribution = tf.contrib.distributions.RelaxedOneHotCategorical(self.config.temperature,
                                                                                    logits=self.query_content_match_sharp)
         self.attention_weights = self.goal_distribution.sample()
         self.current_unnormalized_goal = tf.einsum('bi, ij -> bj', self.attention_weights, self.goal_clusters, name="unnormalized_g")
-        # self.max_g = tf.cast(tf.nn.l2_normalize(tf.cast(self.current_unnormalized_goal, tf.float64), 1), tf.float32, name="g")
-        self.max_g = tf.identity(self.l2_normalize(self.current_unnormalized_goal, 1), name="g")
-        # self.max_g = self.current_unnormalized_goal
+        # self.max_g = tf.identity(self.l2_normalize(self.current_unnormalized_goal, 1), name="g")
+        self.g = self.current_unnormalized_goal
 
         """Take the random option with probability self.random_option_prob"""
         # self.local_random = tf.random_uniform(shape=[tf.shape(self.max_g)[0]], minval=0., maxval=1., dtype=tf.float32, name="rand_goals")
@@ -114,7 +110,7 @@ class AttentionFeudalNetwork(EignOCNetwork):
         # self.random_goal_cond = self.local_random > self.prob_of_random_goal
 
         # self.g = tf.where(self.random_goal_cond, self.max_g, self.random_g, name="current_goal")
-        self.g = self.max_g
+        # self.g = self.max_g
         # self.prev_goals_rand = tf.stop_gradient(tf.where(self.random_goal_cond, self.prev_goals, tf.tile(tf.expand_dims(self.g, 1), [1, self.config.c, 1])))
 
       with tf.variable_scope("option_manager_value_ext"):

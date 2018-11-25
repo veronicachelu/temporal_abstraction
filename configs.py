@@ -484,10 +484,10 @@ def attention_feudal():
 	final_random_goal_prob = 0
 	temperature = 1e-5
 	goal_projected_size = 64
-	starpening_factor = 10
+	sharpening_factor = 100
 	max_update_freq = 30
 	c = 2
-	cold_start_episodes = 5
+	cold_start_episodes = 1
 	"""The kind of agent to use in the environment"""
 	target_agent = AttentionFeudalAgent
 	"""The number test episodes to execute, over which to average results"""
