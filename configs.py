@@ -494,7 +494,7 @@ def attention_feudal():
 	lr_sr = 1e-2
 	lr_worker = 1e-2
 	lr_manager = 1e-3
-	c = 2
+	c = 4
 	cold_start_episodes = 5
 	"""The kind of agent to use in the environment"""
 	target_agent = AttentionFeudalAgent

@@ -903,3 +903,6 @@ class AttentionFeudalAgent(EigenOCAgentDyn):
     pickle.dump(self.global_network.goal_clusters, f, protocol=pickle.HIGHEST_PROTOCOL)
     f.close()
 
+  def cosine_similarity(self, u, v, eps=1e-8):
+    return (np.dot(np.squeeze(u), np.squeeze(v))
+            / (np.linalg.norm(u) * np.linalg.norm(v) + eps))

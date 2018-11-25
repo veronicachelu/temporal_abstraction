@@ -38,7 +38,7 @@ class AttentionFeudalNetwork(EignOCNetwork):
 
       self.target_sf = tf.placeholder(shape=[None, self.config.sf_layers[-1]], dtype=tf.float32, name="target_SF")
       self.target_goal = tf.placeholder(shape=[None, self.goal_embedding_size], dtype=tf.float32, name="target_goal")
-      self.prev_goals = tf.placeholder(shape=[None, None, self.goal_embedding_size], dtype=tf.float32, name="prev_goals")
+      self.prev_goals = tf.placeholder(shape=[None, self.config.c, self.goal_embedding_size], dtype=tf.float32, name="prev_goals")
       # self.found_goal = tf.placeholder(shape=[None, self.goal_embedding_size], dtype=tf.float32, name="found_goal")
       self.target_mix_return = tf.placeholder(shape=[None], dtype=tf.float32, name="target_mix_return")
       self.target_return = tf.placeholder(shape=[None], dtype=tf.float32, name="target_return")
@@ -64,7 +64,7 @@ class AttentionFeudalNetwork(EignOCNetwork):
                                           dtype=tf.float32,
                                           name="goal_clusters")
       # self.goal_clusters = tf.nn.l2_normalize(goal_clusters, 1)
-      self.goal_clusters = self.l2_normalize(goal_clusters, 1)
+      self.goal_clusters, mags = self.l2_normalize(goal_clusters, 1)
 
       self.image_summaries.append(
         tf.summary.image('observation', self.observation_image, max_outputs=30))
@@ -96,7 +96,7 @@ class AttentionFeudalNetwork(EignOCNetwork):
                                                     num_outputs=self.goal_embedding_size,
                                                     activation_fn=None,
                                                     scope="goal_hat")
-        self.query_goal = self.l2_normalize(goal_hat, 1)
+        self.query_goal, mag = self.l2_normalize(goal_hat, 1)
 
         self.query_content_match = tf.einsum('bj, ij -> bi', self.query_goal, self.goal_clusters, name="query_content_match")
         self.query_content_match_sharp = self.query_content_match * self.config.starpening_factor
@@ -104,7 +104,8 @@ class AttentionFeudalNetwork(EignOCNetwork):
                                                                                    logits=self.query_content_match_sharp)
         self.attention_weights = self.goal_distribution.sample()
         self.current_unnormalized_goal = tf.einsum('bi, ij -> bj', self.attention_weights, self.goal_clusters, name="unnormalized_g")
-        self.max_g = tf.identity(self.l2_normalize(self.current_unnormalized_goal, 1), name="g")
+        self.max_g, mag = self.l2_normalize(self.current_unnormalized_goal, 1)
+
         # self.max_g = self.current_unnormalized_goal
 
         """Take the random option with probability self.random_option_prob"""
@@ -217,8 +218,11 @@ class AttentionFeudalNetwork(EignOCNetwork):
       self.critic_loss = tf.reduce_mean(0.5 * tf.square(td_error))
 
     with tf.name_scope('goal_loss'):
+      dcos, dcos_mag = self.cosine_similarity(self.target_goal, self.g, 1)
+      self.mean_dcos = tf.reduce_mean(dcos)
+      self.mean_dcos_mag = tf.reduce_mean(dcos_mag)
       self.goal_loss = -tf.reduce_mean(
-        self.cosine_similarity(self.target_goal, self.g, 1) * tf.stop_gradient(td_error))
+        dcos * tf.stop_gradient(td_error))
 
     with tf.name_scope('entropy_loss'):
       self.entropy_loss = -self.entropy_coef * tf.reduce_mean(self.g_policy * tf.log(self.g_policy + 1e-7))
@@ -230,9 +234,9 @@ class AttentionFeudalNetwork(EignOCNetwork):
 
   def l2_normalize(self, x, axis):
       # norm = tf.sqrt(tf.reduce_sum(tf.square(x), axis=axis, keepdims=True))
-      norm = tf.stop_gradient(tf.norm(x, axis=axis, keep_dims=True))
+      norm = tf.stop_gradient(tf.norm(x, axis=axis, keep_dims=True)) + 1e-8
       # return tf.maximum(x, 1e-8) / tf.maximum(norm, 1e-8)
-      return x / tf.maximum(norm, 1e-8)
+      return x / norm, norm
 
   # def cosine_similarity(self, v1, v2, axis):
   #   norm_v1 = tf.nn.l2_normalize(tf.cast(v1, tf.float64), axis)
@@ -242,12 +246,12 @@ class AttentionFeudalNetwork(EignOCNetwork):
   #   return tf.cast(sim, tf.float32)
 
   def cosine_similarity(self, v1, v2, axis):
-    v1_norm = self.l2_normalize(v1, axis)
-    v2_norm = self.l2_normalize(v2, axis)
+    v1_norm, norm1 = self.l2_normalize(v1, axis)
+    v2_norm, norm2 = self.l2_normalize(v2, axis)
     sim = tf.matmul(
       v1_norm, v2_norm, transpose_b=True)
 
-    return sim
+    return sim, norm1 * norm2
 
   def take_gradient(self, loss, type_of_optimizer):
     if type_of_optimizer == "sr":
@@ -288,8 +292,9 @@ class AttentionFeudalNetwork(EignOCNetwork):
     self.merged_summary_critic = tf.summary.merge(self.summaries_critic +\
                                                   [tf.summary.scalar('Critic_loss', self.critic_loss),
                                                    gradient_summaries(zip(self.grads_critic, local_vars))])
-    self.merged_summary_goal = tf.summary.merge(
-                                                [tf.summary.scalar('goal_loss', self.goal_loss),
+    self.merged_summary_goal = tf.summary.merge([tf.summary.scalar("dcos", self.mean_dcos),
+                                                 tf.summary.scalar("dcos_magnitude", self.mean_dcos_mag),
+                                                tf.summary.scalar('goal_loss', self.goal_loss),
                                                  gradient_summaries(zip(self.grads_goal, local_vars))])
 
   def init_clustering(self):
