@@ -451,8 +451,6 @@ def attention_w_term():
 	checkpoint_interval = 1
 	cluster_interval = 1
 	cold_start_sf_episodes = 10
-	discount_reward = 0.999
-	discount_mix_reward = 0.99
 	"""The kind of agent to use in the environment"""
 	target_agent = AttentionWTermAgent
 	"""The number test episodes to execute, over which to average results"""
@@ -488,13 +486,13 @@ def attention_feudal():
 	goal_projected_size = 64
 	starpening_factor = 10
 	max_update_freq = 30
-	discount = 0.99
+	discount = 0.9999
 	discount_worker = 0.99
-	discount_manager = 0.99
+	discount_manager = 0.999
 	lr_sr = 1e-2
-	lr_worker = 1e-3
+	lr_worker = 1e-2
 	lr_manager = 1e-3
-	c = 2
+	c = 4
 	cold_start_episodes = 2
 	"""The kind of agent to use in the environment"""
 	target_agent = AttentionFeudalAgent
