@@ -104,14 +104,14 @@ class AttentionFeudalNetwork(EignOCNetwork):
                                                                                    logits=self.query_content_match_sharp)
         self.attention_weights = self.goal_distribution.sample()
         self.current_unnormalized_goal = tf.einsum('bi, ij -> bj', self.attention_weights, self.goal_clusters, name="unnormalized_g")
-        self.max_g = tf.identity(self.l2_normalize(self.current_unnormalized_goal, 1), name="g")
+        self.g = tf.identity(self.l2_normalize(self.current_unnormalized_goal, 1), name="g")
         # self.max_g = self.current_unnormalized_goal
         self.image_summaries_goal.append(tf.summary.image("goal", tf.reshape(
-          self.max_g, (-1, 13, 13, 1)), max_outputs=1))
+          self.g, (-1, 13, 13, 1)), max_outputs=1))
         self.image_summaries_goal.append(tf.summary.image("target_goal", tf.reshape(
           self.target_goal, (-1, 13, 13, 1)), max_outputs=1))
         self.image_summaries_goal.append(tf.summary.image("goal_mul_target_goal", tf.reshape(
-          tf.multiply(self.target_goal, self.max_g), (-1, 13, 13, 1)),
+          tf.multiply(self.target_goal, self.g), (-1, 13, 13, 1)),
                                                           max_outputs=1))
         """Take the random option with probability self.random_option_prob"""
         # self.local_random = tf.random_uniform(shape=[tf.shape(self.max_g)[0]], minval=0., maxval=1., dtype=tf.float32, name="rand_goals")
