@@ -233,10 +233,11 @@ class AttentionFeudalNetwork(EignOCNetwork):
     self.option_loss = self.policy_loss - self.entropy_loss + self.mix_critic_loss
 
   def l2_normalize(self, x, axis):
-      # norm = tf.sqrt(tf.reduce_sum(tf.square(x), axis=axis, keepdims=True))
-      norm = tf.norm(x, axis=axis, keep_dims=True) + 1e-8
+      norm = tf.sqrt(tf.reduce_sum(tf.square(x), axis=axis, keepdims=True))
+      # norm = tf.norm(x, axis=axis, keep_dims=True) + 1e-8
       # return tf.maximum(x, 1e-8) / tf.maximum(norm, 1e-8)
-      return x / norm, norm
+      return x / tf.maximum(norm, 1e-8)
+      # return x / norm, norm
 
   # def cosine_similarity(self, v1, v2, axis):
   #   norm_v1 = tf.nn.l2_normalize(tf.cast(v1, tf.float64), axis)
