@@ -375,7 +375,8 @@ class AttentionFeudalAgent(EigenOCAgentDyn):
       actions.append(new_actions[t])
       observations.append(new_observations[t])
 
-    rewards_mix = [r_i * self.config.alpha_r + (1 - self.config.alpha_r) * r_e for (r_i, r_e) in zip(ris, rewards)]
+    # rewards_mix = [r_i * self.config.alpha_r + (1 - self.config.alpha_r) * r_e for (r_i, r_e) in zip(ris, rewards)]
+    rewards_mix = [r_i * self.config.alpha_r for (r_i, r_e) in zip(ris, rewards)]
     rewards_mix_plus = np.asarray(rewards_mix + [bootstrap_value_mix])
     discounted_returns_mix = reward_discount(rewards_mix_plus, self.config.discount)[:-1]
 

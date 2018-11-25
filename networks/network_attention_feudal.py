@@ -85,15 +85,16 @@ class AttentionFeudalNetwork(EignOCNetwork):
                                                     num_outputs=self.goal_embedding_size,
                                                     activation_fn=None,
                                                     scope="goal_hat")
-        self.query_goal = self.l2_normalize(goal_hat, 1)
+        # self.query_goal = self.l2_normalize(goal_hat, 1)
+        self.query_goal = tf.nn.l2_normalize(goal_hat, 1)
 
         self.query_content_match = tf.einsum('bj, ij -> bi', self.query_goal, self.goal_clusters, name="query_content_match")
         self.query_content_match_sharp = self.query_content_match * self.config.sharpening_factor
         self.goal_distribution = tf.contrib.distributions.RelaxedOneHotCategorical(self.config.temperature,
                                                                                    logits=self.query_content_match_sharp)
         self.attention_weights = self.goal_distribution.sample()
-        self.current_unnormalized_goal = tf.einsum('bi, ij -> bj', self.attention_weights, self.goal_clusters, name="unnormalized_g")
-        self.max_g = tf.identity(self.l2_normalize(self.current_unnormalized_goal, 1), name="g")
+        self.g = tf.einsum('bi, ij -> bj', self.attention_weights, self.goal_clusters, name="unnormalized_g")
+        # self.max_g = tf.identity(self.l2_normalize(self.current_unnormalized_goal, 1), name="g")
         # self.max_g = self.current_unnormalized_goal
 
         """Take the random option with probability self.random_option_prob"""
@@ -104,7 +105,7 @@ class AttentionFeudalNetwork(EignOCNetwork):
         # self.random_goal_cond = self.local_random > self.prob_of_random_goal
 
         # self.g = tf.where(self.random_goal_cond, self.max_g, self.random_g, name="current_goal")
-        self.g = self.max_g
+        # self.g = self.max_g
         # self.prev_goals_rand = tf.stop_gradient(tf.where(self.random_goal_cond, self.prev_goals, tf.tile(tf.expand_dims(self.g, 1), [1, self.config.c, 1])))
 
       with tf.variable_scope("option_manager_value_ext"):
@@ -213,9 +214,9 @@ class AttentionFeudalNetwork(EignOCNetwork):
 
     self.option_loss = self.policy_loss - self.entropy_loss + self.mix_critic_loss
 
-  def l2_normalize(self, x, axis):
-      norm = tf.sqrt(tf.reduce_sum(tf.square(x), axis=axis, keepdims=True))
-      return tf.maximum(x, 1e-8) / tf.maximum(norm, 1e-8)
+  # def l2_normalize(self, x, axis):
+  #     norm = tf.sqrt(tf.reduce_sum(tf.square(x), axis=axis, keepdims=True))
+  #     return tf.maximum(x, 1e-8) / tf.maximum(norm, 1e-8)
 
   def cosine_similarity(self, v1, v2, axis):
     norm_v1 = tf.nn.l2_normalize(tf.cast(v1, tf.float64), axis)
@@ -230,7 +231,7 @@ class AttentionFeudalNetwork(EignOCNetwork):
   #   sim = tf.matmul(
   #     v1_norm, v2_norm, transpose_b=True)
 	#
-  #   return sim
+   #  return sim
 
   """Build gradients for the losses with respect to the network params.
       Build summaries and update ops"""
