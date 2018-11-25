@@ -59,12 +59,12 @@ class AttentionFeudalNetwork(EignOCNetwork):
 
       # hidden = tf.concat([self.observation, self.prev_rewards_expanded], 1, name="Concatenated_input")
 
-      goal_clusters = tf.placeholder(shape=[self.config.nb_options,
+      self.goal_clusters = tf.placeholder(shape=[self.config.nb_options,
                                                  self.goal_embedding_size],
                                           dtype=tf.float32,
                                           name="goal_clusters")
       # self.goal_clusters = tf.nn.l2_normalize(goal_clusters, 1)
-      self.goal_clusters, mags = self.l2_normalize(goal_clusters, 1)
+      # self.goal_clusters, mags = self.l2_normalize(goal_clusters, 1)
 
       self.image_summaries.append(
         tf.summary.image('observation', self.observation_image, max_outputs=30))
@@ -103,8 +103,8 @@ class AttentionFeudalNetwork(EignOCNetwork):
         self.goal_distribution = tf.contrib.distributions.RelaxedOneHotCategorical(self.config.temperature,
                                                                                    logits=self.query_content_match_sharp)
         self.attention_weights = self.goal_distribution.sample()
-        self.current_unnormalized_goal = tf.einsum('bi, ij -> bj', self.attention_weights, self.goal_clusters, name="unnormalized_g")
-        self.max_g, mag = self.l2_normalize(self.current_unnormalized_goal, 1)
+        self.g = tf.einsum('bi, ij -> bj', self.attention_weights, self.goal_clusters, name="unnormalized_g")
+        # self.max_g, mag = self.l2_normalize(self.current_unnormalized_goal, 1)
 
         # self.max_g = self.current_unnormalized_goal
 
@@ -116,7 +116,7 @@ class AttentionFeudalNetwork(EignOCNetwork):
         # self.random_goal_cond = self.local_random > self.prob_of_random_goal
 
         # self.g = tf.where(self.random_goal_cond, self.max_g, self.random_g, name="current_goal")
-        self.g = self.max_g
+        # self.g = self.max_g
         # self.prev_goals_rand = tf.stop_gradient(tf.where(self.random_goal_cond, self.prev_goals, tf.tile(tf.expand_dims(self.g, 1), [1, self.config.c, 1])))
 
       with tf.variable_scope("option_manager_value_ext"):
@@ -234,7 +234,7 @@ class AttentionFeudalNetwork(EignOCNetwork):
 
   def l2_normalize(self, x, axis):
       # norm = tf.sqrt(tf.reduce_sum(tf.square(x), axis=axis, keepdims=True))
-      norm = tf.stop_gradient(tf.norm(x, axis=axis, keep_dims=True)) + 1e-8
+      norm = tf.norm(x, axis=axis, keep_dims=True) + 1e-8
       # return tf.maximum(x, 1e-8) / tf.maximum(norm, 1e-8)
       return x / norm, norm
 
