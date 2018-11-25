@@ -53,8 +53,8 @@ class AttentionFeudalNetwork(EignOCNetwork):
                                                  self.goal_embedding_size],
                                           dtype=tf.float32,
                                           name="goal_clusters")
-      self.goal_clusters = tf.cast(tf.nn.l2_normalize(tf.cast(goal_clusters, tf.float64), 1), tf.float32)
-      # tf.nn.l2_normalize(goal_clusters, 1)
+      # self.goal_clusters = tf.cast(tf.nn.l2_normalize(tf.cast(goal_clusters, tf.float64), 1), tf.float32)
+      self.goal_clusters = tf.nn.l2_normalize(goal_clusters, 1)
 
       self.image_summaries.append(
         tf.summary.image('observation', self.observation_image, max_outputs=30))
@@ -87,7 +87,8 @@ class AttentionFeudalNetwork(EignOCNetwork):
                                                     activation_fn=None,
                                                     scope="goal_hat")
 
-        self.query_goal = tf.cast(tf.nn.l2_normalize(tf.cast(goal_hat, tf.float64), 1), tf.float32)
+        # self.query_goal = tf.cast(tf.nn.l2_normalize(tf.cast(goal_hat, tf.float64), 1), tf.float32)
+        self.query_goal = self.l2_normalize(goal_hat, 1)
         # self.l2_normalize(goal_hat, 1)
         self.sharpening_factor = layers.fully_connected(self.observation,
                                                         num_outputs=1,
@@ -101,8 +102,8 @@ class AttentionFeudalNetwork(EignOCNetwork):
                                                                                    logits=self.query_content_match_sharp)
         self.attention_weights = self.goal_distribution.sample()
         self.current_unnormalized_goal = tf.einsum('bi, ij -> bj', self.attention_weights, self.goal_clusters, name="unnormalized_g")
-        self.max_g = tf.cast(tf.nn.l2_normalize(tf.cast(self.current_unnormalized_goal, tf.float64), 1), tf.float32, name="g")
-        # tf.identity(self.l2_normalize(self.current_unnormalized_goal, 1), name="g")
+        # self.max_g = tf.cast(tf.nn.l2_normalize(tf.cast(self.current_unnormalized_goal, tf.float64), 1), tf.float32, name="g")
+        self.max_g = tf.identity(self.l2_normalize(self.current_unnormalized_goal, 1), name="g")
         # self.max_g = self.current_unnormalized_goal
 
         """Take the random option with probability self.random_option_prob"""
@@ -222,9 +223,9 @@ class AttentionFeudalNetwork(EignOCNetwork):
 
     self.option_loss = self.policy_loss - self.entropy_loss + self.mix_critic_loss
 
-  # def l2_normalize(self, x, axis):
-  #     norm = tf.sqrt(tf.reduce_sum(tf.square(x), axis=axis, keepdims=True))
-  #     return tf.maximum(x, 1e-8) / tf.maximum(norm, 1e-8)
+  def l2_normalize(self, x, axis):
+      norm = tf.sqrt(tf.reduce_sum(tf.square(x), axis=axis, keepdims=True))
+      return tf.maximum(x, 1e-8) / tf.maximum(norm, 1e-8)
 
   def cosine_similarity(self, v1, v2, axis):
     norm_v1 = tf.nn.l2_normalize(tf.cast(v1, tf.float64), axis)
