@@ -19,13 +19,13 @@ class AttentionFeudalNetwork(EignOCNetwork):
   def __init__(self, scope, config, action_size):
     self.goal_embedding_size = config.sf_layers[-1]
     self.network_optimizer_sr = config.network_optimizer(
-      self.config.lr_sr, name='network_optimizer_sr')
+      config.lr_sr, name='network_optimizer_sr')
 
     self.network_optimizer_worker = config.network_optimizer(
-      self.config.lr_worker, name='network_optimizer_worker')
+      config.lr_worker, name='network_optimizer_worker')
 
     self.network_optimizer_manager = config.network_optimizer(
-      self.config.lr_manager, name='network_optimizer_manager')
+      config.lr_manager, name='network_optimizer_manager')
 
     super(AttentionFeudalNetwork, self).__init__(scope, config, action_size)
 
