@@ -178,7 +178,7 @@ class AttentionFeudalNNNetwork(EignOCNetwork):
     """Building losses"""
     with tf.name_scope('sf_loss'):
       sf_td_error = self.target_sf - self.sf
-      self.sf_loss = tf.reduce_sum(self.config.sf_coef * huber_loss(sf_td_error))
+      self.sf_loss = tf.reduce_mean(self.config.sf_coef * huber_loss(sf_td_error))
 
     with tf.name_scope('aux_loss'):
       """L2 loss for the next frame prediction"""
@@ -187,21 +187,21 @@ class AttentionFeudalNNNetwork(EignOCNetwork):
 
     with tf.name_scope('mix_critic_loss'):
       mix_td_error = self.target_mix_return - self.v_mix
-      self.mix_critic_loss = tf.reduce_sum(0.5 * tf.square(mix_td_error))
+      self.mix_critic_loss = tf.reduce_mean(0.5 * tf.square(mix_td_error))
 
     with tf.name_scope('goal_critic_loss'):
       td_error = self.target_return - self.v_ext
-      self.critic_loss = tf.reduce_sum(0.5 * tf.square(td_error))
+      self.critic_loss = tf.reduce_mean(0.5 * tf.square(td_error))
 
     with tf.name_scope('goal_loss'):
       self.goal_loss = -tf.reduce_sum(
         self.cosine_similarity(self.target_goal, self.g, 1) * tf.stop_gradient(td_error))
 
     with tf.name_scope('entropy_loss'):
-      self.entropy_loss = -self.entropy_coef * tf.reduce_sum(self.g_policy * tf.log(self.g_policy + 1e-7))
+      self.entropy_loss = -self.entropy_coef * tf.reduce_mean(self.g_policy * tf.log(self.g_policy + 1e-7))
 
     with tf.name_scope('policy_loss'):
-      self.policy_loss = -tf.reduce_sum(tf.log(self.responsible_actions + 1e-7) * tf.stop_gradient(mix_td_error))
+      self.policy_loss = -tf.reduce_mean(tf.log(self.responsible_actions + 1e-7) * tf.stop_gradient(mix_td_error))
 
     self.option_loss = self.policy_loss - self.entropy_loss + self.mix_critic_loss
 
