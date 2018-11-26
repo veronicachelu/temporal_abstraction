@@ -208,7 +208,7 @@ class AttentionFeudalNNNetwork(EignOCNetwork):
     gradients = tf.gradients(loss, local_vars)
     var_norms = tf.global_norm(local_vars)
     grads, grad_norms = tf.clip_by_global_norm(gradients, self.config.gradient_clip_norm_value)
-    apply_grads = network_optimizer.apply_gradients(zip(grads, global_vars))
+    apply_grads = self.network_optimizer.apply_gradients(zip(grads, global_vars))
     return grads, apply_grads
 
   """Build gradients for the losses with respect to the network params.
