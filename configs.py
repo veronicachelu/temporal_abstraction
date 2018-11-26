@@ -468,7 +468,7 @@ def attention_feudal():
 	locals().update(attention())
 	fc_layers = 169,  # the number of layers and units in each layer mapping from input space to latent state representation
 	sf_layers = 169,
-	nb_options = 8
+	nb_options = 4
 	num_agents = 8
 	"""The maximum length of episodes in the environment"""
 	max_length = 1000
@@ -486,13 +486,13 @@ def attention_feudal():
 	goal_projected_size = 64
 	starpening_factor = 10
 	max_update_freq = 30
-	discount = 0.9999
+	discount = 0.99
 	discount_worker = 0.99
-	discount_manager = 0.999
-	lr_sr = 1e-2
-	lr_worker = 1e-2
+	discount_manager = 0.99
+	lr_sr = 1e-3
+	lr_worker = 1e-3
 	lr_manager = 1e-3
-	c = 4
+	c = 2
 	cold_start_episodes = 2
 	"""The kind of agent to use in the environment"""
 	target_agent = AttentionFeudalAgent

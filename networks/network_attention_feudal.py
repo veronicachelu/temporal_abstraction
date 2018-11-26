@@ -104,14 +104,14 @@ class AttentionFeudalNetwork(EignOCNetwork):
                                                                                    logits=self.query_content_match_sharp)
         self.attention_weights = self.goal_distribution.sample()
         self.current_unnormalized_goal = tf.einsum('bi, ij -> bj', self.attention_weights, self.goal_clusters, name="unnormalized_g")
-        self.g = tf.identity(self.l2_normalize(self.current_unnormalized_goal, 1), name="g")
+        self.max_g = tf.identity(self.l2_normalize(self.current_unnormalized_goal, 1), name="g")
         # self.max_g = self.current_unnormalized_goal
         self.image_summaries_goal.append(tf.summary.image("goal", tf.reshape(
-          self.g, (-1, 13, 13, 1)), max_outputs=1))
+          self.max_g, (-1, 13, 13, 1)), max_outputs=1))
         self.image_summaries_goal.append(tf.summary.image("target_goal", tf.reshape(
           self.target_goal, (-1, 13, 13, 1)), max_outputs=1))
         self.image_summaries_goal.append(tf.summary.image("goal_mul_target_goal", tf.reshape(
-          tf.multiply(self.target_goal, self.g), (-1, 13, 13, 1)),
+          tf.multiply(self.target_goal, self.max_g), (-1, 13, 13, 1)),
                                                           max_outputs=1))
         """Take the random option with probability self.random_option_prob"""
         # self.local_random = tf.random_uniform(shape=[tf.shape(self.max_g)[0]], minval=0., maxval=1., dtype=tf.float32, name="rand_goals")
@@ -121,7 +121,7 @@ class AttentionFeudalNetwork(EignOCNetwork):
         # self.random_goal_cond = self.local_random > self.prob_of_random_goal
 
         # self.g = tf.where(self.random_goal_cond, self.max_g, self.random_g, name="current_goal")
-        # self.g = self.max_g
+        self.g = self.max_g
         # self.prev_goals_rand = tf.stop_gradient(tf.where(self.random_goal_cond, self.prev_goals, tf.tile(tf.expand_dims(self.g, 1), [1, self.config.c, 1])))
 
       with tf.variable_scope("option_manager_value_ext"):
@@ -223,7 +223,7 @@ class AttentionFeudalNetwork(EignOCNetwork):
       self.critic_loss = tf.reduce_mean(0.5 * tf.square(td_error))
 
     with tf.name_scope('goal_loss'):
-      self.goal_loss = -tf.reduce_mean(
+      self.goal_loss = -tf.reduce_sum(
         self.cosine_similarity(self.target_goal, self.g, 1) * tf.stop_gradient(td_error))
 
     with tf.name_scope('entropy_loss'):
@@ -245,7 +245,7 @@ class AttentionFeudalNetwork(EignOCNetwork):
       norm_v1, norm_v2, transpose_b=True)
     return tf.cast(sim, tf.float32)
 
-    return sim, norm1 * norm2
+    # return sim, norm1 * norm2
 
   def take_gradient(self, loss, type_of_optimizer):
     if type_of_optimizer == "sr":
