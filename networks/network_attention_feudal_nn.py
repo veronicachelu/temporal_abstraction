@@ -114,13 +114,13 @@ class AttentionFeudalNNNetwork(EignOCNetwork):
         self.current_unnormalized_goal = tf.einsum('bi, ij -> bj', self.attention_weights, self.goal_clusters, name="unnormalized_g")
         self.g = tf.identity(self.l2_normalize(self.current_unnormalized_goal, 1), name="g")
         # self.max_g = self.current_unnormalized_goal
-        self.image_summaries_goal.append(tf.summary.image("goal", tf.reshape(
-          self.g, (-1, 13, 13, 1)), max_outputs=1))
-        self.image_summaries_goal.append(tf.summary.image("target_goal", tf.reshape(
-          self.target_goal, (-1, 13, 13, 1)), max_outputs=1))
-        self.image_summaries_goal.append(tf.summary.image("goal_mul_target_goal", tf.reshape(
-          tf.multiply(self.target_goal, self.g), (-1, 13, 13, 1)),
-                                                          max_outputs=1))
+        # self.image_summaries_goal.append(tf.summary.image("goal", tf.reshape(
+        #   self.g, (-1, 13, 13, 1)), max_outputs=1))
+        # self.image_summaries_goal.append(tf.summary.image("target_goal", tf.reshape(
+        #   self.target_goal, (-1, 13, 13, 1)), max_outputs=1))
+        # self.image_summaries_goal.append(tf.summary.image("goal_mul_target_goal", tf.reshape(
+        #   tf.multiply(self.target_goal, self.g), (-1, 13, 13, 1)),
+        #                                                   max_outputs=1))
 
       with tf.variable_scope("option_manager_value_ext"):
         extrinsic_features = layers.fully_connected(tf.stop_gradient(self.fi_relu),

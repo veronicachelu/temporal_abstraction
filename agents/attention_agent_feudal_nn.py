@@ -108,7 +108,7 @@ class AttentionFeudalNNAgent(EigenOCAgentDyn):
               self.aux_episode_buffer.popleft()
             self.aux_episode_buffer.append([s, s1, self.action])
 
-            self.episode_buffer_sf.append([s, s1, self.action])
+            self.episode_buffer_sf.append([s, self.fi, s1, self.action])
 
             self.next_frame_prediction()
             self.sf_prediction(s1)
@@ -173,11 +173,13 @@ class AttentionFeudalNNAgent(EigenOCAgentDyn):
       "sf": self.local_network.sf,
       "g_policy": self.local_network.g_policy,
       "g_sum": self.local_network.g_sum,
+      "fi": self.local_network.fi,
       "global_episode": self.global_episode}
 
     results = self.sess.run(tensor_results, feed_dict=feed_dict)
 
     self.g = results["g"][0]
+    self.fi = results["fi"][0]
     self.g_sum = results["g_sum"][0]
     self.last_c_g = results["last_c_goals"]
     self.query_goal = results["query_goal"][0]
@@ -203,7 +205,7 @@ class AttentionFeudalNNAgent(EigenOCAgentDyn):
   def option_prediction(self, s, s1):
     """Adding to the transition buffer for doing n-step prediction on critics and policies"""
     self.episode_buffer_option.append(
-      [s, self.action, self.reward, s1])
+      [s, self.action, self.reward, s1, self.fi])
     self.episode_goals.append(self.g)
     self.episode_g_sums.append(self.g_sum)
 
@@ -249,10 +251,8 @@ class AttentionFeudalNNAgent(EigenOCAgentDyn):
   def train_sf(self, bootstrap_sf):
     rollout = np.array(self.episode_buffer_sf)
     observations = rollout[:, 0]
+    fi = rollout[:, 1]
 
-    feed_dict = {self.local_network.observation: np.stack(observations, axis=0)}
-    fi = self.sess.run(self.local_network.fi,
-                       feed_dict=feed_dict)
     """Construct list of latent representations for the entire trajectory"""
     sf_plus = np.asarray(fi.tolist() + [bootstrap_sf])
     """Construct the targets for the next step successor representations for the entire trajectory"""
@@ -273,19 +273,21 @@ class AttentionFeudalNNAgent(EigenOCAgentDyn):
     self.global_network.goal_clusters.cluster(sf)
 
   def extend(self, batch):
-    (observations, actions, rewards, discounted_returns, goals, g_sums) = batch
-    new_observations, new_actions, new_rewards, new_discounted_returns, new_goals, new_g_sums = \
-      [], [], [], [], [], []
+    (observations, fi, actions, rewards, discounted_returns, goals, g_sums) = batch
+    new_observations, new_fi, new_actions, new_rewards, new_discounted_returns, new_goals, new_g_sums = \
+      [], [], [], [], [], [], []
     if self.last_batch_done:
-      new_observations = [observations[0] for _ in range(self.config.c)]
+      new_fi = [fi[0] for _ in range(self.config.c)]
       new_goals = [goals[0] for _ in range(self.config.c)]
       new_actions = [None for _ in range(self.config.c)]
       new_discounted_returns = [None for _ in range(self.config.c)]
       new_rewards = [None for _ in range(self.config.c)]
       new_g_sums = [None for _ in range(self.config.c)]
+      new_observations = [None for _ in range(self.config.c)]
 
     # extend with the actual values
     new_observations.extend(observations)
+    new_fi.extend(fi)
     new_goals.extend(goals)
     new_rewards.extend(rewards)
     new_discounted_returns.extend(discounted_returns)
@@ -295,44 +297,45 @@ class AttentionFeudalNNAgent(EigenOCAgentDyn):
     # if this is a terminal batch, then append the final s and g c times
     # note that both this and the above case can occur at the same time
     if self.done:
-      new_observations.extend([observations[-1] for _ in range(self.config.c)])
+      new_fi.extend([fi[-1] for _ in range(self.config.c)])
       new_goals.extend([goals[-1] for _ in range(self.config.c)])
 
-    return new_observations, new_actions, new_rewards, new_discounted_returns, new_goals, new_g_sums
+    return new_observations, new_fi, new_actions, new_rewards, new_discounted_returns, new_goals, new_g_sums
 
   """Do n-step prediction on the critics and policies"""
   def train_goal(self, bootstrap_value_mix, bootstrap_value_ext, s1):
     rollout = np.array(self.episode_buffer_option)
-    observations = np.array(rollout[:, 0], dtype=np.int32)
+    observations = rollout[:, 0]
     actions = rollout[:, 1]
     rewards = rollout[:, 2]
+    fi = rollout[:, 4]
     goals = self.episode_goals
     g_sums = self.episode_g_sums
     """Construct list of discounted returns using mixed reward signals for the entire n-step trajectory"""
     rewards_plus = np.asarray(rewards.tolist() + [bootstrap_value_ext])
     discounted_returns = reward_discount(rewards_plus, self.config.discount_manager)[:-1]
 
-    batch = (observations, actions, rewards, discounted_returns, goals, g_sums)
+    batch = (observations, fi, actions, rewards, discounted_returns, goals, g_sums)
 
     new_batch = self.extend(batch)
-    new_observations, new_actions, new_rewards, new_discounted_returns, new_goals, new_g_sums = new_batch
+    new_observations, new_fi, new_actions, new_rewards, new_discounted_returns, new_goals, new_g_sums = new_batch
 
     c = self.config.c
     batch_len = len(new_actions)
     end = batch_len if self.done else batch_len - c
 
-    observations, actions, rewards, discounted_returns, goals, g_sums = \
-      [], [], [], [], [], []
+    observations, fi, actions, rewards, discounted_returns, goals, g_sums = \
+      [], [], [], [], [], [], []
     target_goals = []
     ris = []
 
     for t in range(c, end):
-      target_goal = np.identity(self.nb_states)[new_observations[t + c]] - np.identity(self.nb_states)[new_observations[t]]
+      target_goal = new_fi[t + c] - new_fi[t]
       target_goals.append(target_goal)
 
       ri = 0
       for i in range(1, c + 1):
-        ri_s_diff = np.identity(self.nb_states)[new_observations[t]] - np.identity(self.nb_states)[new_observations[t - i]]
+        ri_s_diff = new_fi[t] - new_fi[t - i]
         ri += self.cosine_similarity(ri_s_diff, new_goals[t - i])
       ri /= c
 
@@ -343,6 +346,7 @@ class AttentionFeudalNNAgent(EigenOCAgentDyn):
       g_sums.append(new_g_sums[t])
       actions.append(new_actions[t])
       observations.append(new_observations[t])
+      fi.append(new_fi[t])
 
     rewards_mix = [r_i * self.config.alpha_r + (1 - self.config.alpha_r) * r_e for (r_i, r_e) in zip(ris, rewards)]
     rewards_mix_plus = np.asarray(rewards_mix + [bootstrap_value_mix])
@@ -350,7 +354,7 @@ class AttentionFeudalNNAgent(EigenOCAgentDyn):
 
     feed_dict = {self.local_network.target_return: discounted_returns,
                  self.local_network.target_mix_return: discounted_returns_mix,
-                 self.local_network.observation: np.identity(self.nb_states)[observations],
+                 self.local_network.observation: np.stack(observations, axis=0),
                  self.local_network.target_goal: np.stack(target_goals, 0),
                  self.local_network.actions_placeholder: actions,
                  self.local_network.goal_clusters: self.global_network.goal_clusters.get_clusters(),
