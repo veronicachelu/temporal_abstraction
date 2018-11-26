@@ -194,8 +194,8 @@ class AttentionFeudalNNAgent(EigenOCAgentDyn):
     pi = results["g_policy"][0]
 
     """Sample an action"""
-    self.action = np.random.choice(pi, p=pi)
-    self.action = np.argmax(pi == self.action)
+    # self.action = np.random.choice(pi, p=pi)
+    # self.action = np.argmax(pi == self.action)
     # if self.global_episode_np < self.config.cold_start_episodes:
     self.action = np.random.choice(range(self.action_size))
 
@@ -459,126 +459,99 @@ class AttentionFeudalNNAgent(EigenOCAgentDyn):
 
     self.summary_writer.add_summary(self.summary, self.global_episode_np)
     self.summary_writer.flush()
-
-  """Plot plicies and value functions"""
-
-  def plot_policy_and_value_function(self, eigenvectors):
-    epsilon = 0.0001
-    with self.sess.as_default(), self.sess.graph.as_default():
-      self.env.define_network(self.local_network)
-      self.env.define_session(self.sess)
-      for i in range(len(eigenvectors)):
-        """Do policy iteration"""
-        discount = 0.9
-        polIter = PolicyIteration(discount, self.env, augmentActionSet=True)
-        """Use the goal of the eigenvector as intrinsic reward for the policy iteration algorithm"""
-        self.env.define_reward_function(eigenvectors[i])
-        """Get the optimal value function and policy"""
-        V, pi = polIter.solvePolicyIteration()
-
-        for j in range(len(V)):
-          if V[j] < epsilon:
-            pi[j] = len(self.env.get_action_set())
-
-        """Plot them"""
-        self.plot_value_function(V[0:self.nb_states], str(i) + "_")
-        self.plot_policy(pi[0:self.nb_states], str(i) + "_")
-
-  """Plot value functions"""
-  def plot_value_function(self, value_function, prefix):
-    fig, ax = plt.subplots(subplot_kw=dict(projection='3d'))
-    X, Y = np.meshgrid(np.arange(self.config.input_size[1]), np.arange(self.config.input_size[0]))
-    reproj_value_function = value_function.reshape(self.config.input_size[0], self.config.input_size[1])
-
-    """Build the support"""
-    for i in range(len(X)):
-      for j in range(int(len(X[i]) / 2)):
-        tmp = X[i][j]
-        X[i][j] = X[i][len(X[i]) - j - 1]
-        X[i][len(X[i]) - j - 1] = tmp
-
-    cm.jet(np.random.rand(reproj_value_function.shape[0], reproj_value_function.shape[1]))
-
-    ax.plot_surface(X, Y, reproj_value_function, rstride=1, cstride=1,
-                    cmap=plt.get_cmap('jet'))
-    plt.gca().view_init(elev=30, azim=30)
-    plt.savefig(os.path.join(self.v_folder, "SuccessorFeatures" + prefix + 'value_function.png'))
-    plt.close()
-
-  """Plot the policy"""
-  def plot_policy(self, policy, prefix):
-    plt.clf()
-    for idx in range(len(policy)):
-      i, j = self.env.get_state_xy(idx)
-
-      dx = 0
-      dy = 0
-      if policy[idx] == 0:  # up
-        dy = 0.35
-      elif policy[idx] == 1:  # right
-        dx = 0.35
-      elif policy[idx] == 2:  # down
-        dy = -0.35
-      elif policy[idx] == 3:  # left
-        dx = -0.35
-      elif self.env.not_wall(i, j) and policy[idx] == 4:  # termination
-        circle = plt.Circle(
-          (j + 0.5, self.config.input_size[0] - i + 0.5 - 1), 0.025, color='k')
-        plt.gca().add_artist(circle)
-
-      if self.env.not_wall(i, j):
-        plt.arrow(j + 0.5, self.config.input_size[0] - i + 0.5 - 1, dx, dy,
-                  head_width=0.05, head_length=0.05, fc='k', ec='k')
-      else:
-        plt.gca().add_patch(
-          patches.Rectangle(
-            (j, self.config.input_size[0] - i - 1),  # (x,y)
-            1.0,  # width
-            1.0,  # height
-            facecolor="gray"
-          )
-        )
-
-    plt.xlim([0, self.config.input_size[1]])
-    plt.ylim([0, self.config.input_size[0]])
-
-    for i in range(self.config.input_size[1]):
-      plt.axvline(i, color='k', linestyle=':')
-    plt.axvline(self.config.input_size[1], color='k', linestyle=':')
-
-    for j in range(self.config.input_size[0]):
-      plt.axhline(j, color='k', linestyle=':')
-    plt.axhline(self.config.input_size[0], color='k', linestyle=':')
-
-    plt.savefig(os.path.join(self.policy_folder, "SuccessorFeatures_" + prefix + 'policy.png'))
-    plt.close()
-
-  """Reproject and plot cluster goals"""
-  def plot_clusters(self, clusters):
-    plt.clf()
-    for i in range(len(clusters)):
-      reproj_eigenvector = clusters[i].reshape(self.config.input_size[0], self.config.input_size[1])
-      """Take both signs"""
-      """Plot of the eigenvector"""
-      ax = sns.heatmap(reproj_eigenvector, cmap="Blues")
-
-      """Adding borders"""
-      for idx in range(self.nb_states):
-        ii, jj = self.env.get_state_xy(idx)
-        if self.env.not_wall(ii, jj):
-          continue
-        else:
-          plt.gca().add_patch(
-            patches.Rectangle(
-              (jj, self.config.input_size[0] - ii - 1),  # (x,y)
-              1.0,  # width
-              1.0,  # height
-              facecolor="gray"
-            )
-          )
-      """Saving plots"""
-      plt.savefig(os.path.join(self.clusters_folder, ("goal" + str(i) + '.png')))
-      plt.close()
+	#
+  # """Plot plicies and value functions"""
+	#
+  # def plot_policy_and_value_function(self, eigenvectors):
+  #   epsilon = 0.0001
+  #   with self.sess.as_default(), self.sess.graph.as_default():
+  #     self.env.define_network(self.local_network)
+  #     self.env.define_session(self.sess)
+  #     for i in range(len(eigenvectors)):
+  #       """Do policy iteration"""
+  #       discount = 0.9
+  #       polIter = PolicyIteration(discount, self.env, augmentActionSet=True)
+  #       """Use the goal of the eigenvector as intrinsic reward for the policy iteration algorithm"""
+  #       self.env.define_reward_function(eigenvectors[i])
+  #       """Get the optimal value function and policy"""
+  #       V, pi = polIter.solvePolicyIteration()
+	#
+  #       for j in range(len(V)):
+  #         if V[j] < epsilon:
+  #           pi[j] = len(self.env.get_action_set())
+	#
+  #       """Plot them"""
+  #       self.plot_value_function(V[0:self.nb_states], str(i) + "_")
+  #       self.plot_policy(pi[0:self.nb_states], str(i) + "_")
+	#
+  # """Plot value functions"""
+  # def plot_value_function(self, value_function, prefix):
+  #   fig, ax = plt.subplots(subplot_kw=dict(projection='3d'))
+  #   X, Y = np.meshgrid(np.arange(self.config.input_size[1]), np.arange(self.config.input_size[0]))
+  #   reproj_value_function = value_function.reshape(self.config.input_size[0], self.config.input_size[1])
+	#
+  #   """Build the support"""
+  #   for i in range(len(X)):
+  #     for j in range(int(len(X[i]) / 2)):
+  #       tmp = X[i][j]
+  #       X[i][j] = X[i][len(X[i]) - j - 1]
+  #       X[i][len(X[i]) - j - 1] = tmp
+	#
+  #   cm.jet(np.random.rand(reproj_value_function.shape[0], reproj_value_function.shape[1]))
+	#
+  #   ax.plot_surface(X, Y, reproj_value_function, rstride=1, cstride=1,
+  #                   cmap=plt.get_cmap('jet'))
+  #   plt.gca().view_init(elev=30, azim=30)
+  #   plt.savefig(os.path.join(self.v_folder, "SuccessorFeatures" + prefix + 'value_function.png'))
+  #   plt.close()
+	#
+  # """Plot the policy"""
+  # def plot_policy(self, policy, prefix):
+  #   plt.clf()
+  #   for idx in range(len(policy)):
+  #     i, j = self.env.get_state_xy(idx)
+	#
+  #     dx = 0
+  #     dy = 0
+  #     if policy[idx] == 0:  # up
+  #       dy = 0.35
+  #     elif policy[idx] == 1:  # right
+  #       dx = 0.35
+  #     elif policy[idx] == 2:  # down
+  #       dy = -0.35
+  #     elif policy[idx] == 3:  # left
+  #       dx = -0.35
+  #     elif self.env.not_wall(i, j) and policy[idx] == 4:  # termination
+  #       circle = plt.Circle(
+  #         (j + 0.5, self.config.input_size[0] - i + 0.5 - 1), 0.025, color='k')
+  #       plt.gca().add_artist(circle)
+	#
+  #     if self.env.not_wall(i, j):
+  #       plt.arrow(j + 0.5, self.config.input_size[0] - i + 0.5 - 1, dx, dy,
+  #                 head_width=0.05, head_length=0.05, fc='k', ec='k')
+  #     else:
+  #       plt.gca().add_patch(
+  #         patches.Rectangle(
+  #           (j, self.config.input_size[0] - i - 1),  # (x,y)
+  #           1.0,  # width
+  #           1.0,  # height
+  #           facecolor="gray"
+  #         )
+  #       )
+	#
+  #   plt.xlim([0, self.config.input_size[1]])
+  #   plt.ylim([0, self.config.input_size[0]])
+	#
+  #   for i in range(self.config.input_size[1]):
+  #     plt.axvline(i, color='k', linestyle=':')
+  #   plt.axvline(self.config.input_size[1], color='k', linestyle=':')
+	#
+  #   for j in range(self.config.input_size[0]):
+  #     plt.axhline(j, color='k', linestyle=':')
+  #   plt.axhline(self.config.input_size[0], color='k', linestyle=':')
+	#
+  #   plt.savefig(os.path.join(self.policy_folder, "SuccessorFeatures_" + prefix + 'policy.png'))
+  #   plt.close()
 
   def print_g(self):
     plt.clf()
@@ -760,65 +733,6 @@ class AttentionFeudalNNAgent(EigenOCAgentDyn):
     plt.savefig(os.path.join(self.policy_folder, f'g_{self.global_step_np}_{self.global_episode_np}.png'))
     plt.close()
 
-  # def evaluate(self, coord, saver):
-  #   self.saver = saver
-	#
-  #   with self.sess.as_default(), self.sess.graph.as_default():
-  #     self.init_agent()
-  #     self.sync_threads()
-	#
-  #     task_perf = []
-  #     for goal_location in self.config.goal_locations:
-  #       perf_length = []
-  #       self.env.move_goal_to(goal_location)
-  #       goal_index = self.env.get_state_index(goal_location[0], goal_location[1])
-  #       self.goal_sf = self.sess.run(self.local_network.sf, {self.local_network.observation: np.identity(self.nb_states)[goal_index:goal_index+1],
-  #                                             self.local_network.goal_clusters: self.global_network.goal_clusters.get_clusters()
-  #                                             })
-	#
-  #       for _ in range(self.config.nb_test_ep):
-  #         """update local network parameters from global network"""
-	#
-  #         self.init_episode()
-	#
-  #         """Reset the environment and get the initial state"""
-  #         s = self.env.get_initial_state()
-	#
-  #         """While the episode does not terminate"""
-  #         while not self.done:
-  #           """update local network parameters from global network"""
-  #           self.sync_threads()
-	#
-  #           """Choose an action from the current intra-option policy"""
-  #           self.policy_evaluation(s)
-	#
-  #           _, r, self.done, s1 = self.env.special_step(self.action, s)
-	#
-  #           self.reward = r
-  #           self.episode_reward += self.reward
-	#
-  #           """If the episode ended make the last state absorbing"""
-  #           if self.done:
-  #             s1 = s
-	#
-  #           self.reward_mix = self.reward
-  #           self.episode_mixed_reward += self.reward_mix
-	#
-  #           s = s1
-  #           self.episode_length += 1
-  #           self.total_steps += 1
-	#
-  #         print(f"Episode length {self.episode_length} for goal location {goal_location}")
-  #         perf_length.append(self.episode_length)
-	#
-  #       task_performance = np.mean(perf_length)
-  #       task_perf.append(task_performance)
-	#
-  #   plt.clf()
-  #   plt.bar(f"{self.config.goal_locations[0]}, {self.config.goal_locations[1]}", task_perf, 1/1.5, color="blue")
-  #   plt.savefig(os.path.join(self.learning_progress_folder, f'Learning_progress.png'))
-  #   plt.close()
-
   def save_model(self):
     self.saver.save(self.sess, self.model_path + '/model-{}.cptk'.format(self.global_episode_np),
                     global_step=self.global_episode)
@@ -830,6 +744,101 @@ class AttentionFeudalNNAgent(EigenOCAgentDyn):
     pickle.dump(self.global_network.goal_clusters, f, protocol=pickle.HIGHEST_PROTOCOL)
     f.close()
 
-  # def cosine_similarity(self, u, v, eps=1e-8):
-  #   return (np.dot(np.squeeze(u), np.squeeze(v))
-  #           / (np.linalg.norm(u) * np.linalg.norm(v) + eps))
+  """Plot plicies and value functions"""
+  def plot_clusters(self):
+    clusters = self.global_network.goal_clusters.get_clusters()
+    policy_folder = os.path.join(self.summary_path, "policies")
+    tf.gfile.MakeDirs(policy_folder)
+
+    v_folder = os.path.join(self.summary_path, "value_functions")
+    tf.gfile.MakeDirs(v_folder)
+    epsilon = 0.0001
+    with self.sess.as_default(), self.sess.graph.as_default():
+      self.env.define_network(self.local_network)
+      self.env.define_session(self.sess)
+      for i in range(len(clusters)):
+        """Do policy iteration"""
+        discount = 0.9
+        polIter = PolicyIteration(discount, self.env, augmentActionSet=True)
+        """Use the direction of the eigenvector as intrinsic reward for the policy iteration algorithm"""
+        self.env.define_reward_function(clusters[i])
+        """Get the optimal value function and policy"""
+        V, pi = polIter.solvePolicyIteration()
+
+        for j in range(len(V)):
+          if V[j] < epsilon:
+            pi[j] = len(self.env.get_action_set())
+
+        """Plot them"""
+        self.plot_value_function(V[0:self.nb_states], str(i) + '_', v_folder)
+        self.plot_policy(pi[0:self.nb_states], str(i) + '_', policy_folder)
+
+  """Plot value functions"""
+  def plot_value_function(self, value_function, prefix, v_folder):
+    fig, ax = plt.subplots(subplot_kw=dict(projection='3d'))
+    X, Y = np.meshgrid(np.arange(self.config.input_size[1]), np.arange(self.config.input_size[0]))
+    reproj_value_function = value_function.reshape(self.config.input_size[0], self.config.input_size[1])
+
+    """Build the support"""
+    for i in range(len(X)):
+      for j in range(int(len(X[i]) / 2)):
+        tmp = X[i][j]
+        X[i][j] = X[i][len(X[i]) - j - 1]
+        X[i][len(X[i]) - j - 1] = tmp
+
+    cm.jet(np.random.rand(reproj_value_function.shape[0], reproj_value_function.shape[1]))
+
+    ax.plot_surface(X, Y, reproj_value_function, rstride=1, cstride=1,
+                    cmap=plt.get_cmap('jet'))
+    plt.gca().view_init(elev=30, azim=30)
+    plt.savefig(os.path.join(v_folder, "SuccessorFeatures" + prefix + 'value_function.png'))
+    plt.close()
+
+  """Plot the policy"""
+
+  def plot_policy(self, policy, prefix, policy_folder):
+    plt.clf()
+    for idx in range(len(policy)):
+      i, j = self.env.get_state_xy(idx)
+
+      dx = 0
+      dy = 0
+      if policy[idx] == 0:  # up
+        dy = 0.35
+      elif policy[idx] == 1:  # right
+        dx = 0.35
+      elif policy[idx] == 2:  # down
+        dy = -0.35
+      elif policy[idx] == 3:  # left
+        dx = -0.35
+      elif self.env.not_wall(i, j) and policy[idx] == 4:  # termination
+        circle = plt.Circle(
+          (j + 0.5, self.config.input_size[0] - i + 0.5 - 1), 0.025, color='k')
+        plt.gca().add_artist(circle)
+
+      if self.env.not_wall(i, j):
+        plt.arrow(j + 0.5, self.config.input_size[0] - i + 0.5 - 1, dx, dy,
+                  head_width=0.05, head_length=0.05, fc='k', ec='k')
+      else:
+        plt.gca().add_patch(
+          patches.Rectangle(
+            (j, self.config.input_size[0] - i - 1),  # (x,y)
+            1.0,  # width
+            1.0,  # height
+            facecolor="gray"
+          )
+        )
+
+    plt.xlim([0, self.config.input_size[1]])
+    plt.ylim([0, self.config.input_size[0]])
+
+    for i in range(self.config.input_size[1]):
+      plt.axvline(i, color='k', linestyle=':')
+    plt.axvline(self.config.input_size[1], color='k', linestyle=':')
+
+    for j in range(self.config.input_size[0]):
+      plt.axhline(j, color='k', linestyle=':')
+    plt.axhline(self.config.input_size[0], color='k', linestyle=':')
+
+    plt.savefig(os.path.join(policy_folder, "SuccessorFeatures_" + prefix + 'policy.png'))
+    plt.close()

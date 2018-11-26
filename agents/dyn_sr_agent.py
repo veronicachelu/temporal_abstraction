@@ -160,8 +160,7 @@ class DynSRAgent():
 
           self.episode_reward += r
           self.episode_length += 1
-          s = s1
-          self.total_steps += 1
+
 
           """When we are done observing - warm start"""
           if self.total_steps > self.config.observation_steps:
@@ -183,6 +182,10 @@ class DynSRAgent():
 
               """Clear buffer for the next n steps"""
               episode_buffer = []
+              
+          s = s1
+          self.total_steps += 1
+
 
           if self.name == "worker_0":
             self.sess.run(self.increment_global_step)

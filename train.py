@@ -64,7 +64,7 @@ def run(config, logdir):
                     in
                     range(config.num_agents)]
           # agent = config.target_agent(sess, envs[0], 0, global_step, global_episode, config, global_network, b)
-      elif FLAGS.task == "plot_options":
+      elif FLAGS.task == "plot_options" or FLAGS.task == "plot_clusters":
         with tf.device("/cpu:0"):
           agent = config.target_agent(sess, envs[0], 0, global_step, global_episode, config, global_network, b)
       elif FLAGS.task == "eigenoption":
@@ -100,6 +100,10 @@ def run(config, logdir):
         thread = threading.Thread(target=(lambda: agent.cluster(coord)))
         thread.start()
         agent_threads.append(thread)
+    elif FLAGS.task == "plot_clusters":
+      thread = threading.Thread(target=(lambda: agent.plot_clusters()))
+      thread.start()
+      agent_threads.append(thread)
     elif FLAGS.task == "plot_options":
       thread = threading.Thread(target=(lambda: agent.plot_high_level_directions(coord, saver)))
       thread.start()

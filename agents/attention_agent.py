@@ -94,8 +94,8 @@ class AttentionAgent(EigenOCAgentDyn):
             self.episode_screens.append(s_screen)
 
             self.sf_prediction(s1)
-            if self.global_episode_np >= self.config.cold_start_episodes:
-              self.option_prediction(s, s1)
+            # if self.global_episode_np >= self.config.cold_start_episodes:
+            #   self.option_prediction(s, s1)
 
             if self.total_steps % self.config.step_summary_interval == 0 and self.name == 'worker_0':
               self.write_step_summary()
@@ -165,8 +165,8 @@ class AttentionAgent(EigenOCAgentDyn):
     """Sample an action"""
     self.action = np.random.choice(pi, p=pi)
     self.action = np.argmax(pi == self.action)
-    if self.global_episode_np < self.config.cold_start_episodes:
-      self.action = np.random.choice(range(self.action_size))
+    # if self.global_episode_np < self.config.cold_start_episodes:
+    self.action = np.random.choice(range(self.action_size))
     """Store information in buffers for stats in tensorboard"""
     self.episode_actions.append(self.action)
 
@@ -662,3 +662,103 @@ class AttentionAgent(EigenOCAgentDyn):
     pickle.dump(self.global_network.goal_clusters, f, protocol=pickle.HIGHEST_PROTOCOL)
     f.close()
 
+  """Plot plicies and value functions"""
+
+  def plot_clusters(self):
+    clusters = self.global_network.goal_clusters.get_clusters()
+    policy_folder = os.path.join(self.summary_path, "policies")
+    tf.gfile.MakeDirs(policy_folder)
+
+    v_folder = os.path.join(self.summary_path, "value_functions")
+    tf.gfile.MakeDirs(v_folder)
+    epsilon = 0.0001
+    with self.sess.as_default(), self.sess.graph.as_default():
+      # self.env.define_network(self.local_network)
+      # self.env.define_session(self.sess)
+      for i in range(len(clusters)):
+        """Do policy iteration"""
+        discount = 0.9
+        polIter = PolicyIteration(discount, self.env, augmentActionSet=True)
+        """Use the direction of the eigenvector as intrinsic reward for the policy iteration algorithm"""
+        self.env.define_reward_function(clusters[i])
+        """Get the optimal value function and policy"""
+        V, pi = polIter.solvePolicyIteration()
+
+        for j in range(len(V)):
+          if V[j] < epsilon:
+            pi[j] = len(self.env.get_action_set())
+
+        """Plot them"""
+        self.plot_value_function_(V[0:self.nb_states], str(i) + '_', v_folder)
+        self.plot_policy_(pi[0:self.nb_states], str(i) + '_', policy_folder)
+
+  """Plot value functions"""
+
+  def plot_value_function_(self, value_function, prefix, v_folder):
+    fig, ax = plt.subplots(subplot_kw=dict(projection='3d'))
+    X, Y = np.meshgrid(np.arange(self.config.input_size[1]), np.arange(self.config.input_size[0]))
+    reproj_value_function = value_function.reshape(self.config.input_size[0], self.config.input_size[1])
+
+    """Build the support"""
+    for i in range(len(X)):
+      for j in range(int(len(X[i]) / 2)):
+        tmp = X[i][j]
+        X[i][j] = X[i][len(X[i]) - j - 1]
+        X[i][len(X[i]) - j - 1] = tmp
+
+    cm.jet(np.random.rand(reproj_value_function.shape[0], reproj_value_function.shape[1]))
+
+    ax.plot_surface(X, Y, reproj_value_function, rstride=1, cstride=1,
+                    cmap=plt.get_cmap('jet'))
+    plt.gca().view_init(elev=30, azim=30)
+    plt.savefig(os.path.join(v_folder, "SuccessorFeatures" + prefix + 'value_function.png'))
+    plt.close()
+
+  """Plot the policy"""
+
+  def plot_policy_(self, policy, prefix, policy_folder):
+    plt.clf()
+    for idx in range(len(policy)):
+      i, j = self.env.get_state_xy(idx)
+
+      dx = 0
+      dy = 0
+      if policy[idx] == 0:  # up
+        dy = 0.35
+      elif policy[idx] == 1:  # right
+        dx = 0.35
+      elif policy[idx] == 2:  # down
+        dy = -0.35
+      elif policy[idx] == 3:  # left
+        dx = -0.35
+      elif self.env.not_wall(i, j) and policy[idx] == 4:  # termination
+        circle = plt.Circle(
+          (j + 0.5, self.config.input_size[0] - i + 0.5 - 1), 0.025, color='k')
+        plt.gca().add_artist(circle)
+
+      if self.env.not_wall(i, j):
+        plt.arrow(j + 0.5, self.config.input_size[0] - i + 0.5 - 1, dx, dy,
+                  head_width=0.05, head_length=0.05, fc='k', ec='k')
+      else:
+        plt.gca().add_patch(
+          patches.Rectangle(
+            (j, self.config.input_size[0] - i - 1),  # (x,y)
+            1.0,  # width
+            1.0,  # height
+            facecolor="gray"
+          )
+        )
+
+    plt.xlim([0, self.config.input_size[1]])
+    plt.ylim([0, self.config.input_size[0]])
+
+    for i in range(self.config.input_size[1]):
+      plt.axvline(i, color='k', linestyle=':')
+    plt.axvline(self.config.input_size[1], color='k', linestyle=':')
+
+    for j in range(self.config.input_size[0]):
+      plt.axhline(j, color='k', linestyle=':')
+    plt.axhline(self.config.input_size[0], color='k', linestyle=':')
+
+    plt.savefig(os.path.join(policy_folder, "SuccessorFeatures_" + prefix + 'policy.png'))
+    plt.close()
