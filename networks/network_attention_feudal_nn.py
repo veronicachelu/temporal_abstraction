@@ -19,14 +19,8 @@ class AttentionFeudalNNNetwork(EignOCNetwork):
   def __init__(self, scope, config, action_size):
     self.goal_embedding_size = config.sf_layers[-1]
     self.image_summaries_goal = []
-    self.network_optimizer_sr = config.network_optimizer(
-      config.lr_sr, name='network_optimizer_sr')
-
-    self.network_optimizer_worker = config.network_optimizer(
-      config.lr_worker, name='network_optimizer_worker')
-
-    self.network_optimizer_manager = config.network_optimizer(
-      config.lr_manager, name='network_optimizer_manager')
+    self.network_optimizer = config.network_optimizer(
+      config.lr, name='network_optimizer')
 
     super(AttentionFeudalNNNetwork, self).__init__(scope, config, action_size)
 
@@ -62,16 +56,16 @@ class AttentionFeudalNNNetwork(EignOCNetwork):
                                        scope="action_fc")
 
       with tf.variable_scope("fi"):
-        out = layers.fully_connected(self.input, num_outputs=128,
+        out = layers.fully_connected(self.input, num_outputs=self.config.fc_layers[-1],
                                      activation_fn=None,
                                     scope="fi")
         self.fi = out
-        self.fi_relu = tf.nn.relu(out)
+        self.fi_relu = tf.nn.elu(out)
 
 
       with tf.variable_scope("aux_next_frame"):
         out = tf.add(self.fi, actions)
-        out = tf.nn.relu(out)
+        out = tf.nn.elu(out)
         out = layers.fully_connected(out, num_outputs=self.config.aux_fc_layers[-1],
                                      activation_fn=None,
                                      scope="aux")
@@ -92,7 +86,7 @@ class AttentionFeudalNNNetwork(EignOCNetwork):
         self.sf = layers.fully_connected(tf.stop_gradient(self.fi_relu),
                                      num_outputs=self.goal_embedding_size,
                                      activation_fn=None,
-                                     biases_initializer=None,
+                                     # biases_initializer=None,
                                      scope="sf")
 
 
@@ -143,7 +137,6 @@ class AttentionFeudalNNNetwork(EignOCNetwork):
                                                            self.config.goal_projected_size],
                                           name="policy_features")
         value_features = tf.identity(intrinsic_features, name="value_features")
-
 
       with tf.variable_scope("option_worker_value_mix"):
         v_mix = layers.fully_connected(tf.concat([value_features, self.goal_projected], 1),
@@ -209,13 +202,7 @@ class AttentionFeudalNNNetwork(EignOCNetwork):
 
     # return sim, norm1 * norm2
 
-  def take_gradient(self, loss, type_of_optimizer):
-    if type_of_optimizer == "sr":
-      network_optimizer = self.network_optimizer_sr
-    elif type_of_optimizer == "worker":
-      network_optimizer = self.network_optimizer_worker
-    else:
-      network_optimizer = self.network_optimizer_manager
+  def take_gradient(self, loss):
     local_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, self.scope)
     global_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, 'global')
     gradients = tf.gradients(loss, local_vars)
@@ -230,11 +217,11 @@ class AttentionFeudalNNNetwork(EignOCNetwork):
     local_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, self.scope)
 
     """Gradients and update ops"""
-    self.grads_sf, self.apply_grads_sf = self.take_gradient(self.sf_loss, "sr")
-    self.grads_aux, self.apply_grads_aux = self.take_gradient(self.aux_loss, "sr")
-    self.grads_option, self.apply_grads_option = self.take_gradient(self.option_loss, "worker")
-    self.grads_critic, self.apply_grads_critic = self.take_gradient(self.critic_loss, "manager")
-    self.grads_goal, self.apply_grads_goal = self.take_gradient(self.goal_loss, "manager")
+    self.grads_sf, self.apply_grads_sf = self.take_gradient(self.sf_loss)
+    self.grads_aux, self.apply_grads_aux = self.take_gradient(self.aux_loss)
+    self.grads_option, self.apply_grads_option = self.take_gradient(self.option_loss)
+    self.grads_critic, self.apply_grads_critic = self.take_gradient(self.critic_loss)
+    self.grads_goal, self.apply_grads_goal = self.take_gradient(self.goal_loss)
 
     """Summaries"""
     self.merged_summary_sf = tf.summary.merge(

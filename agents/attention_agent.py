@@ -387,7 +387,7 @@ class AttentionAgent(EigenOCAgentDyn):
     plt.close()
 
   """Reproject and plot cluster goals"""
-  def plot_clusters(self, clusters):
+  def plot_clusters_(self, clusters):
     plt.clf()
     for i in range(len(clusters)):
       reproj_eigenvector = clusters[i].reshape(self.config.input_size[0], self.config.input_size[1])
