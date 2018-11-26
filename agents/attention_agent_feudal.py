@@ -519,7 +519,7 @@ class AttentionFeudalAgent(EigenOCAgentDyn):
     # self.summary.value.add(tag='Perf/UndiscIntrinsicReturn', simple_value=float(self.episode_intrinsic_reward))
     self.summary.value.add(tag='Perf/Length', simple_value=float(self.episode_length))
 
-    for sum in [self.summaries_sf, self.summaries_term, self.summaries_critic, self.summaries_option, self.summaries_goal]:
+    for sum in [self.summaries_sf, self.summaries_aux, self.summaries_term, self.summaries_critic, self.summaries_option, self.summaries_goal]:
       if sum is not None:
         self.summary_writer.add_summary(sum, self.global_episode_np)
 
