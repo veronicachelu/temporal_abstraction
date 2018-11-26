@@ -149,10 +149,9 @@ class AttentionFeudalNNAgent(EigenOCAgentDyn):
             self.barrier.wait()
             self.goal_position = self.env.set_goal(self.total_episodes, self.config.move_goal_nb_of_ep)
 
-            goalstateIdx = self.env.get_state_index(self.env.goalX, self.env.goalY)
-            self.goal_sf = self.sess.run(self.local_network.sf, {
-              self.local_network.observation: np.identity(self.nb_states)[goalstateIdx:goalstateIdx + 1]})[0]
-
+            # goalstateIdx = self.env.get_state_index(self.env.goalX, self.env.goalY)
+            # self.goal_sf = self.sess.run(self.local_network.sf, {
+            #   self.local_network.observation: np.identity(self.nb_states)[goalstateIdx:goalstateIdx + 1]})[0]
           self.total_episodes += 1
 
 
