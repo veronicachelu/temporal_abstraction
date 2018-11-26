@@ -108,7 +108,7 @@ class AttentionFeudalNNAgent(EigenOCAgentDyn):
             self.aux_episode_buffer.append([s, s1, self.action])
 
             if len(self.aux_episode_buffer) > self.config.observation_steps:
-                self.episode_buffer_sf.append([s, self.fi, s1, self.action])
+                self.episode_buffer_sf.append([s, self.fi, s1])
 
             self.next_frame_prediction()
             self.sf_prediction(s1)
