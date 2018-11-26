@@ -547,15 +547,15 @@ class EigenOCAgent():
 
     """Do n-step prediction for the successor representation latent"""
 
-    def sf_prediction(self, s1):
-      if len(self.episode_buffer_sf) == self.config.max_update_freq or self.done:
-        """Get the successor features of the next state for which to bootstrap from"""
-        feed_dict = {self.local_network.observation: [s1]}
-        next_sf = self.sess.run(self.local_network.sf,
-                                feed_dict=feed_dict)[0]
-        bootstrap_sf = np.zeros_like(next_sf) if self.done else next_sf
-        self.train_sf(bootstrap_sf)
-        self.episode_buffer_sf = []
+  def sf_prediction(self, s1):
+    if len(self.episode_buffer_sf) == self.config.max_update_freq or self.done:
+      """Get the successor features of the next state for which to bootstrap from"""
+      feed_dict = {self.local_network.observation: [s1]}
+      next_sf = self.sess.run(self.local_network.sf,
+                              feed_dict=feed_dict)[0]
+      bootstrap_sf = np.zeros_like(next_sf) if self.done else next_sf
+      self.train_sf(bootstrap_sf)
+      self.episode_buffer_sf = []
 
   """Map ejgen directions to the closest old directions in terms of cosine similarity, 
   so as not to change option basis too abruptly"""

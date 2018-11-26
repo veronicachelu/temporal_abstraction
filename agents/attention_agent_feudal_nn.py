@@ -110,7 +110,7 @@ class AttentionFeudalNNAgent(EigenOCAgentDyn):
             self.episode_buffer_sf.append([s, self.fi, s1, self.action])
 
             self.next_frame_prediction()
-            self.sf_prediction(s1)
+            # self.sf_prediction(s1)
 
             # if self.global_episode_np >= self.config.cold_start_episodes:
             #   self.option_prediction(s, s1)

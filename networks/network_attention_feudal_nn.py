@@ -40,7 +40,6 @@ class AttentionFeudalNNNetwork(EignOCNetwork):
       self.target_sf = tf.placeholder(shape=[None, self.config.sf_layers[-1]], dtype=tf.float32, name="target_SF")
       self.target_goal = tf.placeholder(shape=[None, self.goal_embedding_size], dtype=tf.float32, name="target_goal")
       self.prev_goals = tf.placeholder(shape=[None, None, self.goal_embedding_size], dtype=tf.float32, name="prev_goals")
-      # self.found_goal = tf.placeholder(shape=[None, self.goal_embedding_size], dtype=tf.float32, name="found_goal")
       self.target_mix_return = tf.placeholder(shape=[None], dtype=tf.float32, name="target_mix_return")
       self.target_return = tf.placeholder(shape=[None], dtype=tf.float32, name="target_return")
       self.actions_placeholder = tf.placeholder(shape=[None], dtype=tf.int32, name="actions_placeholder")
@@ -58,8 +57,7 @@ class AttentionFeudalNNNetwork(EignOCNetwork):
         dtype=tf.float32, name="Inputs")
       self.input = layers.flatten(self.observation, scope="flatten")
 
-
-      actions = layers.fully_connected(tf.one_hot(self.actions_placeholder, depth=self.action_size), num_outputs=128,
+      actions = layers.fully_connected(tf.one_hot(self.actions_placeholder, depth=self.action_size), num_outputs=self.config.fc_layers[-1],
                                        activation_fn=None,
                                        scope="action_fc")
 
@@ -74,7 +72,7 @@ class AttentionFeudalNNNetwork(EignOCNetwork):
       with tf.variable_scope("aux_next_frame"):
         out = tf.add(self.fi, actions)
         out = tf.nn.relu(out)
-        out = layers.fully_connected(out, num_outputs=169,
+        out = layers.fully_connected(out, num_outputs=self.config.aux_fc_layers[-1],
                                      activation_fn=None,
                                      scope="aux")
         self.next_obs = tf.reshape(out,
@@ -113,14 +111,17 @@ class AttentionFeudalNNNetwork(EignOCNetwork):
         self.attention_weights = self.goal_distribution.sample()
         self.current_unnormalized_goal = tf.einsum('bi, ij -> bj', self.attention_weights, self.goal_clusters, name="unnormalized_g")
         self.g = tf.identity(self.l2_normalize(self.current_unnormalized_goal, 1), name="g")
-        # self.max_g = self.current_unnormalized_goal
-        # self.image_summaries_goal.append(tf.summary.image("goal", tf.reshape(
-        #   self.g, (-1, 13, 13, 1)), max_outputs=1))
-        # self.image_summaries_goal.append(tf.summary.image("target_goal", tf.reshape(
-        #   self.target_goal, (-1, 13, 13, 1)), max_outputs=1))
-        # self.image_summaries_goal.append(tf.summary.image("goal_mul_target_goal", tf.reshape(
-        #   tf.multiply(self.target_goal, self.g), (-1, 13, 13, 1)),
-        #                                                   max_outputs=1))
+
+        cut_g = tf.stop_gradient(self.g)
+        cut_g = tf.expand_dims(cut_g, 1)
+        self.g_stack = tf.placeholder_with_default(shape=[None, None, self.goal_embedding_size],
+                                                   input=tf.concat([self.prev_goals, cut_g], 1))
+        self.last_c_g = self.g_stack[:, 1:]
+        self.g_sum = tf.reduce_sum(self.g_stack, 1)
+
+        phi = tf.get_variable("phi", (self.goal_embedding_size, self.config.goal_projected_size),
+                              initializer=normalized_columns_initializer(1.))
+        self.goal_projected = tf.matmul(self.g_sum, phi)
 
       with tf.variable_scope("option_manager_value_ext"):
         extrinsic_features = layers.fully_connected(tf.stop_gradient(self.fi_relu),
@@ -143,16 +144,6 @@ class AttentionFeudalNNNetwork(EignOCNetwork):
                                           name="policy_features")
         value_features = tf.identity(intrinsic_features, name="value_features")
 
-      cut_g = tf.stop_gradient(self.g)
-      cut_g = tf.expand_dims(cut_g, 1)
-      self.g_stack = tf.placeholder_with_default(shape=[None, None, self.goal_embedding_size],
-                                                 input=tf.concat([self.prev_goals, cut_g], 1))
-      self.last_c_g = self.g_stack[:, 1:]
-      self.g_sum = tf.reduce_sum(self.g_stack, 1)
-
-      phi = tf.get_variable("phi", (self.goal_embedding_size, self.config.goal_projected_size),
-                            initializer=normalized_columns_initializer(1.))
-      self.goal_projected = tf.matmul(self.g_sum, phi)
 
       with tf.variable_scope("option_worker_value_mix"):
         v_mix = layers.fully_connected(tf.concat([value_features, self.goal_projected], 1),
