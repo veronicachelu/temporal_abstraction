@@ -109,11 +109,11 @@ class AttentionFeudalNNAgent(EigenOCAgentDyn):
 
             self.next_frame_prediction()
             if len(self.aux_episode_buffer) > self.config.observation_steps:
-                self.episode_buffer_sf.append([s, self.fi, s1])
-                self.sf_prediction(s1)
+              self.episode_buffer_sf.append([s, self.fi, s1])
+              self.sf_prediction(s1)
 
-            # if self.global_episode_np >= self.config.cold_start_episodes:
-            #   self.option_prediction(s, s1)
+              if self.global_episode_np >= self.config.cold_start_episodes:
+                self.option_prediction(s, s1)
 
             if self.total_steps % self.config.step_summary_interval == 0 and self.name == 'worker_0':
               self.write_step_summary()
