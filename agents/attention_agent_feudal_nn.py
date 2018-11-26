@@ -112,8 +112,9 @@ class AttentionFeudalNNAgent(EigenOCAgentDyn):
 
             self.next_frame_prediction()
             self.sf_prediction(s1)
-            if self.global_episode_np >= self.config.cold_start_episodes:
-              self.option_prediction(s, s1)
+
+            # if self.global_episode_np >= self.config.cold_start_episodes:
+            #   self.option_prediction(s, s1)
 
             if self.total_steps % self.config.step_summary_interval == 0 and self.name == 'worker_0':
               self.write_step_summary()
@@ -154,6 +155,7 @@ class AttentionFeudalNNAgent(EigenOCAgentDyn):
               self.local_network.observation: np.identity(self.nb_states)[goalstateIdx:goalstateIdx + 1]})[0]
 
           self.total_episodes += 1
+
 
   """Sample an action from the current option's policy"""
   def policy_evaluation(self, s):
@@ -268,6 +270,29 @@ class AttentionFeudalNNAgent(EigenOCAgentDyn):
       to_run["apply_grads_sf"] = self.local_network.apply_grads_sf
     results = self.sess.run(to_run, feed_dict=feed_dict)
     self.summaries_sf = results["summary_sf"]
+
+  def train_aux(self):
+    minibatch = random.sample(self.aux_episode_buffer, self.config.batch_size)
+    rollout = np.array(minibatch)
+    observations = rollout[:, 0]
+    next_observations = rollout[:, 1]
+    actions = rollout[:, 2]
+
+    feed_dict = {self.local_network.observation: np.stack(observations, axis=0),
+                 self.local_network.target_next_obs: np.stack(next_observations, axis=0),
+                 self.local_network.actions_placeholder: actions}
+    to_run = {"summary_aux": self.local_network.merged_summary_aux,
+              "aux_loss": self.local_network.aux_loss
+              }
+    if self.name != "worker_0":
+      to_run["apply_grads_aux"] = self.local_network.apply_grads_aux
+    results = self.sess.run(to_run, feed_dict=feed_dict)
+    self.summaries_aux = results["summary_aux"]
+
+  def next_frame_prediction(self):
+    if len(self.aux_episode_buffer) > self.config.observation_steps and \
+                self.total_steps % self.config.aux_update_freq == 0:
+      self.train_aux()
 
   def add_SF(self, sf):
     self.global_network.goal_clusters.cluster(sf)
@@ -417,7 +442,7 @@ class AttentionFeudalNNAgent(EigenOCAgentDyn):
     # self.summary.value.add(tag='Perf/UndiscIntrinsicReturn', simple_value=float(self.episode_intrinsic_reward))
     self.summary.value.add(tag='Perf/Length', simple_value=float(self.episode_length))
 
-    for sum in [self.summaries_sf, self.summaries_term, self.summaries_critic, self.summaries_option, self.summaries_goal]:
+    for sum in [self.summaries_sf, self.summaries_aux, self.summaries_term, self.summaries_critic, self.summaries_option, self.summaries_goal]:
       if sum is not None:
         self.summary_writer.add_summary(sum, self.global_episode_np)
 

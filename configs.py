@@ -495,7 +495,7 @@ def attention_feudal():
 	lr_worker = 1e-3
 	lr_manager = 1e-3
 	c = 2
-	cold_start_episodes = 5
+	cold_start_episodes = 2
 	"""The kind of agent to use in the environment"""
 	target_agent = AttentionFeudalAgent
 	"""The number test episodes to execute, over which to average results"""
@@ -537,8 +537,9 @@ def attention_feudal_nn():
 	lr_sr = 1e-3
 	lr_worker = 1e-3
 	lr_manager = 1e-3
+	observation_steps = 64
 	c = 2
-	cold_start_episodes = 0
+	cold_start_episodes = 2
 	"""The kind of agent to use in the environment"""
 	target_agent = AttentionFeudalNNAgent
 	"""The number test episodes to execute, over which to average results"""
