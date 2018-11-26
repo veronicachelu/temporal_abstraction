@@ -542,7 +542,12 @@ def attention_feudal_nn():
 	"""The kind of network to use for function approximation"""
 	network = AttentionFeudalNNNetwork
 	goal_locations = [(11, 7), (5, 2), (1, 10), (2, 2), (6, 2), (9, 11), (2, 7)]
-
+	discount = 0.985
+	batch_size = 16
+	"""The size of the experience replay buffer"""
+	memory_size = 500000
+	"""Warm start of training after the observation_steps"""
+	observation_steps = 100
 	return locals()
 
 def lstm():

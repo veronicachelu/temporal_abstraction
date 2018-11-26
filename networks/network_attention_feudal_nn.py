@@ -60,12 +60,12 @@ class AttentionFeudalNNNetwork(EignOCNetwork):
                                      activation_fn=None,
                                     scope="fi")
         self.fi = out
-        self.fi_relu = tf.nn.elu(out)
+        self.fi_relu = tf.nn.relu(out)
 
 
       with tf.variable_scope("aux_next_frame"):
         out = tf.add(self.fi, actions)
-        out = tf.nn.elu(out)
+        out = tf.nn.relu(out)
         out = layers.fully_connected(out, num_outputs=self.config.aux_fc_layers[-1],
                                      activation_fn=None,
                                      scope="aux")
@@ -120,7 +120,7 @@ class AttentionFeudalNNNetwork(EignOCNetwork):
       with tf.variable_scope("option_manager_value_ext"):
         extrinsic_features = layers.fully_connected(tf.stop_gradient(self.fi_relu),
                                                num_outputs=self.goal_embedding_size,
-                                               activation_fn=tf.nn.elu,
+                                               activation_fn=tf.nn.relu,
                                                scope="extrinsic_features")
         v_ext = layers.fully_connected(extrinsic_features,
                                                num_outputs=1,
@@ -131,7 +131,7 @@ class AttentionFeudalNNNetwork(EignOCNetwork):
       with tf.variable_scope("option_worker_features"):
         intrinsic_features = layers.fully_connected(tf.stop_gradient(self.fi_relu),
                                                 num_outputs=self.action_size * self.config.goal_projected_size,
-                                                activation_fn=tf.nn.elu,
+                                                activation_fn=tf.nn.relu,
                                                 scope="intrinsic_features")
         policy_features = tf.reshape(intrinsic_features, [-1, self.action_size,
                                                            self.config.goal_projected_size],
