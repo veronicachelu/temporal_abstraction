@@ -2,6 +2,7 @@ from agents import EmbeddingAgent
 from agents import AttentionAgent
 from agents import AttentionWTermAgent
 from agents import AttentionFeudalAgent
+from agents import AttentionFeudalNNAgent
 from agents import EigenOCAgent
 from agents import LinearSFAgent
 from agents import EigenOCAgentDyn
@@ -13,6 +14,7 @@ from networks import EmbeddingNetwork
 from networks import AttentionNetwork
 from networks import AttentionWTermNetwork
 from networks import AttentionFeudalNetwork
+from networks import AttentionFeudalNNNetwork
 from networks import EignOCNetwork
 from networks import LinearSFNetwork
 from networks import DynSRNetwork
@@ -489,8 +491,8 @@ def attention_feudal():
 	discount = 0.99
 	discount_worker = 0.99
 	discount_manager = 0.99
-	lr_sr = 1e-2
-	lr_worker = 1e-2
+	lr_sr = 1e-3
+	lr_worker = 1e-3
 	lr_manager = 1e-3
 	c = 2
 	cold_start_episodes = 5
@@ -506,6 +508,48 @@ def attention_feudal():
 
 	return locals()
 
+def attention_feudal_nn():
+	"""Load configuration options from eigenoc_dyn and override or add new ones"""
+	locals().update(attention())
+	fc_layers = 128,  # the number of layers and units in each layer mapping from input space to latent state representation
+	sf_layers = 128,
+	nb_options = 4
+	num_agents = 8
+	"""The maximum length of episodes in the environment"""
+	max_length = 1000
+	max_clusters = 32
+	test_random_action = False
+	sr_matrix = None
+	use_eigendirections = False
+	use_clustering = True
+	summary_interval = 1
+	checkpoint_interval = 1
+	cluster_interval = 1
+	initial_random_goal_prob = 0.1
+	final_random_goal_prob = 0
+	temperature = 0.01
+	goal_projected_size = 64
+	starpening_factor = 10
+	max_update_freq = 30
+	discount = 0.99
+	discount_worker = 0.99
+	discount_manager = 0.99
+	lr_sr = 1e-3
+	lr_worker = 1e-3
+	lr_manager = 1e-3
+	c = 2
+	cold_start_episodes = 5
+	"""The kind of agent to use in the environment"""
+	target_agent = AttentionFeudalNNAgent
+	"""The number test episodes to execute, over which to average results"""
+	nb_test_ep = 1
+	"""Move to the next task specified in the goal_locations after the specfied number of episodes"""
+	move_goal_nb_of_ep = 300
+	"""The kind of network to use for function approximation"""
+	network = AttentionFeudalNNNetwork
+	goal_locations = [(11, 7), (5, 2), (1, 10), (2, 2), (6, 2), (9, 11), (2, 7)]
+
+	return locals()
 
 def lstm():
 	"""Load configuration options from embedding and override or add new ones"""

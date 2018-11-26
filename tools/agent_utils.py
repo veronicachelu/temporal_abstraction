@@ -60,7 +60,6 @@ def update_target_graph_option(from_scope, to_scope):
 
 
 def discount(x, gamma):
-  # axis = len(x.shape) - 1
   return np.flip(lfilter([1], [1, -gamma], np.flip(x, 0), axis=0), axis=0)
 
 def reward_discount(x, gamma):

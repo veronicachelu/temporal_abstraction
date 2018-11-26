@@ -22,23 +22,49 @@ from threading import Barrier, Thread
 
 FLAGS = tf.app.flags.FLAGS
 
-"""This Agent is a specialization of the successor representation direction based agent with buffer SR matrix, but instead of choosing from discreate options that are grounded in the SR basis only by means of the pseudo-reward, it keeps a singly intra-option policy whose context is changed by means of the option given as embedding (the embedding being the direction given by the spectral decomposition of the SR matrix)"""
-class A3CAgent(EigenOCAgentDyn):
+class AttentionFeudalNNAgent(EigenOCAgentDyn):
   def __init__(self, sess, game, thread_id, global_step, global_episode, config, global_network, barrier):
-    super(A3CAgent, self).__init__(sess, game, thread_id, global_step, global_episode, config, global_network, barrier)
-    self.episode_mean_values = []
+    super(AttentionFeudalNNAgent, self).__init__(sess, game, thread_id, global_step, global_episode, config, global_network, barrier)
+    self.episode_mean_values_mix = []
 
   def init_episode(self):
-    super(A3CAgent, self).init_episode()
-    self.episode_values = []
+    super(AttentionFeudalNNAgent, self).init_episode()
+    self.episode_values_mix = []
     self.episode_buffer_option = []
-    self.reward = 0
-    self.R = None
+    self.episode_screens = []
+    self.episode_goals = []
+    self.episode_g_sums = []
+    self.states = []
     self.episode_length = 0
+    self.reward = 0
+    self.action = 1
     self.episode_state_occupancy = np.zeros((self.nb_states))
+    self.summaries_critic = self.summaries_option = self.summaries_term = self.summaries_goal = None
+    self.R = self.R_mix = None
+    self.last_c_g = np.zeros((1, self.config.c, self.config.sf_layers[-1]), np.float32)
+    self.last_batch_done = True
+    # self.state = self.local_network.worker_lstm.state_init + self.local_network.manager_lstm.state_init
 
   def init_agent(self):
-    super(A3CAgent, self).init_agent()
+    super(AttentionFeudalNNAgent, self).init_agent()
+
+    self.clusters_folder = os.path.join(self.summary_path, "clusters")
+    tf.gfile.MakeDirs(self.clusters_folder)
+
+    self.policy_folder = os.path.join(self.summary_path, "policies_clusters")
+    tf.gfile.MakeDirs(self.policy_folder)
+
+    self.learning_progress_folder = os.path.join(self.summary_path, "learning_progress")
+    tf.gfile.MakeDirs(self.learning_progress_folder)
+
+    self.cluster_model_path = os.path.join(self.config.logdir, "cluster_models")
+    tf.gfile.MakeDirs(self.cluster_model_path)
+
+    self.total_episodes = self.global_episode.eval()
+    # goalstateIdx = self.env.get_state_index(self.env.goalX, self.env.goalY)
+    # self.goal_sf = self.sess.run(self.local_network.sf, {
+    #   self.local_network.observation: np.identity(self.nb_states)[goalstateIdx:goalstateIdx + 1]})[0]
+
 
   """Starting point of the agent acting in the environment"""
   def play(self, coord, saver):
@@ -61,8 +87,7 @@ class A3CAgent(EigenOCAgentDyn):
           self.init_episode()
 
           """Reset the environment and get the initial state"""
-          s = self.env.get_initial_state()
-          s_screen = self.env.build_screen_for_state(s)
+          s = self.env.reset()
           """While the episode does not terminate"""
           while not self.done:
             """update local network parameters from global network"""
@@ -71,16 +96,21 @@ class A3CAgent(EigenOCAgentDyn):
             """Choose an action from the current intra-option policy"""
             self.policy_evaluation(s)
 
-            self.episode_state_occupancy[s] += 1
-            s1_screen, self.reward, self.done, s1 = self.env.special_step(self.action, s)
+            s1, self.reward, self.done, self.s1_idx = self.env.step(self.action)
+            self.episode_state_occupancy[self.s1_idx] += 1
             self.episode_reward += self.reward
 
             if self.done:
-              s1, s1_screen = s, s_screen
+              s1 = s
+              self.s1_idx = self.s_idx
 
-            self.episode_buffer_sf.append([s])
-            self.episode_screens.append(s_screen)
+            if len(self.aux_episode_buffer) == self.config.memory_size:
+              self.aux_episode_buffer.popleft()
+            self.aux_episode_buffer.append([s, s1, self.action])
 
+            self.episode_buffer_sf.append([s, s1, self.action])
+
+            self.next_frame_prediction()
             self.sf_prediction(s1)
             if self.global_episode_np >= self.config.cold_start_episodes:
               self.option_prediction(s, s1)
@@ -88,7 +118,8 @@ class A3CAgent(EigenOCAgentDyn):
             if self.total_steps % self.config.step_summary_interval == 0 and self.name == 'worker_0':
               self.write_step_summary()
 
-            s, s_screen = s1, s1_screen
+            s = s1
+            self.s_idx = self.s1_idx
             self.episode_length += 1
             self.total_steps += 1
 
@@ -107,8 +138,8 @@ class A3CAgent(EigenOCAgentDyn):
             if self.global_episode_np % self.config.summary_interval == 0:
               self.write_summaries()
 
-            if self.global_episode_np % self.config.cluster_interval == 0:
-                self.print_g()
+            # if self.global_episode_np % self.config.cluster_interval == 0:
+            #     self.print_g()
 
           """If it's time to change the task - move the goal, wait for all other threads to finish the current task"""
           if self.total_episodes % self.config.move_goal_nb_of_ep == 0 and \
@@ -118,42 +149,53 @@ class A3CAgent(EigenOCAgentDyn):
             self.barrier.wait()
             self.goal_position = self.env.set_goal(self.total_episodes, self.config.move_goal_nb_of_ep)
 
-          self.total_episodes += 1
+            goalstateIdx = self.env.get_state_index(self.env.goalX, self.env.goalY)
+            self.goal_sf = self.sess.run(self.local_network.sf, {
+              self.local_network.observation: np.identity(self.nb_states)[goalstateIdx:goalstateIdx + 1]})[0]
 
+          self.total_episodes += 1
 
   """Sample an action from the current option's policy"""
   def policy_evaluation(self, s):
-    feed_dict = {self.local_network.observation: np.identity(self.nb_states)[s:s+1],
+    feed_dict = {self.local_network.observation: [s],
+                 self.local_network.goal_clusters: self.global_network.goal_clusters.get_clusters(),
+                 self.local_network.prev_goals: self.last_c_g,
                  }
+
     tensor_results = {
-                   "sf": self.local_network.sf,
-                   "g": self.local_network.g,
-                   "v": self.local_network.v,
-                   "g_policy": self.local_network.g_policy,
-                   "attention_weights": self.local_network.attention_weights,
-                   "query_content_match": self.local_network.query_content_match_sharp,
-                   "query_goal": self.local_network.query_goal,
-                   "global_episode": self.global_episode}
+      "g": self.local_network.g,
+      "last_c_goals": self.local_network.last_c_g,
+      "query_goal": self.local_network.query_goal,
+      "attention_weights": self.local_network.attention_weights,
+      "query_content_match": self.local_network.query_content_match,
+      "v": self.local_network.v_ext,
+      "v_mix": self.local_network.v_mix,
+      "sf": self.local_network.sf,
+      "g_policy": self.local_network.g_policy,
+      "g_sum": self.local_network.g_sum,
+      "global_episode": self.global_episode}
+
     results = self.sess.run(tensor_results, feed_dict=feed_dict)
 
-    self.sf = results["sf"][0]
-    self.add_SF(self.sf)
-
     self.g = results["g"][0]
+    self.g_sum = results["g_sum"][0]
+    self.last_c_g = results["last_c_goals"]
+    self.query_goal = results["query_goal"][0]
     self.attention_weights = results["attention_weights"][0]
     self.query_content_match = results["query_content_match"][0]
-    self.query_goal = results["query_goal"][0]
     self.v = results["v"][0]
-    pi = results["g_policy"][0]
+    self.v_mix = results["v_mix"][0]
+    self.sf = results["sf"][0]
+    self.add_SF(self.sf)
     self.global_episode_np = results["global_episode"]
-
-    self.episode_values.append(self.v)
+    pi = results["g_policy"][0]
 
     """Sample an action"""
     self.action = np.random.choice(pi, p=pi)
     self.action = np.argmax(pi == self.action)
     if self.global_episode_np < self.config.cold_start_episodes:
       self.action = np.random.choice(range(self.action_size))
+
     """Store information in buffers for stats in tensorboard"""
     self.episode_actions.append(self.action)
 
@@ -161,54 +203,67 @@ class A3CAgent(EigenOCAgentDyn):
   def option_prediction(self, s, s1):
     """Adding to the transition buffer for doing n-step prediction on critics and policies"""
     self.episode_buffer_option.append(
-      [s, self.action, self.reward])
+      [s, self.action, self.reward, s1])
+    self.episode_goals.append(self.g)
+    self.episode_g_sums.append(self.g_sum)
 
     if len(self.episode_buffer_option) >= self.config.max_update_freq or self.done:
       """Get the bootstrap option-value functions for the next time step"""
       if self.done:
-        bootstrap_V = 0
+        bootstrap_V_mix = 0
+        bootstrap_V_ext = 0
       else:
-        feed_dict = {self.local_network.observation: np.identity(self.nb_states)[s1:s1+1],
-                     self.local_network.goal_clusters: self.global_network.goal_clusters.get_clusters()
+        feed_dict = {self.local_network.observation: [s1],
+                     self.local_network.goal_clusters: self.global_network.goal_clusters.get_clusters(),
+                     self.local_network.prev_goals: self.last_c_g,
                      }
+        to_run = {"v_mix": self.local_network.v_mix,
+                  "v_ext": self.local_network.v_ext}
+        results = self.sess.run(to_run, feed_dict=feed_dict)
+        v_mix, v = results["v_mix"][0], results["v_ext"][0]
+        bootstrap_V_mix = v_mix
+        bootstrap_V_ext = v
 
-        v = self.sess.run(self.local_network.v, feed_dict=feed_dict)
-        bootstrap_V = v[0]
-
-      self.train_option(bootstrap_V)
-      self.episode_buffer_option = []
+      self.train_goal(bootstrap_V_mix, bootstrap_V_ext, s1)
+      if self.done:
+        self.last_batch_done = True
+      else:
+        twoc = 2 * self.config.c
+        self.episode_buffer_option = self.episode_buffer_option[-twoc:]
+        self.episode_goals = self.episode_goals[-twoc:]
+        self.episode_g_sums = self.episode_g_sums[-twoc:]
 
 
   """Do n-step prediction for the successor representation latent and an update for the representation latent using 1-step next frame prediction"""
   def sf_prediction(self, s1):
     if len(self.episode_buffer_sf) == self.config.max_update_freq or self.done:
       """Get the successor features of the next state for which to bootstrap from"""
-      feed_dict = {self.local_network.observation: [np.identity(self.nb_states)[s1]]}
+      feed_dict = {self.local_network.observation: [s1]}
       next_sf = self.sess.run(self.local_network.sf,
                          feed_dict=feed_dict)[0]
       bootstrap_sf = np.zeros_like(next_sf) if self.done else next_sf
       self.train_sf(bootstrap_sf)
       self.episode_buffer_sf = []
-      self.episode_screens = []
 
   """Do one n-step update for training the agent's latent successor representation space and an update for the next frame prediction"""
   def train_sf(self, bootstrap_sf):
     rollout = np.array(self.episode_buffer_sf)
     observations = rollout[:, 0]
-    fi = np.identity(self.nb_states)[observations]
 
+    feed_dict = {self.local_network.observation: np.stack(observations, axis=0)}
+    fi = self.sess.run(self.local_network.fi,
+                       feed_dict=feed_dict)
     """Construct list of latent representations for the entire trajectory"""
     sf_plus = np.asarray(fi.tolist() + [bootstrap_sf])
     """Construct the targets for the next step successor representations for the entire trajectory"""
     discounted_sf = discount(sf_plus, self.config.discount)[:-1]
 
     feed_dict = {self.local_network.target_sf: np.stack(discounted_sf, axis=0),
-                 self.local_network.observation_image: np.stack(self.episode_screens),
-                 self.local_network.observation: np.identity(self.nb_states)[observations]}
+                 self.local_network.observation: np.stack(observations, axis=0)}
 
     to_run = {"summary_sf": self.local_network.merged_summary_sf,
               "sf_loss": self.local_network.sf_loss
-              }
+    }
     if self.name != "worker_0":
       to_run["apply_grads_sf"] = self.local_network.apply_grads_sf
     results = self.sess.run(to_run, feed_dict=feed_dict)
@@ -217,62 +272,154 @@ class A3CAgent(EigenOCAgentDyn):
   def add_SF(self, sf):
     self.global_network.goal_clusters.cluster(sf)
 
+  def extend(self, batch):
+    (observations, actions, rewards, discounted_returns, goals, g_sums) = batch
+    new_observations, new_actions, new_rewards, new_discounted_returns, new_goals, new_g_sums = \
+      [], [], [], [], [], []
+    if self.last_batch_done:
+      new_observations = [observations[0] for _ in range(self.config.c)]
+      new_goals = [goals[0] for _ in range(self.config.c)]
+      new_actions = [None for _ in range(self.config.c)]
+      new_discounted_returns = [None for _ in range(self.config.c)]
+      new_rewards = [None for _ in range(self.config.c)]
+      new_g_sums = [None for _ in range(self.config.c)]
+
+    # extend with the actual values
+    new_observations.extend(observations)
+    new_goals.extend(goals)
+    new_rewards.extend(rewards)
+    new_discounted_returns.extend(discounted_returns)
+    new_actions.extend(actions)
+    new_g_sums.extend(g_sums)
+
+    # if this is a terminal batch, then append the final s and g c times
+    # note that both this and the above case can occur at the same time
+    if self.done:
+      new_observations.extend([observations[-1] for _ in range(self.config.c)])
+      new_goals.extend([goals[-1] for _ in range(self.config.c)])
+
+    return new_observations, new_actions, new_rewards, new_discounted_returns, new_goals, new_g_sums
+
   """Do n-step prediction on the critics and policies"""
-  def train_option(self, bootstrap_value):
+  def train_goal(self, bootstrap_value_mix, bootstrap_value_ext, s1):
     rollout = np.array(self.episode_buffer_option)
-    observations = rollout[:, 0]
+    observations = np.array(rollout[:, 0], dtype=np.int32)
     actions = rollout[:, 1]
     rewards = rollout[:, 2]
-
+    goals = self.episode_goals
+    g_sums = self.episode_g_sums
     """Construct list of discounted returns using mixed reward signals for the entire n-step trajectory"""
-    rewards_plus = np.asarray(rewards.tolist() + [bootstrap_value])
-    discounted_returns = reward_discount(rewards_plus, self.config.discount)[:-1]
+    rewards_plus = np.asarray(rewards.tolist() + [bootstrap_value_ext])
+    discounted_returns = reward_discount(rewards_plus, self.config.discount_manager)[:-1]
 
-    feed_dict = {
-                 self.local_network.target_return: discounted_returns,
+    batch = (observations, actions, rewards, discounted_returns, goals, g_sums)
+
+    new_batch = self.extend(batch)
+    new_observations, new_actions, new_rewards, new_discounted_returns, new_goals, new_g_sums = new_batch
+
+    c = self.config.c
+    batch_len = len(new_actions)
+    end = batch_len if self.done else batch_len - c
+
+    observations, actions, rewards, discounted_returns, goals, g_sums = \
+      [], [], [], [], [], []
+    target_goals = []
+    ris = []
+
+    for t in range(c, end):
+      target_goal = np.identity(self.nb_states)[new_observations[t + c]] - np.identity(self.nb_states)[new_observations[t]]
+      target_goals.append(target_goal)
+
+      ri = 0
+      for i in range(1, c + 1):
+        ri_s_diff = np.identity(self.nb_states)[new_observations[t]] - np.identity(self.nb_states)[new_observations[t - i]]
+        ri += self.cosine_similarity(ri_s_diff, new_goals[t - i])
+      ri /= c
+
+      ris.append(ri)
+      rewards.append(new_rewards[t])
+      discounted_returns.append(new_discounted_returns[t])
+      goals.append(new_goals[t])
+      g_sums.append(new_g_sums[t])
+      actions.append(new_actions[t])
+      observations.append(new_observations[t])
+
+    rewards_mix = [r_i * self.config.alpha_r + (1 - self.config.alpha_r) * r_e for (r_i, r_e) in zip(ris, rewards)]
+    rewards_mix_plus = np.asarray(rewards_mix + [bootstrap_value_mix])
+    discounted_returns_mix = reward_discount(rewards_mix_plus, self.config.discount_worker)[:-1]
+
+    feed_dict = {self.local_network.target_return: discounted_returns,
+                 self.local_network.target_mix_return: discounted_returns_mix,
                  self.local_network.observation: np.identity(self.nb_states)[observations],
+                 self.local_network.target_goal: np.stack(target_goals, 0),
                  self.local_network.actions_placeholder: actions,
-                 self.local_network.goal_clusters: self.global_network.goal_clusters.get_clusters()
+                 self.local_network.goal_clusters: self.global_network.goal_clusters.get_clusters(),
+                 self.local_network.g_sum: np.stack(g_sums, 0),
                  }
 
     to_run = {
-             "summary_option": self.local_network.merged_summary_option,
+             "summary_goal": self.local_network.merged_summary_goal
             }
     if self.name != "worker_0":
-      to_run["apply_grads_option"] = self.local_network.apply_grads_option
+      to_run["apply_grad_goal"] = self.local_network.apply_grads_goal
+
+    """Do an update on the intra-option policies"""
     results = self.sess.run(to_run, feed_dict=feed_dict)
+    self.summaries_goal = results["summary_goal"]
+
+    to_run = {
+      "summary_option": self.local_network.merged_summary_option,
+      "summary_critic": self.local_network.merged_summary_critic,
+
+    }
+    if self.name != "worker_0":
+      to_run["apply_grads_option"] = self.local_network.apply_grads_option
+      to_run["apply_grads_critic"] = self.local_network.apply_grads_critic
+
+    feed_dict[self.local_network.g] = np.stack(goals, 0)
+    results = self.sess.run(to_run, feed_dict=feed_dict)
+    self.summaries_critic = results["summary_critic"]
     self.summaries_option = results["summary_option"]
+
+    """Store the bootstrap target returns at the end of the trajectory"""
+    self.R_mix = discounted_returns_mix[-1]
     self.R = discounted_returns[-1]
+
+    if self.last_batch_done:
+      self.last_batch_done = False
 
   def write_step_summary(self):
     self.summary = tf.Summary()
     self.summary.value.add(tag='Step/Action', simple_value=self.action)
     self.summary.value.add(tag='Step/Reward', simple_value=self.reward)
-    self.summary.value.add(tag='Step/Reward', simple_value=self.reward)
     self.summary.value.add(tag='Step/V', simple_value=self.v)
+    self.summary.value.add(tag='Step/V_mix', simple_value=self.v_mix)
+    self.summary.value.add(tag='Step/Target_Return_Mix', simple_value=self.R_mix)
     self.summary.value.add(tag='Step/Target_Return', simple_value=self.R)
 
     self.summary_writer.add_summary(self.summary, self.total_steps)
     self.summary_writer.flush()
 
   def update_episode_stats(self):
-    if len(self.episode_values) != 0:
-      self.episode_values.append(np.mean(self.episode_values))
+    if len(self.episode_values_mix) != 0:
+      self.episode_mean_values_mix.append(np.mean(self.episode_values_mix))
     if len(self.episode_actions) != 0:
       self.episode_mean_actions.append(get_mode(self.episode_actions))
 
   def write_summaries(self):
     self.summary = tf.Summary()
-    self.summary.value.add(tag='Perf/Return', simple_value=float(self.episode_reward))
+    self.summary.value.add(tag='Perf/UndiscReturn', simple_value=float(self.episode_reward))
+    # self.summary.value.add(tag='Perf/UndiscMixedReturn', simple_value=float(self.episode_mixed_reward))
+    # self.summary.value.add(tag='Perf/UndiscIntrinsicReturn', simple_value=float(self.episode_intrinsic_reward))
     self.summary.value.add(tag='Perf/Length', simple_value=float(self.episode_length))
 
-    for sum in [self.summaries_sf, self.summaries_critic, self.summaries_option]:
+    for sum in [self.summaries_sf, self.summaries_term, self.summaries_critic, self.summaries_option, self.summaries_goal]:
       if sum is not None:
         self.summary_writer.add_summary(sum, self.global_episode_np)
 
-    if len(self.episode_mean_values) != 0:
-      last_mean_value = np.mean(self.episode_mean_values[-self.config.step_summary_interval:])
-      self.summary.value.add(tag='Perf/Value', simple_value=float(last_mean_value))
+    if len(self.episode_mean_values_mix) != 0:
+      last_mean_value_mix = np.mean(self.episode_mean_values_mix[-self.config.step_summary_interval:])
+      self.summary.value.add(tag='Perf/MixValue', simple_value=float(last_mean_value_mix))
     if len(self.episode_mean_actions) != 0:
       last_frequent_action = self.episode_mean_actions[-1]
       self.summary.value.add(tag='Perf/FreqActions', simple_value=last_frequent_action)
@@ -435,7 +582,8 @@ class A3CAgent(EigenOCAgentDyn):
     ax1 = plt.Subplot(f, gs00[:, :])
     ax1.set_aspect(1.0)
     ax1.axis('off')
-    ax1.set_title('Goal', fontsize=20)
+    # ax1.set_title(f'Goal {self.random_goal} - {self.which_random_goal}', fontsize=20)
+    ax1.set_title(f'Goal', fontsize=20)
     sns.heatmap(reproj_goal, cmap="Blues", ax=ax1)
 
     """Adding borders"""
@@ -554,7 +702,7 @@ class A3CAgent(EigenOCAgentDyn):
       axn = plt.Subplot(f, gs02[indx[k][0], indx[k][1]])
       axn.set_aspect(1.0)
       axn.axis('off')
-      axn.set_title("%.2f (%.2f)" % (self.attention_weights[k], self.query_content_match[k]))
+      axn.set_title("%.3f/%.3f" % (self.attention_weights[k], self.query_content_match[k]))
       sns.heatmap(reproj_cluster, cmap="Blues", ax=axn)
 
       """Adding borders"""
@@ -649,3 +797,6 @@ class A3CAgent(EigenOCAgentDyn):
     pickle.dump(self.global_network.goal_clusters, f, protocol=pickle.HIGHEST_PROTOCOL)
     f.close()
 
+  # def cosine_similarity(self, u, v, eps=1e-8):
+  #   return (np.dot(np.squeeze(u), np.squeeze(v))
+  #           / (np.linalg.norm(u) * np.linalg.norm(v) + eps))
