@@ -119,8 +119,8 @@ class AttentionAgent(EigenOCAgentDyn):
             if self.global_episode_np % self.config.summary_interval == 0:
               self.write_summaries()
 
-            if self.global_episode_np % self.config.cluster_interval == 0:
-                self.print_g()
+            # if self.global_episode_np % self.config.cluster_interval == 0:
+            #     self.print_g()
 
           """If it's time to change the task - move the goal, wait for all other threads to finish the current task"""
           if self.total_episodes % self.config.move_goal_nb_of_ep == 0 and \
@@ -144,7 +144,7 @@ class AttentionAgent(EigenOCAgentDyn):
                    "v": self.local_network.v,
                    "g_policy": self.local_network.g_policy,
                    "attention_weights": self.local_network.attention_weights,
-                   "query_content_match": self.local_network.query_content_match_sharp,
+                   "query_content_match": self.local_network.query_content_match,
                    "query_goal": self.local_network.query_goal,
                    "global_episode": self.global_episode}
     results = self.sess.run(tensor_results, feed_dict=feed_dict)
