@@ -107,11 +107,10 @@ class AttentionFeudalNNAgent(EigenOCAgentDyn):
               self.aux_episode_buffer.popleft()
             self.aux_episode_buffer.append([s, s1, self.action])
 
+            self.next_frame_prediction()
             if len(self.aux_episode_buffer) > self.config.observation_steps:
                 self.episode_buffer_sf.append([s, self.fi, s1])
-
-            self.next_frame_prediction()
-            self.sf_prediction(s1)
+                self.sf_prediction(s1)
 
             # if self.global_episode_np >= self.config.cold_start_episodes:
             #   self.option_prediction(s, s1)
@@ -239,7 +238,7 @@ class AttentionFeudalNNAgent(EigenOCAgentDyn):
 
   """Do n-step prediction for the successor representation latent and an update for the representation latent using 1-step next frame prediction"""
   def sf_prediction(self, s1):
-    if len(self.aux_episode_buffer) > self.config.observation_steps and len(self.episode_buffer_sf) == self.config.max_update_freq or self.done:
+    if len(self.episode_buffer_sf) == self.config.max_update_freq or self.done:
       """Get the successor features of the next state for which to bootstrap from"""
       feed_dict = {self.local_network.observation: [s1]}
       next_sf = self.sess.run(self.local_network.sf,
