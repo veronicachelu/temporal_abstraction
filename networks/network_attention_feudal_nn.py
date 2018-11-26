@@ -169,12 +169,12 @@ class AttentionFeudalNNNetwork(EignOCNetwork):
     """Building losses"""
     with tf.name_scope('sf_loss'):
       sf_td_error = self.target_sf - self.sf
-      self.sf_loss = tf.reduce_mean(self.config.sf_coef * huber_loss(sf_td_error))
+      self.sf_loss = tf.reduce_mean(self.config.sf_coef * tf.square(sf_td_error))
 
     with tf.name_scope('aux_loss'):
       """L2 loss for the next frame prediction"""
       aux_error = self.next_obs - self.target_next_obs
-      self.aux_loss = tf.reduce_mean(self.config.aux_coef * huber_loss(aux_error))
+      self.aux_loss = tf.reduce_mean(self.config.aux_coef * tf.square(aux_error))
 
     with tf.name_scope('mix_critic_loss'):
       mix_td_error = self.target_mix_return - self.v_mix

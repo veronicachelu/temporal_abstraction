@@ -107,10 +107,11 @@ class AttentionFeudalNNAgent(EigenOCAgentDyn):
               self.aux_episode_buffer.popleft()
             self.aux_episode_buffer.append([s, s1, self.action])
 
-            self.episode_buffer_sf.append([s, self.fi, s1, self.action])
+            if len(self.aux_episode_buffer) > self.config.observation_steps:
+                self.episode_buffer_sf.append([s, self.fi, s1, self.action])
 
             self.next_frame_prediction()
-            # self.sf_prediction(s1)
+            self.sf_prediction(s1)
 
             # if self.global_episode_np >= self.config.cold_start_episodes:
             #   self.option_prediction(s, s1)
@@ -238,7 +239,7 @@ class AttentionFeudalNNAgent(EigenOCAgentDyn):
 
   """Do n-step prediction for the successor representation latent and an update for the representation latent using 1-step next frame prediction"""
   def sf_prediction(self, s1):
-    if len(self.episode_buffer_sf) == self.config.max_update_freq or self.done:
+    if len(self.aux_episode_buffer) > self.config.observation_steps and len(self.episode_buffer_sf) == self.config.max_update_freq or self.done:
       """Get the successor features of the next state for which to bootstrap from"""
       feed_dict = {self.local_network.observation: [s1]}
       next_sf = self.sess.run(self.local_network.sf,
@@ -252,6 +253,11 @@ class AttentionFeudalNNAgent(EigenOCAgentDyn):
     rollout = np.array(self.episode_buffer_sf)
     observations = rollout[:, 0]
     fi = rollout[:, 1]
+
+    """Get the latent representations for each state"""
+    feed_dict = {self.local_network.observation: np.stack(observations, axis=0)}
+    fi = self.sess.run(self.local_network.fi,
+                       feed_dict=feed_dict)
 
     """Construct list of latent representations for the entire trajectory"""
     sf_plus = np.asarray(fi.tolist() + [bootstrap_sf])
