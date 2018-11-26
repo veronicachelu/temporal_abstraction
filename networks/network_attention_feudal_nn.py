@@ -86,7 +86,7 @@ class AttentionFeudalNNNetwork(EignOCNetwork):
         self.sf = layers.fully_connected(tf.stop_gradient(self.fi_relu),
                                      num_outputs=self.goal_embedding_size,
                                      activation_fn=None,
-                                     # biases_initializer=None,
+                                     biases_initializer=None,
                                      scope="sf")
 
 
