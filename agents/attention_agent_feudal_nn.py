@@ -471,11 +471,11 @@ class AttentionFeudalNNAgent(EigenOCAgentDyn):
     plt.axis('off')
     f.patch.set_visible(False)
 
-    gs0 = gridspec.GridSpec(1, 3)
+    gs0 = gridspec.GridSpec(1, 6)
 
-    gs00 = gridspec.GridSpecFromSubplotSpec(4, 4, subplot_spec=gs0[0])
-    gs01 = gridspec.GridSpecFromSubplotSpec(4, 2, subplot_spec=gs0[1])
-    gs02 = gridspec.GridSpecFromSubplotSpec(4, 12, subplot_spec=gs0[2])
+    gs00 = gridspec.GridSpecFromSubplotSpec(4, 4, subplot_spec=gs0[0, 0])
+    gs01 = gridspec.GridSpecFromSubplotSpec(4, 2, subplot_spec=gs0[0, 1])
+    gs02 = gridspec.GridSpecFromSubplotSpec(4, 12, subplot_spec=gs0[0, 2:6])
 
     ax1 = plt.Subplot(f, gs00[:, :])
     ax1.set_aspect(1.0)
