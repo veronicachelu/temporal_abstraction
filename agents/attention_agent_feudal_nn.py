@@ -133,8 +133,8 @@ class AttentionFeudalNNAgent(EigenOCAgentDyn):
             if self.global_episode_np % self.config.summary_interval == 0:
               self.write_summaries()
 
-            # if self.global_episode_np % self.config.cluster_interval == 0:
-            #     self.print_g()
+            if self.global_episode_np % self.config.cluster_interval == 0:
+                self.print_g()
 
           """If it's time to change the task - move the goal, wait for all other threads to finish the current task"""
           if self.total_episodes % self.config.move_goal_nb_of_ep == 0 and \
