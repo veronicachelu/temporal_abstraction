@@ -82,39 +82,39 @@ class AttentionFeudalNNAgent(EigenOCAgentDyn):
           self.init_episode()
 
           """Reset the environment and get the initial state"""
-          s = self.env.reset()
+          self.s = self.env.reset()
           """While the episode does not terminate"""
           while not self.done:
             """update local network parameters from global network"""
             self.sync_threads()
 
             """Choose an action from the current intra-option policy"""
-            self.policy_evaluation(s)
+            self.policy_evaluation(self.s)
 
-            s1, self.reward, self.done, self.s1_idx = self.env.step(self.action)
+            self.s1, self.reward, self.done, self.s1_idx = self.env.step(self.action)
             self.episode_state_occupancy[self.s1_idx] += 1
             self.episode_reward += self.reward
 
             if self.done:
-              s1 = s
+              self.s1 = self.s
               self.s1_idx = self.s_idx
 
             if len(self.aux_episode_buffer) == self.config.memory_size:
               self.aux_episode_buffer.popleft()
-            self.aux_episode_buffer.append([s, s1, self.action])
+            self.aux_episode_buffer.append([self.s, self.s1, self.action])
 
             self.next_frame_prediction()
             if len(self.aux_episode_buffer) > self.config.observation_steps:
-              self.episode_buffer_sf.append([s, self.fi, s1])
-              self.sf_prediction(s1)
+              self.episode_buffer_sf.append([self.s, self.fi, self.s1])
+              self.sf_prediction(self.s1)
 
               if self.global_episode_np >= self.config.cold_start_episodes:
-                self.option_prediction(s, s1)
+                self.option_prediction(self.s, self.s1)
 
             if self.total_steps % self.config.step_summary_interval == 0 and self.name == 'worker_0':
               self.write_step_summary()
 
-            s = s1
+            self.s = self.s1
             self.s_idx = self.s1_idx
             self.episode_length += 1
             self.total_steps += 1
@@ -134,8 +134,8 @@ class AttentionFeudalNNAgent(EigenOCAgentDyn):
             if self.global_episode_np % self.config.summary_interval == 0:
               self.write_summaries()
 
-            # if self.global_episode_np % self.config.cluster_interval == 0:
-            #     self.print_g()
+            if self.global_episode_np % self.config.cluster_interval == 0:
+                self.print_g()
 
           """If it's time to change the task - move the goal, wait for all other threads to finish the current task"""
           if self.total_episodes % self.config.move_goal_nb_of_ep == 0 and \
@@ -454,156 +454,39 @@ class AttentionFeudalNNAgent(EigenOCAgentDyn):
 
     self.summary_writer.add_summary(self.summary, self.global_episode_np)
     self.summary_writer.flush()
-	#
-  # """Plot plicies and value functions"""
-	#
-  # def plot_policy_and_value_function(self, eigenvectors):
-  #   epsilon = 0.0001
-  #   with self.sess.as_default(), self.sess.graph.as_default():
-  #     self.env.define_network(self.local_network)
-  #     self.env.define_session(self.sess)
-  #     for i in range(len(eigenvectors)):
-  #       """Do policy iteration"""
-  #       discount = 0.9
-  #       polIter = PolicyIteration(discount, self.env, augmentActionSet=True)
-  #       """Use the goal of the eigenvector as intrinsic reward for the policy iteration algorithm"""
-  #       self.env.define_reward_function(eigenvectors[i])
-  #       """Get the optimal value function and policy"""
-  #       V, pi = polIter.solvePolicyIteration()
-	#
-  #       for j in range(len(V)):
-  #         if V[j] < epsilon:
-  #           pi[j] = len(self.env.get_action_set())
-	#
-  #       """Plot them"""
-  #       self.plot_value_function(V[0:self.nb_states], str(i) + "_")
-  #       self.plot_policy(pi[0:self.nb_states], str(i) + "_")
-	#
-  # """Plot value functions"""
-  # def plot_value_function(self, value_function, prefix):
-  #   fig, ax = plt.subplots(subplot_kw=dict(projection='3d'))
-  #   X, Y = np.meshgrid(np.arange(self.config.input_size[1]), np.arange(self.config.input_size[0]))
-  #   reproj_value_function = value_function.reshape(self.config.input_size[0], self.config.input_size[1])
-	#
-  #   """Build the support"""
-  #   for i in range(len(X)):
-  #     for j in range(int(len(X[i]) / 2)):
-  #       tmp = X[i][j]
-  #       X[i][j] = X[i][len(X[i]) - j - 1]
-  #       X[i][len(X[i]) - j - 1] = tmp
-	#
-  #   cm.jet(np.random.rand(reproj_value_function.shape[0], reproj_value_function.shape[1]))
-	#
-  #   ax.plot_surface(X, Y, reproj_value_function, rstride=1, cstride=1,
-  #                   cmap=plt.get_cmap('jet'))
-  #   plt.gca().view_init(elev=30, azim=30)
-  #   plt.savefig(os.path.join(self.v_folder, "SuccessorFeatures" + prefix + 'value_function.png'))
-  #   plt.close()
-	#
-  # """Plot the policy"""
-  # def plot_policy(self, policy, prefix):
-  #   plt.clf()
-  #   for idx in range(len(policy)):
-  #     i, j = self.env.get_state_xy(idx)
-	#
-  #     dx = 0
-  #     dy = 0
-  #     if policy[idx] == 0:  # up
-  #       dy = 0.35
-  #     elif policy[idx] == 1:  # right
-  #       dx = 0.35
-  #     elif policy[idx] == 2:  # down
-  #       dy = -0.35
-  #     elif policy[idx] == 3:  # left
-  #       dx = -0.35
-  #     elif self.env.not_wall(i, j) and policy[idx] == 4:  # termination
-  #       circle = plt.Circle(
-  #         (j + 0.5, self.config.input_size[0] - i + 0.5 - 1), 0.025, color='k')
-  #       plt.gca().add_artist(circle)
-	#
-  #     if self.env.not_wall(i, j):
-  #       plt.arrow(j + 0.5, self.config.input_size[0] - i + 0.5 - 1, dx, dy,
-  #                 head_width=0.05, head_length=0.05, fc='k', ec='k')
-  #     else:
-  #       plt.gca().add_patch(
-  #         patches.Rectangle(
-  #           (j, self.config.input_size[0] - i - 1),  # (x,y)
-  #           1.0,  # width
-  #           1.0,  # height
-  #           facecolor="gray"
-  #         )
-  #       )
-	#
-  #   plt.xlim([0, self.config.input_size[1]])
-  #   plt.ylim([0, self.config.input_size[0]])
-	#
-  #   for i in range(self.config.input_size[1]):
-  #     plt.axvline(i, color='k', linestyle=':')
-  #   plt.axvline(self.config.input_size[1], color='k', linestyle=':')
-	#
-  #   for j in range(self.config.input_size[0]):
-  #     plt.axhline(j, color='k', linestyle=':')
-  #   plt.axhline(self.config.input_size[0], color='k', linestyle=':')
-	#
-  #   plt.savefig(os.path.join(self.policy_folder, "SuccessorFeatures_" + prefix + 'policy.png'))
-  #   plt.close()
 
   def print_g(self):
     plt.clf()
-    reproj_goal = self.g.reshape(
-      self.config.input_size[0],
-      self.config.input_size[1])
-    reproj_obs = np.squeeze(self.env.build_screen(), -1)
+    reproj_obs = np.squeeze(self.s, -1)
     clusters = self.global_network.goal_clusters.get_clusters()
-    reproj_query = self.query_goal.reshape(
-      self.config.input_size[0],
-      self.config.input_size[1])
-    reproj_sf = self.sf.reshape(
-      self.config.input_size[0],
-      self.config.input_size[1])
     reproj_state_occupancy = self.episode_state_occupancy.reshape(
       self.config.input_size[0],
       self.config.input_size[1])
 
-    params = {'figure.figsize': (60, 10),
+    params = {'figure.figsize': (120, 20),
               'axes.titlesize': 'medium',
               }
     plt.rcParams.update(params)
 
-    f = plt.figure(figsize=(25, 5), frameon=False)
+    f = plt.figure(figsize=(40, 10), frameon=False)
     plt.axis('off')
     f.patch.set_visible(False)
 
     gs0 = gridspec.GridSpec(1, 3)
 
-    gs00 = gridspec.GridSpecFromSubplotSpec(2, 2, subplot_spec=gs0[0])
-    gs01 = gridspec.GridSpecFromSubplotSpec(2, 2, subplot_spec=gs0[1])
-    gs02 = gridspec.GridSpecFromSubplotSpec(2, 4, subplot_spec=gs0[2])
+    gs00 = gridspec.GridSpecFromSubplotSpec(4, 4, subplot_spec=gs0[0])
+    gs01 = gridspec.GridSpecFromSubplotSpec(4, 2, subplot_spec=gs0[1])
+    gs02 = gridspec.GridSpecFromSubplotSpec(4, 8, subplot_spec=gs0[2])
 
     ax1 = plt.Subplot(f, gs00[:, :])
     ax1.set_aspect(1.0)
     ax1.axis('off')
-    # ax1.set_title(f'Goal {self.random_goal} - {self.which_random_goal}', fontsize=20)
     ax1.set_title(f'Goal', fontsize=20)
-    sns.heatmap(reproj_goal, cmap="Blues", ax=ax1)
+    self.plot_policy_embedding(self.g, ax1)
 
-    """Adding borders"""
-    for idx in range(self.nb_states):
-      ii, jj = self.env.get_state_xy(idx)
-      if self.env.not_wall(ii, jj):
-        continue
-      else:
-        ax1.add_patch(
-          patches.Rectangle(
-            (jj, self.config.input_size[0] - ii - 1),  # (x,y)
-            1.0,  # width
-            1.0,  # height
-            facecolor="gray"
-          )
-        )
     f.add_subplot(ax1)
 
-    ax2 = plt.Subplot(f, gs01[0, 0])
+    ax2 = plt.Subplot(f, gs01[0:2, 0:2])
     ax2.set_aspect(1.0)
     ax2.axis('off')
     ax2.set_title('Last observation', fontsize=20)
@@ -625,7 +508,7 @@ class AttentionFeudalNNAgent(EigenOCAgentDyn):
         )
     f.add_subplot(ax2)
 
-    ax3 = plt.Subplot(f, gs01[1, 0])
+    ax3 = plt.Subplot(f, gs01[2:4, 0:2])
     ax3.set_aspect(1.0)
     ax3.axis('off')
     ax3.set_title('State occupancy', fontsize=20)
@@ -647,64 +530,65 @@ class AttentionFeudalNNAgent(EigenOCAgentDyn):
         )
     f.add_subplot(ax3)
 
-    ax4 = plt.Subplot(f, gs01[0, 1])
-    ax4.set_aspect(1.0)
-    ax4.axis('off')
-    ax4.set_title('Query goal embedding', fontsize=20)
-    sns.heatmap(reproj_query, cmap="Blues", ax=ax4)
+    # ax4 = plt.Subplot(f, gs01[0, 1])
+    # ax4.set_aspect(1.0)
+    # ax4.axis('off')
+    # ax4.set_title('Query goal embedding', fontsize=20)
+    # sns.heatmap(reproj_query, cmap="Blues", ax=ax4)
+		#
+		# """Adding borders"""
+		# for idx in range(self.nb_states):
+     #  ii, jj = self.env.get_state_xy(idx)
+     #  if self.env.not_wall(ii, jj):
+     #    continue
+     #  else:
+     #    ax4.add_patch(
+     #      patches.Rectangle(
+     #        (jj, self.config.input_size[0] - ii - 1),  # (x,y)
+     #        1.0,  # width
+     #        1.0,  # height
+     #        facecolor="gray"
+     #      )
+     #    )
+    # f.add_subplot(ax4)
 
-    """Adding borders"""
-    for idx in range(self.nb_states):
-      ii, jj = self.env.get_state_xy(idx)
-      if self.env.not_wall(ii, jj):
-        continue
-      else:
-        ax4.add_patch(
-          patches.Rectangle(
-            (jj, self.config.input_size[0] - ii - 1),  # (x,y)
-            1.0,  # width
-            1.0,  # height
-            facecolor="gray"
-          )
-        )
-    f.add_subplot(ax4)
+    # ax5 = plt.Subplot(f, gs01[1, 1])
+    # ax5.set_aspect(1.0)
+    # ax5.axis('off')
+    # ax5.set_title('SR', fontsize=20)
+    # sns.heatmap(reproj_sf, cmap="Blues", ax=ax5)
+		#
+    # """Adding borders"""
+    # for idx in range(self.nb_states):
+    #   ii, jj = self.env.get_state_xy(idx)
+    #   if self.env.not_wall(ii, jj):
+    #     continue
+    #   else:
+    #     ax5.add_patch(
+    #       patches.Rectangle(
+    #         (jj, self.config.input_size[0] - ii - 1),  # (x,y)
+    #         1.0,  # width
+    #         1.0,  # height
+    #         facecolor="gray"
+    #       )
+    #     )
+    # f.add_subplot(ax5)
 
-    ax5 = plt.Subplot(f, gs01[1, 1])
-    ax5.set_aspect(1.0)
-    ax5.axis('off')
-    ax5.set_title('SR', fontsize=20)
-    sns.heatmap(reproj_sf, cmap="Blues", ax=ax5)
-
-    """Adding borders"""
-    for idx in range(self.nb_states):
-      ii, jj = self.env.get_state_xy(idx)
-      if self.env.not_wall(ii, jj):
-        continue
-      else:
-        ax5.add_patch(
-          patches.Rectangle(
-            (jj, self.config.input_size[0] - ii - 1),  # (x,y)
-            1.0,  # width
-            1.0,  # height
-            facecolor="gray"
-          )
-        )
-    f.add_subplot(ax5)
-
-    indx = [[0, 0], [0, 1], [0, 2], [0, 3],
-            [1, 0], [1, 1], [1, 2], [1, 3]]
+    indx = [[0, 0], [0, 2], [0, 4], [0, 6],
+            [2, 0], [2, 2], [2, 4], [2, 6]]
 
     for k in range(len(clusters)):
-      reproj_cluster = clusters[k].reshape(
-        self.config.input_size[0],
-        self.config.input_size[1])
+      # reproj_cluster = clusters[k].reshape(
+      #   self.config.input_size[0],
+      #   self.config.input_size[1])
 
       """Plot of the eigenvector"""
-      axn = plt.Subplot(f, gs02[indx[k][0], indx[k][1]])
+      axn = plt.Subplot(f, gs02[indx[k][0]:indx[k][0]+2, indx[k][1]:indx[k][1]+2])
       axn.set_aspect(1.0)
       axn.axis('off')
       axn.set_title("%.3f/%.3f" % (self.attention_weights[k], self.query_content_match[k]))
-      sns.heatmap(reproj_cluster, cmap="Blues", ax=axn)
+      self.plot_policy_embedding(clusters[k], axn)
+      # sns.heatmap(clusters[k], cmap="Blues", ax=axn)
 
       """Adding borders"""
       for idx in range(self.nb_states):
@@ -712,14 +596,12 @@ class AttentionFeudalNNAgent(EigenOCAgentDyn):
         if self.env.not_wall(ii, jj):
           continue
         else:
-          # new_coords = axn.transData.transform()
           axn.add_patch(
             patches.Rectangle(
               (jj, self.config.input_size[0] - ii - 1),  # (x,y)
               1.0,  # width
               1.0,  # height
               facecolor="gray"
-              # transform=axn.transAxes,
             )
           )
       f.add_subplot(axn)
@@ -738,6 +620,67 @@ class AttentionFeudalNNAgent(EigenOCAgentDyn):
     f = open(goal_clusters_path, 'wb')
     pickle.dump(self.global_network.goal_clusters, f, protocol=pickle.HIGHEST_PROTOCOL)
     f.close()
+
+  def plot_policy_embedding(self, embedding, ax):
+    epsilon = 0.0001
+    with self.sess.as_default(), self.sess.graph.as_default():
+      self.env.define_network(self.local_network)
+      self.env.define_session(self.sess)
+      """Do policy iteration"""
+      discount = 0.9
+      polIter = PolicyIteration(discount, self.env, augmentActionSet=True)
+      """Use the direction of the eigenvector as intrinsic reward for the policy iteration algorithm"""
+      self.env.define_reward_function(embedding)
+      """Get the optimal value function and policy"""
+      V, pi = polIter.solvePolicyIteration()
+
+      for j in range(len(V)):
+        if V[j] < epsilon:
+          pi[j] = len(self.env.get_action_set())
+
+      policy = pi[0:self.nb_states]
+      for idx in range(len(policy)):
+        i, j = self.env.get_state_xy(idx)
+
+        dx = 0
+        dy = 0
+        if policy[idx] == 0:  # up
+          dy = 0.35
+        elif policy[idx] == 1:  # right
+          dx = 0.35
+        elif policy[idx] == 2:  # down
+          dy = -0.35
+        elif policy[idx] == 3:  # left
+          dx = -0.35
+        elif self.env.not_wall(i, j) and policy[idx] == 4:  # termination
+          circle = plt.Circle(
+            (j + 0.5, self.config.input_size[0] - i + 0.5 - 1), 0.025, color='k')
+          ax.add_artist(circle)
+
+        if self.env.not_wall(i, j):
+          ax.arrow(j + 0.5, self.config.input_size[0] - i + 0.5 - 1, dx, dy,
+                    head_width=0.05, head_length=0.05, fc='k', ec='k')
+        else:
+          ax.add_patch(
+            patches.Rectangle(
+              (j, self.config.input_size[0] - i - 1),  # (x,y)
+              1.0,  # width
+              1.0,  # height
+              facecolor="gray"
+            )
+          )
+
+      ax.set_xlim([0, self.config.input_size[1]])
+      ax.set_xlim([0, self.config.input_size[0]])
+
+      for i in range(self.config.input_size[1]):
+        ax.axvline(i, color='k', linestyle=':')
+      ax.axvline(self.config.input_size[1], color='k', linestyle=':')
+
+      for j in range(self.config.input_size[0]):
+        ax.axhline(j, color='k', linestyle=':')
+      ax.axhline(self.config.input_size[0], color='k', linestyle=':')
+
 
   """Plot plicies and value functions"""
   def plot_clusters(self):
