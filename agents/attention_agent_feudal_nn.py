@@ -31,7 +31,6 @@ class AttentionFeudalNNAgent(EigenOCAgentDyn):
     super(AttentionFeudalNNAgent, self).init_episode()
     self.episode_values_mix = []
     self.episode_buffer_option = []
-    # self.episode_screens = []
     self.episode_goals = []
     self.episode_g_sums = []
     self.states = []
@@ -61,9 +60,6 @@ class AttentionFeudalNNAgent(EigenOCAgentDyn):
     tf.gfile.MakeDirs(self.cluster_model_path)
 
     self.total_episodes = self.global_episode.eval()
-    # goalstateIdx = self.env.get_state_index(self.env.goalX, self.env.goalY)
-    # self.goal_sf = self.sess.run(self.local_network.sf, {
-    #   self.local_network.observation: np.identity(self.nb_states)[goalstateIdx:goalstateIdx + 1]})[0]
 
   """Starting point of the agent acting in the environment"""
   def play(self, coord, saver):
@@ -193,10 +189,10 @@ class AttentionFeudalNNAgent(EigenOCAgentDyn):
     pi = results["g_policy"][0]
 
     """Sample an action"""
-    # self.action = np.random.choice(pi, p=pi)
-    # self.action = np.argmax(pi == self.action)
-    # if self.global_episode_np < self.config.cold_start_episodes:
-    self.action = np.random.choice(range(self.action_size))
+    self.action = np.random.choice(pi, p=pi)
+    self.action = np.argmax(pi == self.action)
+    if self.global_episode_np < self.config.cold_start_episodes:
+      self.action = np.random.choice(range(self.action_size))
 
     """Store information in buffers for stats in tensorboard"""
     self.episode_actions.append(self.action)

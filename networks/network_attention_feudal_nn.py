@@ -89,7 +89,6 @@ class AttentionFeudalNNNetwork(EignOCNetwork):
                                      biases_initializer=None,
                                      scope="sf")
 
-
       with tf.variable_scope("option_manager_policy"):
         """The merged representation of the input"""
         goal_hat = layers.fully_connected(tf.stop_gradient(self.fi_relu),
@@ -97,7 +96,6 @@ class AttentionFeudalNNNetwork(EignOCNetwork):
                                                     activation_fn=None,
                                                     scope="goal_hat")
         self.query_goal = self.l2_normalize(goal_hat, 1)
-
         self.query_content_match = tf.einsum('bj, ij -> bi', self.query_goal, self.goal_clusters, name="query_content_match")
         self.query_content_match_sharp = self.query_content_match * self.config.starpening_factor
         self.goal_distribution = tf.contrib.distributions.RelaxedOneHotCategorical(self.config.temperature,
@@ -178,7 +176,7 @@ class AttentionFeudalNNNetwork(EignOCNetwork):
       self.critic_loss = tf.reduce_mean(0.5 * tf.square(td_error))
 
     with tf.name_scope('goal_loss'):
-      self.goal_loss = -tf.reduce_sum(
+      self.goal_loss = -tf.reduce_mean(
         self.cosine_similarity(self.target_goal, self.g, 1) * tf.stop_gradient(td_error))
 
     with tf.name_scope('entropy_loss'):
@@ -191,7 +189,8 @@ class AttentionFeudalNNNetwork(EignOCNetwork):
 
   def l2_normalize(self, x, axis):
       norm = tf.sqrt(tf.reduce_sum(tf.square(x), axis=axis, keepdims=True))
-      return tf.maximum(x, 1e-8) / tf.maximum(norm, 1e-8)
+      # return tf.maximum(x, 1e-8) / tf.maximum(norm, 1e-8)
+      return x / tf.maximum(norm, 1e-8)
 
   def cosine_similarity(self, v1, v2, axis):
     norm_v1 = tf.nn.l2_normalize(tf.cast(v1, tf.float64), axis)
@@ -199,8 +198,6 @@ class AttentionFeudalNNNetwork(EignOCNetwork):
     sim = tf.matmul(
       norm_v1, norm_v2, transpose_b=True)
     return tf.cast(sim, tf.float32)
-
-    # return sim, norm1 * norm2
 
   def take_gradient(self, loss):
     local_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, self.scope)
@@ -211,19 +208,15 @@ class AttentionFeudalNNNetwork(EignOCNetwork):
     apply_grads = self.network_optimizer.apply_gradients(zip(grads, global_vars))
     return grads, apply_grads
 
-  """Build gradients for the losses with respect to the network params.
-      Build summaries and update ops"""
   def gradients_and_summaries(self):
     local_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, self.scope)
 
-    """Gradients and update ops"""
     self.grads_sf, self.apply_grads_sf = self.take_gradient(self.sf_loss)
     self.grads_aux, self.apply_grads_aux = self.take_gradient(self.aux_loss)
     self.grads_option, self.apply_grads_option = self.take_gradient(self.option_loss)
     self.grads_critic, self.apply_grads_critic = self.take_gradient(self.critic_loss)
     self.grads_goal, self.apply_grads_goal = self.take_gradient(self.goal_loss)
 
-    """Summaries"""
     self.merged_summary_sf = tf.summary.merge(
       self.summaries_sf + [tf.summary.scalar('SF_loss', self.sf_loss),
         gradient_summaries(zip(self.grads_sf, local_vars))])
