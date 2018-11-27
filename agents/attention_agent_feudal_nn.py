@@ -38,6 +38,7 @@ class AttentionFeudalNNAgent(EigenOCAgentDyn):
     self.reward = 0
     self.action = 1
     self.episode_state_occupancy = np.zeros((self.nb_states))
+    self.episode_goal_occupancy = np.zeros((self.nb_states))
     self.summaries_critic = self.summaries_option = self.summaries_aux = self.summaries_sf = self.summaries_term = self.summaries_goal = None
     self.R = self.R_mix = None
     self.last_c_g = np.zeros((1, self.config.c, self.config.sf_layers[-1]), np.float32)
@@ -92,6 +93,8 @@ class AttentionFeudalNNAgent(EigenOCAgentDyn):
             self.policy_evaluation(self.s)
             self.s1, self.reward, self.done, self.s1_idx = self.env.step(self.action)
             self.episode_state_occupancy[self.s1_idx] += 1
+            if self.s_idx is not None:
+              self.episode_goal_occupancy[self.s_idx] = self.which_goal + 1
             self.episode_reward += self.reward
 
             if self.done:
@@ -165,6 +168,7 @@ class AttentionFeudalNNAgent(EigenOCAgentDyn):
       "query_goal": self.local_network.query_goal,
       "attention_weights": self.local_network.attention_weights,
       "query_content_match": self.local_network.query_content_match,
+      "which_goal": self.local_network.which_goal,
       "v": self.local_network.v_ext,
       "v_mix": self.local_network.v_mix,
       "sf": self.local_network.sf,
@@ -176,6 +180,7 @@ class AttentionFeudalNNAgent(EigenOCAgentDyn):
     results = self.sess.run(tensor_results, feed_dict=feed_dict)
 
     self.g = results["g"][0]
+    self.which_goal = results["which_goal"][0]
     self.fi = results["fi"][0]
     self.g_sum = results["g_sum"][0]
     self.last_c_g = results["last_c_goals"]
@@ -463,6 +468,9 @@ class AttentionFeudalNNAgent(EigenOCAgentDyn):
     reproj_state_occupancy = self.episode_state_occupancy.reshape(
       self.config.input_size[0],
       self.config.input_size[1])
+    reproj_goal_occupancy = self.episode_goal_occupancy.reshape(
+      self.config.input_size[0],
+      self.config.input_size[1])
 
     params = {'figure.figsize': (160, 40),
               'axes.titlesize': 'x-large',
@@ -471,7 +479,7 @@ class AttentionFeudalNNAgent(EigenOCAgentDyn):
 
     f = plt.figure(figsize=(160, 40), frameon=False)
     plt.axis('off')
-    f.patch.set_visible(False)
+    # f.patch.set_visible(False)
 
     gs0 = gridspec.GridSpec(1, 6)
 
@@ -483,7 +491,8 @@ class AttentionFeudalNNAgent(EigenOCAgentDyn):
     ax1.set_aspect(1.0)
     ax1.axis('off')
     ax1.set_title(f'Goal', fontsize=80)
-    self.plot_policy_embedding(self.g, ax1)
+    sns.heatmap(reproj_goal_occupancy, cmap="Blues", ax=ax1)
+    # self.plot_policy_embedding(self.g, ax1)
 
     f.add_subplot(ax1)
 

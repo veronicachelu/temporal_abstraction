@@ -101,6 +101,7 @@ class AttentionFeudalNNNetwork(EignOCNetwork):
         self.goal_distribution = tf.contrib.distributions.RelaxedOneHotCategorical(self.config.temperature,
                                                                                    logits=self.query_content_match_sharp)
         self.attention_weights = self.goal_distribution.sample()
+        self.which_goal = tf.argmax(self.attention_weights)
         self.current_unnormalized_goal = tf.einsum('bi, ij -> bj', self.attention_weights, self.goal_clusters, name="unnormalized_g")
         self.g = tf.identity(self.l2_normalize(self.current_unnormalized_goal, 1), name="g")
 
@@ -193,10 +194,10 @@ class AttentionFeudalNNNetwork(EignOCNetwork):
       return (x + 1e-8)/ tf.maximum(norm, 1e-8)
 
   def cosine_similarity(self, v1, v2, axis):
-    # norm_v1 = tf.nn.l2_normalize(tf.cast(v1, tf.float64), axis)
-    # norm_v2 = tf.nn.l2_normalize(tf.cast(v2, tf.float64), axis)
-    norm_v1 = self.l2_normalize(tf.cast(v1, tf.float64), axis)
-    norm_v2 = self.l2_normalize(tf.cast(v2, tf.float64), axis)
+    norm_v1 = tf.nn.l2_normalize(tf.cast(v1 + 1e-8, tf.float64), axis)
+    norm_v2 = tf.nn.l2_normalize(tf.cast(v2 + 1e-8, tf.float64), axis)
+    # norm_v1 = self.l2_normalize(tf.cast(v1, tf.float64), axis)
+    # norm_v2 = self.l2_normalize(tf.cast(v2, tf.float64), axis)
     sim = tf.matmul(
       norm_v1, norm_v2, transpose_b=True)
     return tf.cast(sim, tf.float32)
