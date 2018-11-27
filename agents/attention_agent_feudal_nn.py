@@ -90,7 +90,6 @@ class AttentionFeudalNNAgent(EigenOCAgentDyn):
 
             """Choose an action from the current intra-option policy"""
             self.policy_evaluation(self.s)
-            self.print_g()
             self.s1, self.reward, self.done, self.s1_idx = self.env.step(self.action)
             self.episode_state_occupancy[self.s1_idx] += 1
             self.episode_reward += self.reward
