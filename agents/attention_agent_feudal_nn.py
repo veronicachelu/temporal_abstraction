@@ -610,12 +610,12 @@ class AttentionFeudalNNAgent(EigenOCAgentDyn):
           dx = -0.35
         elif self.env.not_wall(i, j) and policy[idx] == 4:  # termination
           circle = plt.Circle(
-            (j + 0.5, self.config.input_size[0] - i + 0.5 - 1), 0.025, color='k', linewidth=1)
+            (j + 0.5, self.config.input_size[0] - i + 0.5 - 1), 0.1, color='k', linewidth=1)
           ax.add_artist(circle)
 
         if self.env.not_wall(i, j):
           ax.arrow(j + 0.5, self.config.input_size[0] - i + 0.5 - 1, dx, dy,
-                    head_width=0.05, head_length=0.05, fc='k', ec='k', linewidth=1)
+                    head_width=0.2, head_length=0.2, fc='k', ec='k', linewidth=1)
         else:
           ax.add_patch(
             patches.Rectangle(
