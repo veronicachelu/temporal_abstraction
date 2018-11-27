@@ -133,13 +133,15 @@ class AttentionFeudalNNAgent(EigenOCAgentDyn):
             if self.global_episode_np % self.config.summary_interval == 0:
               self.write_summaries()
 
-            if self.global_episode_np % self.config.cluster_interval == 0:
-                self.print_g()
+            # if self.global_episode_np % self.config.cluster_interval == 0:
 
           """If it's time to change the task - move the goal, wait for all other threads to finish the current task"""
           if self.total_episodes % self.config.move_goal_nb_of_ep == 0 and \
                   self.total_episodes != 0:
             tf.logging.info(f"Moving GOAL....{self.total_episodes}")
+
+            if self.name == "worker_0":
+              self.print_g()
 
             self.barrier.wait()
             self.goal_position = self.env.set_goal(self.total_episodes, self.config.move_goal_nb_of_ep)
