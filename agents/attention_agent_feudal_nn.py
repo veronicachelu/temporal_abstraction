@@ -463,7 +463,7 @@ class AttentionFeudalNNAgent(EigenOCAgentDyn):
       self.config.input_size[1])
 
     params = {'figure.figsize': (160, 40),
-              'axes.titlesize': 'Large',
+              'axes.titlesize': 'x-large',
               }
     plt.rcParams.update(params)
 
@@ -480,7 +480,7 @@ class AttentionFeudalNNAgent(EigenOCAgentDyn):
     ax1 = plt.Subplot(f, gs00[:, :])
     ax1.set_aspect(1.0)
     ax1.axis('off')
-    ax1.set_title(f'Goal', fontsize=40)
+    ax1.set_title(f'Goal', fontsize=80)
     self.plot_policy_embedding(self.g, ax1)
 
     f.add_subplot(ax1)
@@ -488,7 +488,7 @@ class AttentionFeudalNNAgent(EigenOCAgentDyn):
     ax2 = plt.Subplot(f, gs01[0:2, 0:2])
     ax2.set_aspect(1.0)
     ax2.axis('off')
-    ax2.set_title('Last observation', fontsize=40)
+    ax2.set_title('Last observation', fontsize=80)
     sns.heatmap(reproj_obs, cmap="Blues", ax=ax2)
 
     """Adding borders"""
@@ -510,7 +510,7 @@ class AttentionFeudalNNAgent(EigenOCAgentDyn):
     ax3 = plt.Subplot(f, gs01[2:4, 0:2])
     ax3.set_aspect(1.0)
     ax3.axis('off')
-    ax3.set_title('State occupancy', fontsize=40)
+    ax3.set_title('State occupancy', fontsize=80)
     sns.heatmap(reproj_state_occupancy, cmap="Blues", ax=ax3)
 
     """Adding borders"""
@@ -541,7 +541,7 @@ class AttentionFeudalNNAgent(EigenOCAgentDyn):
       axn = plt.Subplot(f, gs02[indx[k][0]:(indx[k][0]+2), indx[k][1]:(indx[k][1]+3)])
       axn.set_aspect(1.0)
       axn.axis('off')
-      axn.set_title("%.3f/%.3f" % (self.attention_weights[k], self.query_content_match[k]))
+      axn.set_title("%.3f/%.3f" % (self.attention_weights[k], self.query_content_match[k]), fontsize=80)
       self.plot_policy_embedding(clusters[k], axn)
 
       """Adding borders"""
@@ -608,12 +608,12 @@ class AttentionFeudalNNAgent(EigenOCAgentDyn):
           dx = -0.35
         elif self.env.not_wall(i, j) and policy[idx] == 4:  # termination
           circle = plt.Circle(
-            (j + 0.5, self.config.input_size[0] - i + 0.5 - 1), 0.025, color='k')
+            (j + 0.5, self.config.input_size[0] - i + 0.5 - 1), 0.025, color='k', linewidth=1)
           ax.add_artist(circle)
 
         if self.env.not_wall(i, j):
           ax.arrow(j + 0.5, self.config.input_size[0] - i + 0.5 - 1, dx, dy,
-                    head_width=0.05, head_length=0.05, fc='k', ec='k')
+                    head_width=0.05, head_length=0.05, fc='k', ec='k', linewidth=1)
         else:
           ax.add_patch(
             patches.Rectangle(
