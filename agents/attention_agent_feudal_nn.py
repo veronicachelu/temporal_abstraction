@@ -463,12 +463,12 @@ class AttentionFeudalNNAgent(EigenOCAgentDyn):
       self.config.input_size[0],
       self.config.input_size[1])
 
-    params = {'figure.figsize': (120, 20),
+    params = {'figure.figsize': (160, 40),
               'axes.titlesize': 'medium',
               }
     plt.rcParams.update(params)
 
-    f = plt.figure(figsize=(40, 10), frameon=False)
+    f = plt.figure(figsize=(160, 40), frameon=False)
     plt.axis('off')
     f.patch.set_visible(False)
 
