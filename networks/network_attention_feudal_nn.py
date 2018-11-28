@@ -112,7 +112,7 @@ class AttentionFeudalNNNetwork(EignOCNetwork):
         # self.random_g = tf.gather(self.goal_sr_clusters, self.which_random_goal, axis=1)
         indices_random_goal = tf.stack([tf.range(tf.shape(self.which_random_goal)[0]), self.which_random_goal], axis=1)
         self.random_g = tf.gather_nd(self.goal_sr_clusters, indices_random_goal)
-        self.random_goal_cond = self.local_random > self.local_random
+        self.random_goal_cond = self.local_random > self.prob_of_random_goal
         self.g = tf.where(self.random_goal_cond, self.max_g, self.random_g, name="current_goal")
         # self.g = self.max_g
         cut_g = tf.stop_gradient(self.g)
