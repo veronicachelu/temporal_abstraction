@@ -184,6 +184,7 @@ class AttentionFeudalNNAgent(EigenOCAgentDyn):
 
     self.g = results["g"][0]
     self.which_goal = results["which_goal"][0]
+    self.which_random_goal = results["which_random_goal"][0]
     self.fi = results["fi"][0]
     self.g_sum = results["g_sum"][0]
     self.last_c_g = results["last_c_goals"]
@@ -204,6 +205,10 @@ class AttentionFeudalNNAgent(EigenOCAgentDyn):
     if self.global_episode_np < self.config.cold_start_episodes:
       self.action = np.random.choice(range(self.action_size))
 
+    which_goal = self.which_goal if self.random_goal_cond else self.which_random_goal
+    if self.name == "worker_0" and self.global_step_np % 10:
+      print(f"Deterministic goal: {self.random_goal_cond} >>"
+          f" Chosen goal: {which_goal} >> Random action {self.global_episode_np < self.config.cold_start_episodes} >> Chosen action {self.action}")
     """Store information in buffers for stats in tensorboard"""
     self.episode_actions.append(self.action)
 
