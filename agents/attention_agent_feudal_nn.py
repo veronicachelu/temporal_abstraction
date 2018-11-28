@@ -193,7 +193,7 @@ class AttentionFeudalNNAgent(EigenOCAgentDyn):
     self.sf = results["sf"][0]
     self.add_SF(self.sf)
     self.global_episode_np = results["global_episode"]
-    self.random_goal_cond = results["random_goal_cond"]
+    self.random_goal_cond = results["random_goal_cond"][0]
     pi = results["g_policy"][0]
 
     """Sample an action"""
