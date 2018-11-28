@@ -532,13 +532,13 @@ def attention_feudal_nn():
 	starpening_factor = 10
 	max_update_freq = 30
 	c = 2
-	cold_start_episodes = 10
+	cold_start_episodes = 20
 	"""The kind of agent to use in the environment"""
 	target_agent = AttentionFeudalNNAgent
 	"""The number test episodes to execute, over which to average results"""
 	nb_test_ep = 1
 	"""Move to the next task specified in the goal_locations after the specfied number of episodes"""
-	move_goal_nb_of_ep = 200
+	move_goal_nb_of_ep = 100
 	"""The kind of network to use for function approximation"""
 	network = AttentionFeudalNNNetwork
 	goal_locations = [(11, 7), (5, 2), (1, 10), (2, 2), (6, 2), (9, 11), (2, 7)]
