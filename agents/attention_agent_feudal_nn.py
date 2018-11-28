@@ -201,8 +201,8 @@ class AttentionFeudalNNAgent(EigenOCAgentDyn):
     """Sample an action"""
     self.action = np.random.choice(pi, p=pi)
     self.action = np.argmax(pi == self.action)
-    if self.global_episode_np < self.config.cold_start_episodes:
-      self.action = np.random.choice(range(self.action_size))
+    # if self.global_episode_np < self.config.cold_start_episodes:
+    self.action = np.random.choice(range(self.action_size))
 
     """Store information in buffers for stats in tensorboard"""
     self.episode_actions.append(self.action)
