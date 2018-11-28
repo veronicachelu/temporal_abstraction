@@ -241,6 +241,7 @@ class AttentionFeudalNNAgent(EigenOCAgentDyn):
         self.episode_buffer_option = self.episode_buffer_option[-twoc:]
         self.episode_goals = self.episode_goals[-twoc:]
         self.episode_g_sums = self.episode_g_sums[-twoc:]
+        self.episode_clusters = self.episode_clusters[-twoc:]
 
 
   """Do n-step prediction for the successor representation latent and an update for the representation latent using 1-step next frame prediction"""
