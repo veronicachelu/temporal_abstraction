@@ -107,11 +107,12 @@ class AttentionFeudalNNNetwork(EignOCNetwork):
         self.max_g = tf.identity(self.l2_normalize(self.current_unnormalized_goal, 1), name="g")
 
         self.local_random = tf.random_uniform(shape=[tf.shape(self.max_g)[0]], minval=0., maxval=1., dtype=tf.float32, name="rand_goals")
-        random_goal_sampling = tf.distributions.Categorical(probs=[1/(self.config.nb_options) for _ in range(self.config.nb_options)])
+        random_goal_sampling = tf.distributions.Categorical(probs=[1/(self.config.nb_options + 1) for _ in range(self.config.nb_options + 1)])
         self.which_random_goal = random_goal_sampling.sample(tf.shape(self.max_g)[0])
         # self.random_g = tf.gather(self.goal_sr_clusters, self.which_random_goal, axis=1)
         indices_random_goal = tf.stack([tf.range(tf.shape(self.which_random_goal)[0]), self.which_random_goal], axis=1)
-        self.random_g = tf.gather_nd(self.goal_sr_clusters, indices_random_goal)
+        self.goal_sr_clusters_plus = tf.map_fn(lambda goals: tf.concat([goals, tf.random_normal(shape=(1, self.goal_embedding_size))], 0), self.goal_sr_clusters)
+        self.random_g = tf.gather_nd(self.goal_sr_clusters_plus, indices_random_goal)
         self.random_goal_cond = self.local_random > self.prob_of_random_goal
         self.g = tf.where(self.random_goal_cond, self.max_g, self.random_g, name="current_goal")
         # self.g = self.max_g
