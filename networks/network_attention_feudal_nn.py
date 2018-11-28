@@ -5,6 +5,7 @@ import numpy as np
 from networks.network_eigenoc import EignOCNetwork
 import os
 from online_clustering import OnlineCluster
+import tensorflow_probability as tfp
 from auxilary.lstm_model import SingleStepLSTM
 
 def normalized_columns_initializer(std=1.0):
@@ -98,7 +99,7 @@ class AttentionFeudalNNNetwork(EignOCNetwork):
         self.query_goal = self.l2_normalize(goal_hat, 1)
         self.query_content_match = tf.einsum('bj, bij -> bi', self.query_goal, self.goal_clusters, name="query_content_match")
         self.query_content_match_sharp = self.query_content_match * self.config.starpening_factor
-        self.goal_distribution = tf.probability.RelaxedOneHotCategorical(self.config.temperature,
+        self.goal_distribution = tfp.distributions.RelaxedOneHotCategorical(self.config.temperature,
                                                                                    logits=self.query_content_match_sharp)
         self.attention_weights = self.goal_distribution.sample()
         self.which_goal = tf.argmax(self.attention_weights)
