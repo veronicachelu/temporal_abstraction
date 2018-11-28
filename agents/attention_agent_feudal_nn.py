@@ -160,7 +160,7 @@ class AttentionFeudalNNAgent(EigenOCAgentDyn):
   def policy_evaluation(self, s):
     self.current_clusters = self.global_network.goal_clusters.get_clusters()
     feed_dict = {self.local_network.observation: [s],
-                 self.local_network.goal_clusters: [self.current_clusters],
+                 self.local_network.goal_sr_clusters: [self.current_clusters],
                  self.local_network.prev_goals: self.last_c_g,
                  }
 
@@ -223,7 +223,7 @@ class AttentionFeudalNNAgent(EigenOCAgentDyn):
         bootstrap_V_ext = 0
       else:
         feed_dict = {self.local_network.observation: [s1],
-                     self.local_network.goal_clusters: [self.current_clusters], #self.global_network.goal_clusters.get_clusters(),
+                     self.local_network.goal_sr_clusters: [self.current_clusters], #self.global_network.goal_clusters.get_clusters(),
                      self.local_network.prev_goals: self.last_c_g,
                      }
         to_run = {"v_mix": self.local_network.v_mix,
@@ -402,7 +402,7 @@ class AttentionFeudalNNAgent(EigenOCAgentDyn):
                  self.local_network.observation: np.stack(observations, axis=0),
                  self.local_network.target_goal: np.stack(target_goals, 0),
                  self.local_network.actions_placeholder: actions,
-                 self.local_network.goal_clusters: current_clusters,
+                 self.local_network.goal_sr_clusters: current_clusters,
                  self.local_network.g_sum: np.stack(g_sums, 0),
                  self.local_network.random_goal_cond: random_goal_cond
                  }
