@@ -171,6 +171,7 @@ class AttentionFeudalNNAgent(EigenOCAgentDyn):
       "attention_weights": self.local_network.attention_weights,
       "query_content_match": self.local_network.query_content_match,
       "which_goal": self.local_network.which_goal,
+      "which_random_goal": self.local_network.which_random_goal,
       "v": self.local_network.v_ext,
       "v_mix": self.local_network.v_mix,
       "sf": self.local_network.sf,
