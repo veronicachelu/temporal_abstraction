@@ -189,13 +189,17 @@ class AttentionFeudalNNNetwork(EignOCNetwork):
     self.option_loss = self.policy_loss - self.entropy_loss + self.mix_critic_loss
 
   def l2_normalize(self, x, axis):
-      norm = tf.sqrt(tf.reduce_sum(tf.square(x), axis=axis, keepdims=True))
-      # return tf.maximum(x, 1e-8) / tf.maximum(norm, 1e-8)
-      return (x + 1e-8)/ tf.maximum(norm, 1e-8)
+    x += 1e-12
+    norm = tf.sqrt(tf.reduce_sum(tf.square(x), axis=axis, keepdims=True))
+    return x / tf.maximum(norm, 1e-12)
+    # return tf.maximum(x, 1e-8) / tf.maximum(norm, 1e-8)
+		# return x / tf.maximum(norm, 1e-8)
 
   def cosine_similarity(self, v1, v2, axis):
-    norm_v1 = tf.nn.l2_normalize(tf.cast(v1 + 1e-8, tf.float64), axis)
-    norm_v2 = tf.nn.l2_normalize(tf.cast(v2 + 1e-8, tf.float64), axis)
+    # norm_v1 = tf.nn.l2_normalize(tf.cast(v1, tf.float64), axis)
+    # norm_v2 = tf.nn.l2_normalize(tf.cast(v2, tf.float64), axis)
+    norm_v1 = tf.nn.l2_normalize(tf.cast(v1 + 1e-12, tf.float64), axis)
+    norm_v2 = tf.nn.l2_normalize(tf.cast(v2 + 1e-12, tf.float64), axis)
     # norm_v1 = self.l2_normalize(tf.cast(v1, tf.float64), axis)
     # norm_v2 = self.l2_normalize(tf.cast(v2, tf.float64), axis)
     sim = tf.matmul(

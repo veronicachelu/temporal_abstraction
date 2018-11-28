@@ -491,9 +491,22 @@ class AttentionFeudalNNAgent(EigenOCAgentDyn):
     ax1.set_aspect(1.0)
     ax1.axis('off')
     ax1.set_title(f'Goal', fontsize=80)
-    sns.heatmap(reproj_goal_occupancy, cmap="Blues", ax=ax1)
+    sns.heatmap(reproj_goal_occupancy, cmap="Blues", ax=ax1, annot=True, fmt='g')
     # self.plot_policy_embedding(self.g, ax1)
-
+    """Adding borders"""
+    for idx in range(self.nb_states):
+      ii, jj = self.env.get_state_xy(idx)
+      if self.env.not_wall(ii, jj):
+        continue
+      else:
+        ax1.add_patch(
+          patches.Rectangle(
+            (jj, self.config.input_size[0] - ii - 1),  # (x,y)
+            1.0,  # width
+            1.0,  # height
+            facecolor="gray"
+          )
+        )
     f.add_subplot(ax1)
 
     ax2 = plt.Subplot(f, gs01[0:2, 0:2])
