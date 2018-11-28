@@ -72,11 +72,11 @@ class AttentionFeudalNNNetwork(EignOCNetwork):
         self.next_obs = tf.reshape(out,
                                    (-1, self.config.input_size[0], self.config.input_size[1], self.config.history_size))
 
-      goal_clusters = tf.placeholder(shape=[self.config.nb_options,
+      goal_clusters = tf.placeholder(shape=[None, self.config.nb_options,
                                                  self.goal_embedding_size],
                                           dtype=tf.float32,
                                           name="goal_clusters")
-      self.goal_clusters = tf.nn.l2_normalize(goal_clusters, 1)
+      self.goal_clusters = tf.nn.l2_normalize(goal_clusters, 2)
 
 
       self.image_summaries.append(
@@ -96,19 +96,21 @@ class AttentionFeudalNNNetwork(EignOCNetwork):
                                                     activation_fn=None,
                                                     scope="goal_hat")
         self.query_goal = self.l2_normalize(goal_hat, 1)
-        self.query_content_match = tf.einsum('bj, ij -> bi', self.query_goal, self.goal_clusters, name="query_content_match")
+        self.query_content_match = tf.einsum('bj, bij -> bi', self.query_goal, self.goal_clusters, name="query_content_match")
         self.query_content_match_sharp = self.query_content_match * self.config.starpening_factor
-        self.goal_distribution = tf.contrib.distributions.RelaxedOneHotCategorical(self.config.temperature,
+        self.goal_distribution = tf.probability.RelaxedOneHotCategorical(self.config.temperature,
                                                                                    logits=self.query_content_match_sharp)
         self.attention_weights = self.goal_distribution.sample()
         self.which_goal = tf.argmax(self.attention_weights)
-        self.current_unnormalized_goal = tf.einsum('bi, ij -> bj', self.attention_weights, self.goal_clusters, name="unnormalized_g")
+        self.current_unnormalized_goal = tf.einsum('bi, bij -> bj', self.attention_weights, self.goal_clusters, name="unnormalized_g")
         self.max_g = tf.identity(self.l2_normalize(self.current_unnormalized_goal, 1), name="g")
 
         self.local_random = tf.random_uniform(shape=[tf.shape(self.max_g)[0]], minval=0., maxval=1., dtype=tf.float32, name="rand_goals")
         random_goal_sampling = tf.distributions.Categorical(probs=[1/(self.config.nb_options) for _ in range(self.config.nb_options)])
         self.which_random_goal = random_goal_sampling.sample(tf.shape(self.max_g)[0])
-        self.random_g = tf.gather(self.goal_clusters, self.which_random_goal)
+        # self.random_g = tf.gather(self.goal_clusters, self.which_random_goal, axis=1)
+        indices_random_goal = tf.stack([tf.range(tf.shape(self.which_random_goal)[0]), self.which_random_goal], axis=1)
+        self.random_g = tf.gather_nd(self.goal_clusters, indices_random_goal)
         self.random_goal_cond = self.local_random > self.prob_of_random_goal
         self.g = tf.where(self.random_goal_cond, self.max_g, self.random_g, name="current_goal")
 
@@ -184,8 +186,9 @@ class AttentionFeudalNNNetwork(EignOCNetwork):
       self.critic_loss = tf.reduce_mean(0.5 * tf.square(td_error))
 
     with tf.name_scope('goal_loss'):
-      self.goal_loss = -tf.reduce_mean(
-        self.cosine_similarity(self.target_goal, self.g, 1) * tf.stop_gradient(td_error))
+      cosine = self.cosine_similarity(self.target_goal, self.g, 1)
+      self.cosine_sim = tf.reduce_mean(cosine)
+      self.goal_loss = -tf.reduce_mean(cosine * tf.stop_gradient(td_error))
 
     with tf.name_scope('entropy_loss'):
       self.entropy_loss = -self.entropy_coef * tf.reduce_mean(self.g_policy * tf.log(self.g_policy + 1e-7))
@@ -248,7 +251,8 @@ class AttentionFeudalNNNetwork(EignOCNetwork):
                                                   [tf.summary.scalar('Critic_loss', self.critic_loss),
                                                    gradient_summaries(zip(self.grads_critic, local_vars))])
     self.merged_summary_goal = tf.summary.merge(self.image_summaries_goal +
-                                                [tf.summary.scalar('goal_loss', self.goal_loss),
+                                                [tf.summary.scalar('cosine_product', self.cosine_sim),
+                                                  tf.summary.scalar('goal_loss', self.goal_loss),
                                                  gradient_summaries(zip(self.grads_goal, local_vars))])
 
   def init_clustering(self):
