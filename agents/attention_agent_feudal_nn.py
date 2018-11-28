@@ -491,23 +491,93 @@ class AttentionFeudalNNAgent(EigenOCAgentDyn):
     ax1.set_aspect(1.0)
     ax1.axis('off')
     ax1.set_title(f'Goal', fontsize=80)
-    sns.heatmap(reproj_goal_occupancy, cmap="Blues", ax=ax1, annot=True, fmt='g')
-    # self.plot_policy_embedding(self.g, ax1)
+    # sns.heatmap(np.zeros([self.config.input_size[0],
+    # self.config.input_size[1]]), cmap="Blues", ax=ax1)
+
     """Adding borders"""
     for idx in range(self.nb_states):
-      ii, jj = self.env.get_state_xy(idx)
-      if self.env.not_wall(ii, jj):
-        continue
+      i, j = self.env.get_state_xy(idx)
+      if self.env.not_wall(i, j):
+        if reproj_goal_occupancy[i][j] == 0:
+          ax1.add_patch(
+            patches.Rectangle(
+              (j, self.config.input_size[0] - i - 1),  # (x,y)
+              1.0,  # width
+              1.0,  # height
+              facecolor="white"
+            )
+          )
+        else:
+          ax1.text(j, self.config.input_size[0] - i - 1,
+                            int(reproj_goal_occupancy[i][j]), fontsize=80, color='k')
+        # ax1.arrow(j + 0.5, self.config.input_size[0] - i + 0.5 - 1, 0.35, 0.35,
+        #           head_width=0.2, head_length=0.2, fc='k', ec='k', linewidth=1)
       else:
         ax1.add_patch(
           patches.Rectangle(
-            (jj, self.config.input_size[0] - ii - 1),  # (x,y)
+            (j, self.config.input_size[0] - i - 1),  # (x,y)
             1.0,  # width
             1.0,  # height
             facecolor="gray"
           )
         )
+
+      ax1.set_xlim([0, self.config.input_size[1]])
+      ax1.set_xlim([0, self.config.input_size[0]])
+
+      for i in range(self.config.input_size[1]):
+        ax1.axvline(i, color='k', linestyle=':')
+      ax1.axvline(self.config.input_size[1], color='k', linestyle=':')
+
+      for j in range(self.config.input_size[0]):
+        ax1.axhline(j, color='k', linestyle=':')
+      ax1.axhline(self.config.input_size[0], color='k', linestyle=':')
+			#
+      # if self.env.not_wall(ii, jj):
+      #   r = patches.Rectangle(
+      #       (jj, self.config.input_size[0] - ii - 1),  # (x,y)
+      #       1.0,  # width
+      #       1.0,  # height
+      #       color="blue"
+      #     )
+      #   ax1.add_patch(r)
+      #   ax1.annotate(r, (jj + 0.5, self.config.input_size[0] - ii - 1 + 0.5), color='k', weight='bold', fontsize=80, ha='center', va='center')
+        # ax1.text(jj, self.config.input_size[0] - ii - 1,
+        #          reproj_goal_occupancy[ii][jj], fontsize=80)
+      # else:
+      #   ax1.add_patch(
+      #     patches.Rectangle(
+      #       (jj, self.config.input_size[0] - ii - 1),  # (x,y)
+      #       1.0,  # width
+      #       1.0,  # height
+      #       color="white"
+      #     )
+      #   )
     f.add_subplot(ax1)
+
+    # sns.heatmap(reproj_goal_occupancy, cmap="Blues", ax=ax1, annot=True)
+    # for i in range(self.config.input_size[0]):
+    #   for j in range(self.config.input_size[1]):
+    #     text = ax1.text(j, i, reproj_goal_occupancy[i][j],
+    #                    ha="center", va="center", color="k")
+
+    # self.plot_policy_embedding(self.g, ax1)
+    # """Adding borders"""
+    # for idx in range(self.nb_states):
+    #   ii, jj = self.env.get_state_xy(idx)
+    #   if self.env.not_wall(ii, jj):
+    #     # ax1.text(jj, self.config.input_size[0] - ii - 1, reproj_goal_occupancy[ii][jj], fontsize=80)
+    #     continue
+    #   else:
+    #     ax1.add_patch(
+    #       patches.Rectangle(
+    #         (jj, self.config.input_size[0] - ii - 1),  # (x,y)
+    #         1.0,  # width
+    #         1.0,  # height
+    #         facecolor="gray"
+    #       )
+    #     )
+    # f.add_subplot(ax1)
 
     ax2 = plt.Subplot(f, gs01[0:2, 0:2])
     ax2.set_aspect(1.0)
