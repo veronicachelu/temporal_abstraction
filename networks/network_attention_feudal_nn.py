@@ -77,7 +77,7 @@ class AttentionFeudalNNNetwork(EignOCNetwork):
                                                  self.goal_embedding_size],
                                           dtype=tf.float32,
                                           name="goal_clusters")
-      self.goal_clusters = tf.nn.l2_normalize(goal_clusters, 2)
+      self.goal_sr_clusters = tf.nn.l2_normalize(goal_clusters, 2)
 
 
       self.image_summaries.append(
@@ -97,24 +97,24 @@ class AttentionFeudalNNNetwork(EignOCNetwork):
                                                     activation_fn=None,
                                                     scope="goal_hat")
         self.query_goal = self.l2_normalize(goal_hat, 1)
-        self.query_content_match = tf.einsum('bj, bij -> bi', self.query_goal, self.goal_clusters, name="query_content_match")
+        self.query_content_match = tf.einsum('bj, bij -> bi', self.query_goal, self.goal_sr_clusters, name="query_content_match")
         self.query_content_match_sharp = self.query_content_match * self.config.starpening_factor
         self.goal_distribution = tfp.distributions.RelaxedOneHotCategorical(self.config.temperature,
                                                                                    logits=self.query_content_match_sharp)
         self.attention_weights = self.goal_distribution.sample()
-        self.which_goal = tf.argmax(self.attention_weights)
-        self.current_unnormalized_goal = tf.einsum('bi, bij -> bj', self.attention_weights, self.goal_clusters, name="unnormalized_g")
+        self.which_goal = tf.argmax(self.attention_weights, 1)
+        self.current_unnormalized_goal = tf.einsum('bi, bij -> bj', self.attention_weights, self.goal_sr_clusters, name="unnormalized_g")
         self.max_g = tf.identity(self.l2_normalize(self.current_unnormalized_goal, 1), name="g")
 
         self.local_random = tf.random_uniform(shape=[tf.shape(self.max_g)[0]], minval=0., maxval=1., dtype=tf.float32, name="rand_goals")
-        random_goal_sampling = tf.distributions.Categorical(probs=[1/(self.config.nb_options) for _ in range(self.config.nb_options)])
-        self.which_random_goal = random_goal_sampling.sample(tf.shape(self.max_g)[0])
-        # self.random_g = tf.gather(self.goal_clusters, self.which_random_goal, axis=1)
-        indices_random_goal = tf.stack([tf.range(tf.shape(self.which_random_goal)[0]), self.which_random_goal], axis=1)
-        self.random_g = tf.gather_nd(self.goal_clusters, indices_random_goal)
-        self.random_goal_cond = self.local_random > self.prob_of_random_goal
-        self.g = tf.where(self.random_goal_cond, self.max_g, self.random_g, name="current_goal")
-
+        # random_goal_sampling = tf.distributions.Categorical(probs=[1/(self.config.nb_options) for _ in range(self.config.nb_options)])
+        # self.which_random_goal = random_goal_sampling.sample(tf.shape(self.max_g)[0])
+        # self.random_g = tf.gather(self.goal_sr_clusters, self.which_random_goal, axis=1)
+        # indices_random_goal = tf.stack([tf.range(tf.shape(self.which_random_goal)[0]), self.which_random_goal], axis=1)
+        # self.random_g = tf.gather_nd(self.goal_sr_clusters, indices_random_goal)
+        self.random_goal_cond = self.local_random > 0.0
+        # self.g = tf.where(self.random_goal_cond, self.max_g, self.random_g, name="current_goal")
+        self.g = self.max_g
         cut_g = tf.stop_gradient(self.g)
         cut_g = tf.expand_dims(cut_g, 1)
         self.g_stack = tf.placeholder_with_default(shape=[None, None, self.goal_embedding_size],
