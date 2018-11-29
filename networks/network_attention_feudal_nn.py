@@ -123,11 +123,10 @@ class AttentionFeudalNNNetwork(EignOCNetwork):
         self.last_c_g = self.g_stack[:, 1:]
         self.g_sum = tf.reduce_sum(self.g_stack, 1)
 
+      with tf.variable_scope("option_manager_value_ext"):
         phi = tf.get_variable("phi", (self.goal_embedding_size, self.config.goal_projected_size),
                               initializer=normalized_columns_initializer(1.))
         self.goal_projected = tf.matmul(self.g_sum, phi)
-
-      with tf.variable_scope("option_manager_value_ext"):
         extrinsic_features = layers.fully_connected(tf.stop_gradient(self.fi_relu),
                                                num_outputs=self.goal_embedding_size,
                                                activation_fn=tf.nn.relu,

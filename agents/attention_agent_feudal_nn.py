@@ -33,6 +33,7 @@ class AttentionFeudalNNAgent(EigenOCAgentDyn):
     self.episode_buffer_option = []
     self.episode_goals = []
     self.episode_g_sums = []
+    self.episode_fis = []
     self.episode_clusters = []
     self.states = []
     self.episode_length = 0
@@ -217,9 +218,10 @@ class AttentionFeudalNNAgent(EigenOCAgentDyn):
   def option_prediction(self, s, s1):
     """Adding to the transition buffer for doing n-step prediction on critics and policies"""
     self.episode_buffer_option.append(
-      [s, self.action, self.reward, s1, self.fi, self.random_goal_cond])
+      [s, self.action, self.reward, self.random_goal_cond])
     self.episode_goals.append(self.g)
     self.episode_g_sums.append(self.g_sum)
+    self.episode_fis.append(self.fi)
     self.episode_clusters.append(self.current_clusters)
 
     if len(self.episode_buffer_option) >= self.config.max_update_freq or self.done:
@@ -229,7 +231,7 @@ class AttentionFeudalNNAgent(EigenOCAgentDyn):
         bootstrap_V_ext = 0
       else:
         feed_dict = {self.local_network.observation: [s1],
-                     self.local_network.goal_sr_clusters: [self.current_clusters], #self.global_network.goal_clusters.get_clusters(),
+                     self.local_network.goal_sr_clusters: self.global_network.goal_clusters.get_clusters(),
                      self.local_network.prev_goals: self.last_c_g,
                      }
         to_run = {"v_mix": self.local_network.v_mix,
@@ -247,6 +249,7 @@ class AttentionFeudalNNAgent(EigenOCAgentDyn):
         self.episode_buffer_option = self.episode_buffer_option[-twoc:]
         self.episode_goals = self.episode_goals[-twoc:]
         self.episode_g_sums = self.episode_g_sums[-twoc:]
+        self.episode_fis = self.episode_fis[-twoc:]
         self.episode_clusters = self.episode_clusters[-twoc:]
 
 
@@ -267,10 +270,10 @@ class AttentionFeudalNNAgent(EigenOCAgentDyn):
     observations = rollout[:, 0]
     fi = rollout[:, 1]
 
-    """Get the latent representations for each state"""
-    feed_dict = {self.local_network.observation: np.stack(observations, axis=0)}
-    fi = self.sess.run(self.local_network.fi,
-                       feed_dict=feed_dict)
+    # """Get the latent representations for each state"""
+    # feed_dict = {self.local_network.observation: np.stack(observations, axis=0)}
+    # fi = self.sess.run(self.local_network.fi,
+    #                    feed_dict=feed_dict)
 
     """Construct list of latent representations for the entire trajectory"""
     sf_plus = np.asarray(fi.tolist() + [bootstrap_sf])
@@ -355,8 +358,8 @@ class AttentionFeudalNNAgent(EigenOCAgentDyn):
     observations = rollout[:, 0]
     actions = rollout[:, 1]
     rewards = rollout[:, 2]
-    fi = rollout[:, 4]
-    random_goal_cond = rollout[:, 5]
+    fi = self.episode_fis
+    random_goal_cond = rollout[:, 3]
     goals = self.episode_goals
     g_sums = self.episode_g_sums
     current_clusters = self.episode_clusters
@@ -415,25 +418,18 @@ class AttentionFeudalNNAgent(EigenOCAgentDyn):
                  }
 
     to_run = {
-             "summary_goal": self.local_network.merged_summary_goal
+             "summary_goal": self.local_network.merged_summary_goal,
+             "summary_critic": self.local_network.merged_summary_critic,
+             "summary_option": self.local_network.merged_summary_option,
             }
     if self.name != "worker_0":
       to_run["apply_grad_goal"] = self.local_network.apply_grads_goal
+      to_run["apply_grads_critic"] = self.local_network.apply_grads_critic
+      to_run["apply_grads_option"] = self.local_network.apply_grads_option
 
     """Do an update on the intra-option policies"""
     results = self.sess.run(to_run, feed_dict=feed_dict)
     self.summaries_goal = results["summary_goal"]
-
-    to_run = {
-      "summary_option": self.local_network.merged_summary_option,
-      "summary_critic": self.local_network.merged_summary_critic,
-
-    }
-    if self.name != "worker_0":
-      to_run["apply_grads_option"] = self.local_network.apply_grads_option
-      to_run["apply_grads_critic"] = self.local_network.apply_grads_critic
-
-    results = self.sess.run(to_run, feed_dict=feed_dict)
     self.summaries_critic = results["summary_critic"]
     self.summaries_option = results["summary_option"]
 
