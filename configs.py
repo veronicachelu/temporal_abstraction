@@ -525,9 +525,9 @@ def attention_feudal_nn():
 	summary_interval = 1
 	checkpoint_interval = 1
 	cluster_interval = 10
-	initial_random_goal_prob = 0.1
+	initial_random_goal_prob = 0
 	final_random_goal_prob = 0
-	temperature = 0.01
+	temperature = 0.5
 	goal_projected_size = 64
 	starpening_factor = 10
 	max_update_freq = 30
