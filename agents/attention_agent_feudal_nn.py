@@ -138,15 +138,16 @@ class AttentionFeudalNNAgent(EigenOCAgentDyn):
             if self.global_episode_np % self.config.summary_interval == 0:
               self.write_summaries()
 
-            # if self.global_episode_np % self.config.cluster_interval == 0:
+            if self.global_episode_np % self.config.cluster_interval == 0:
+              self.print_g()
 
           """If it's time to change the task - move the goal, wait for all other threads to finish the current task"""
           if self.total_episodes % self.config.move_goal_nb_of_ep == 0 and \
                   self.total_episodes != 0:
             tf.logging.info(f"Moving GOAL....{self.total_episodes}")
 
-            if self.name == "worker_0":
-              self.print_g()
+            # if self.name == "worker_0":
+            #   self.print_g()
 
             self.barrier.wait()
             self.goal_position = self.env.set_goal(self.total_episodes, self.config.move_goal_nb_of_ep)
@@ -641,36 +642,36 @@ class AttentionFeudalNNAgent(EigenOCAgentDyn):
         )
     f.add_subplot(ax3)
 
-    indx = [[0, 0], [0, 3], [0, 6], [0, 9],
-            [2, 0], [2, 3], [2, 6], [2, 9]]
-
-    for k in range(len(clusters)):
-      # reproj_cluster = clusters[k].reshape(
-      #   self.config.input_size[0],
-      #   self.config.input_size[1])
-
-      """Plot of the eigenvector"""
-      axn = plt.Subplot(f, gs02[indx[k][0]:(indx[k][0]+2), indx[k][1]:(indx[k][1]+3)])
-      axn.set_aspect(1.0)
-      axn.axis('off')
-      axn.set_title("%.3f/%.3f" % (self.attention_weights[k], self.query_content_match[k]), fontsize=80)
-      self.plot_policy_embedding(clusters[k], axn)
-
-      """Adding borders"""
-      for idx in range(self.nb_states):
-        ii, jj = self.env.get_state_xy(idx)
-        if self.env.not_wall(ii, jj):
-          continue
-        else:
-          axn.add_patch(
-            patches.Rectangle(
-              (jj, self.config.input_size[0] - ii - 1),  # (x,y)
-              1.0,  # width
-              1.0,  # height
-              facecolor="gray"
-            )
-          )
-      f.add_subplot(axn)
+    # indx = [[0, 0], [0, 3], [0, 6], [0, 9],
+    #         [2, 0], [2, 3], [2, 6], [2, 9]]
+		#
+    # for k in range(len(clusters)):
+    #   # reproj_cluster = clusters[k].reshape(
+    #   #   self.config.input_size[0],
+    #   #   self.config.input_size[1])
+		#
+    #   """Plot of the eigenvector"""
+    #   axn = plt.Subplot(f, gs02[indx[k][0]:(indx[k][0]+2), indx[k][1]:(indx[k][1]+3)])
+    #   axn.set_aspect(1.0)
+    #   axn.axis('off')
+    #   axn.set_title("%.3f/%.3f" % (self.attention_weights[k], self.query_content_match[k]), fontsize=80)
+    #   self.plot_policy_embedding(clusters[k], axn)
+		#
+    #   """Adding borders"""
+    #   for idx in range(self.nb_states):
+    #     ii, jj = self.env.get_state_xy(idx)
+    #     if self.env.not_wall(ii, jj):
+    #       continue
+    #     else:
+    #       axn.add_patch(
+    #         patches.Rectangle(
+    #           (jj, self.config.input_size[0] - ii - 1),  # (x,y)
+    #           1.0,  # width
+    #           1.0,  # height
+    #           facecolor="gray"
+    #         )
+    #       )
+    #   f.add_subplot(axn)
 
     """Saving plots"""
     plt.savefig(os.path.join(self.policy_folder, f'g_{self.global_step_np}_{self.global_episode_np}.png'))
