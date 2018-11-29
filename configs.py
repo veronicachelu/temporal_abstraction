@@ -524,7 +524,7 @@ def attention_feudal_nn():
 	use_clustering = True
 	summary_interval = 1
 	checkpoint_interval = 1
-	cluster_interval = 50
+	cluster_interval = 10
 	initial_random_goal_prob = 0
 	final_random_goal_prob = 0
 	temperature = 0.5
@@ -543,6 +543,8 @@ def attention_feudal_nn():
 	network = AttentionFeudalNNNetwork
 	# goal_locations = [(9, 11), (5, 2), (1, 10), (2, 2), (6, 2), (9, 11), (2, 7)]
 	goal_locations = [(1, 11)]
+	env = functools.partial(
+		GridWorld, goal_locations, "./mdps/4rooms.mdp")
 	discount = 0.99
 	batch_size = 16
 	"""The size of the experience replay buffer"""
