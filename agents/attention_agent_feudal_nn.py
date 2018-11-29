@@ -209,10 +209,10 @@ class AttentionFeudalNNAgent(EigenOCAgentDyn):
       self.action = np.random.choice(range(self.action_size))
 
     which_goal = self.which_goal if self.random_goal_cond else self.which_random_goal
-    if self.name == "worker_0" and self.global_step_np % 100 == 0:
-      print(f"Deterministic goal: {self.random_goal_cond} >>"
-          f" Chosen goal: {which_goal} >> Random action {self.global_episode_np < self.config.cold_start_episodes} >> Chosen action {self.action} >>> Attention_weights: {self.attention_weights} >>> query_content_match {self.query_content_match}")
-    """Store information in buffers for stats in tensorboard"""
+    # if self.name == "worker_0" and self.global_step_np % 100 == 0:
+    #   print(f"Deterministic goal: {self.random_goal_cond} >>"
+    #       f" Chosen goal: {which_goal} >> Random action {self.global_episode_np < self.config.cold_start_episodes} >> Chosen action {self.action} >>> Attention_weights: {self.attention_weights} >>> query_content_match {self.query_content_match}")
+    # """Store information in buffers for stats in tensorboard"""
     self.episode_actions.append(self.action)
 
   """Do n-step prediction for the returns and update the option policies and critics"""
