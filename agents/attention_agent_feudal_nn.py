@@ -231,7 +231,7 @@ class AttentionFeudalNNAgent(EigenOCAgentDyn):
         bootstrap_V_ext = 0
       else:
         feed_dict = {self.local_network.observation: [s1],
-                     self.local_network.goal_sr_clusters: self.global_network.goal_clusters.get_clusters(),
+                     self.local_network.goal_sr_clusters: [self.global_network.goal_clusters.get_clusters()],
                      self.local_network.prev_goals: self.last_c_g,
                      }
         to_run = {"v_mix": self.local_network.v_mix,
