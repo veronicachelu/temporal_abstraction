@@ -525,14 +525,14 @@ def attention_feudal_nn():
 	summary_interval = 1
 	checkpoint_interval = 1
 	cluster_interval = 10
-	initial_random_goal_prob = 0
+	initial_random_goal_prob = 0.1
 	final_random_goal_prob = 0
-	temperature = 0.5
+	temperature = 0.01
 	goal_projected_size = 64
 	starpening_factor = 10
 	max_update_freq = 30
 	c = 2
-	cold_start_episodes = 20
+	cold_start_episodes = 0
 	"""The kind of agent to use in the environment"""
 	target_agent = AttentionFeudalNNAgent
 	"""The number test episodes to execute, over which to average results"""
